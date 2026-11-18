@@ -7,6 +7,7 @@
 业务原因：task_assembler.py 单文件超过 350 行限制，按职责将后台执行
 与终态推送逻辑集中到独立文件，主类聚焦于任务创建与编排。
 """
+
 from collections.abc import Callable
 
 from loguru import logger
@@ -40,9 +41,7 @@ async def run_executor_safely(
     session = PrimarySessionLocal()
     try:
         executor = executor_factory(session)
-        await executor.execute_test_task(
-            task_id=task_id, execution_mode="smart"
-        )
+        await executor.execute_test_task(task_id=task_id, execution_mode="smart")
     except Exception as exc:
         logger.error(f"任务执行引擎异常: task_id={task_id} err={exc}")
         try:
@@ -80,20 +79,35 @@ async def push_final_status(
             return
         channel = f"quick_test:{task_id}"
         if task.status == TaskStatus.COMPLETED:
-            await push_service.push(channel, {
-                "stage": "completed", "status": "done", "progress": 100,
-                "detail": {"task_id": task_id},
-            })
+            await push_service.push(
+                channel,
+                {
+                    "stage": "completed",
+                    "status": "done",
+                    "progress": 100,
+                    "detail": {"task_id": task_id},
+                },
+            )
         elif task.status == TaskStatus.FAILED:
-            await push_service.push(channel, {
-                "stage": "failed", "status": "error", "progress": 100,
-                "detail": {"message": "执行失败", "task_id": task_id},
-            })
+            await push_service.push(
+                channel,
+                {
+                    "stage": "failed",
+                    "status": "error",
+                    "progress": 100,
+                    "detail": {"message": "执行失败", "task_id": task_id},
+                },
+            )
         elif task.status == TaskStatus.STOPPED:
-            await push_service.push(channel, {
-                "stage": "stopped", "status": "done", "progress": 100,
-                "detail": {"message": "任务已停止", "task_id": task_id},
-            })
+            await push_service.push(
+                channel,
+                {
+                    "stage": "stopped",
+                    "status": "done",
+                    "progress": 100,
+                    "detail": {"message": "任务已停止", "task_id": task_id},
+                },
+            )
     except Exception as exc:
         logger.warning(f"终态推送失败: task_id={task_id} err={exc}")
 

@@ -25,16 +25,13 @@
     - generate_status 使用 `is not None` 判断而非布尔判断，因为0也是有效值
     - JOIN查询在Project表上有user_id索引支撑，性能可控
 """
+
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase
 from app.models.project import Project
 
 
-def get_test_case_by_id(
-    db: Session,
-    test_case_id: int,
-    project_id: int
-) -> TestCase | None:
+def get_test_case_by_id(db: Session, test_case_id: int, project_id: int) -> TestCase | None:
     """
     根据ID获取测试用例
 
@@ -49,17 +46,14 @@ def get_test_case_by_id(
     Returns:
         Optional[TestCase]: 测试用例对象，不存在则返回None
     """
-    return db.query(TestCase).filter(
-        TestCase.id == test_case_id,
-        TestCase.project_id == project_id,
-        TestCase.is_deleted.is_(False)
-    ).first()
+    return (
+        db.query(TestCase)
+        .filter(TestCase.id == test_case_id, TestCase.project_id == project_id, TestCase.is_deleted.is_(False))
+        .first()
+    )
 
 
-def get_test_case_by_case_no(
-    db: Session,
-    case_no: str
-) -> TestCase | None:
+def get_test_case_by_case_no(db: Session, case_no: str) -> TestCase | None:
     """
     根据用例编号获取测试用例
 
@@ -76,10 +70,7 @@ def get_test_case_by_case_no(
     Note:
         此函数未做用户权限过滤，调用方需自行校验访问权限。
     """
-    return db.query(TestCase).filter(
-        TestCase.case_no == case_no,
-        TestCase.is_deleted.is_(False)
-    ).first()
+    return db.query(TestCase).filter(TestCase.case_no == case_no, TestCase.is_deleted.is_(False)).first()
 
 
 def get_test_cases_by_project(
@@ -91,7 +82,7 @@ def get_test_cases_by_project(
     generate_status: int | None = None,
     lifecycle_status: str | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[TestCase]:
     """
     获取项目的测试用例列表（支持多条件动态过滤+分页）
@@ -118,10 +109,7 @@ def get_test_cases_by_project(
         - 此函数未做用户权限过滤，适用于内部调用；对外接口应使用
           get_test_cases_by_project_and_user
     """
-    query = db.query(TestCase).filter(
-        TestCase.project_id == project_id,
-        TestCase.is_deleted.is_(False)
-    )
+    query = db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False))
     # 动态追加过滤条件：仅当参数非空时才加入WHERE子句
     if module:
         query = query.filter(TestCase.module == module)
@@ -147,7 +135,7 @@ def get_test_cases_by_project_and_user(
     generate_status: int | None = None,
     lifecycle_status: str | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[TestCase]:
     """
     获取用户项目的测试用例列表（带权限过滤+多条件动态过滤+分页）
@@ -174,10 +162,10 @@ def get_test_cases_by_project_and_user(
         且user_id字段有索引支撑，性能影响可控。
     """
     # JOIN Project表：通过Project.user_id实现用户权限隔离
-    query = db.query(TestCase).join(Project).filter(
-        TestCase.project_id == project_id,
-        Project.user_id == user_id,
-        TestCase.is_deleted.is_(False)
+    query = (
+        db.query(TestCase)
+        .join(Project)
+        .filter(TestCase.project_id == project_id, Project.user_id == user_id, TestCase.is_deleted.is_(False))
     )
     # 动态追加过滤条件
     if module:
@@ -201,7 +189,7 @@ def get_test_cases_count(
     priority: int | None = None,
     case_type: str | None = None,
     generate_status: int | None = None,
-    lifecycle_status: str | None = None
+    lifecycle_status: str | None = None,
 ) -> int:
     """
     获取测试用例数量（带权限过滤+多条件动态过滤）
@@ -224,10 +212,10 @@ def get_test_cases_count(
     Note:
         使用 COUNT(*) 查询，不加载完整对象，性能优于先all()再len()。
     """
-    query = db.query(TestCase).join(Project).filter(
-        TestCase.project_id == project_id,
-        Project.user_id == user_id,
-        TestCase.is_deleted.is_(False)
+    query = (
+        db.query(TestCase)
+        .join(Project)
+        .filter(TestCase.project_id == project_id, Project.user_id == user_id, TestCase.is_deleted.is_(False))
     )
     if module:
         query = query.filter(TestCase.module == module)
@@ -242,11 +230,7 @@ def get_test_cases_count(
     return query.count()
 
 
-def get_failed_test_cases(
-    db: Session,
-    project_id: int,
-    user_id: int
-) -> list[TestCase]:
+def get_failed_test_cases(db: Session, project_id: int, user_id: int) -> list[TestCase]:
     """
     获取生成失败的测试用例
 
@@ -266,9 +250,14 @@ def get_failed_test_cases(
         - 此查询未加分页，适用于失败用例数量较少的场景；
           若失败用例可能较多，建议增加limit参数
     """
-    return db.query(TestCase).join(Project).filter(
-        TestCase.project_id == project_id,
-        Project.user_id == user_id,
-        TestCase.generate_status == 2,
-        TestCase.is_deleted.is_(False)
-    ).all()
+    return (
+        db.query(TestCase)
+        .join(Project)
+        .filter(
+            TestCase.project_id == project_id,
+            Project.user_id == user_id,
+            TestCase.generate_status == 2,
+            TestCase.is_deleted.is_(False),
+        )
+        .all()
+    )

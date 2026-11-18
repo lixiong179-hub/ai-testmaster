@@ -5,6 +5,7 @@
 
 公共符号通过 signal_gatherer.py 重新导出，保持 import 路径不变。
 """
+
 import json
 from typing import Any
 
@@ -32,9 +33,7 @@ def _load_change_notes_from_input(inp: Any) -> str:
     return ""
 
 
-def _load_ui_from_input(
-    ctx: PipelineContext, inp: Any, project_id: int
-) -> tuple[list[dict], list[dict], list[int]]:
+def _load_ui_from_input(ctx: PipelineContext, inp: Any, project_id: int) -> tuple[list[dict], list[dict], list[int]]:
     from app.models.ui_prototype import UIPrototypeScreen
     from app.crud import file as file_crud
 
@@ -47,36 +46,50 @@ def _load_ui_from_input(
         if screen.id in seen_screen_ids:
             return
         seen_screen_ids.add(screen.id)
-        ui_descriptions.append({
-            "screen_id": screen.id,
-            "screen_name": screen.screen_name,
-            "description": screen.summary or "",
-        })
-        if screen.ui_spec:
-            ui_specs.append({
+        ui_descriptions.append(
+            {
                 "screen_id": screen.id,
                 "screen_name": screen.screen_name,
-                "ui_spec": screen.ui_spec,
-            })
+                "description": screen.summary or "",
+            }
+        )
+        if screen.ui_spec:
+            ui_specs.append(
+                {
+                    "screen_id": screen.id,
+                    "screen_name": screen.screen_name,
+                    "ui_spec": screen.ui_spec,
+                }
+            )
 
     if inp.payload and isinstance(inp.payload, dict):
         screen_ids = _collect_ui_screen_ids(inp.payload)
         if screen_ids:
-            screens = ctx.db.query(UIPrototypeScreen).filter(
-                UIPrototypeScreen.id.in_(screen_ids),
-                UIPrototypeScreen.project_id == project_id,
-            ).order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id).all()
+            screens = (
+                ctx.db.query(UIPrototypeScreen)
+                .filter(
+                    UIPrototypeScreen.id.in_(screen_ids),
+                    UIPrototypeScreen.project_id == project_id,
+                )
+                .order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id)
+                .all()
+            )
             for screen in screens:
                 append_screen(screen)
             return ui_descriptions, ui_specs, file_ids
 
         prototype_project_ids = _collect_prototype_project_ids(inp.payload)
         if prototype_project_ids:
-            screens = ctx.db.query(UIPrototypeScreen).filter(
-                UIPrototypeScreen.project_id == project_id,
-                UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
-                UIPrototypeScreen.parse_status == "completed",
-            ).order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id).all()
+            screens = (
+                ctx.db.query(UIPrototypeScreen)
+                .filter(
+                    UIPrototypeScreen.project_id == project_id,
+                    UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
+                    UIPrototypeScreen.parse_status == "completed",
+                )
+                .order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id)
+                .all()
+            )
             for screen in screens:
                 append_screen(screen)
             return ui_descriptions, ui_specs, file_ids
@@ -85,20 +98,29 @@ def _load_ui_from_input(
         file_record = file_crud.get_file_by_id(ctx.db, inp.file_id, project_id)
         if file_record and file_record.resource_type == "ui_mockup":
             file_ids.append(inp.file_id)
-            screens = ctx.db.query(UIPrototypeScreen).filter(
-                UIPrototypeScreen.project_id == project_id,
-                UIPrototypeScreen.prototype_name == file_record.file_name,
-                UIPrototypeScreen.parse_status == "completed",
-            ).all()
+            screens = (
+                ctx.db.query(UIPrototypeScreen)
+                .filter(
+                    UIPrototypeScreen.project_id == project_id,
+                    UIPrototypeScreen.prototype_name == file_record.file_name,
+                    UIPrototypeScreen.parse_status == "completed",
+                )
+                .all()
+            )
             for screen in screens:
                 append_screen(screen)
 
     if not ui_descriptions:
-        screens = ctx.db.query(UIPrototypeScreen).filter(
-            UIPrototypeScreen.project_id == project_id,
-            UIPrototypeScreen.parse_status == "completed",
-            UIPrototypeScreen.ui_spec.isnot(None),
-        ).order_by(UIPrototypeScreen.screen_order).all()
+        screens = (
+            ctx.db.query(UIPrototypeScreen)
+            .filter(
+                UIPrototypeScreen.project_id == project_id,
+                UIPrototypeScreen.parse_status == "completed",
+                UIPrototypeScreen.ui_spec.isnot(None),
+            )
+            .order_by(UIPrototypeScreen.screen_order)
+            .all()
+        )
         for screen in screens:
             append_screen(screen)
 
@@ -134,33 +156,45 @@ def _coerce_id_list(value: Any) -> list[int]:
     return ids
 
 
-def _load_test_points_from_input(
-    ctx: PipelineContext, inp: Any, project_id: int
-) -> list[dict[str, Any]]:
+def _load_test_points_from_input(ctx: PipelineContext, inp: Any, project_id: int) -> list[dict[str, Any]]:
     from app.models.test_point import TestPoint
 
     if inp.payload and isinstance(inp.payload, dict):
         point_ids = inp.payload.get("test_point_ids", [])
         if point_ids:
-            points = ctx.db.query(TestPoint).filter(
-                TestPoint.id.in_(point_ids),
-                TestPoint.project_id == project_id,
-            ).all()
+            points = (
+                ctx.db.query(TestPoint)
+                .filter(
+                    TestPoint.id.in_(point_ids),
+                    TestPoint.project_id == project_id,
+                )
+                .all()
+            )
             return [_format_test_point(p) for p in points]
 
-    points = ctx.db.query(TestPoint).filter(
-        TestPoint.project_id == project_id,
-    ).order_by(TestPoint.priority.asc(), TestPoint.id.asc()).all()
+    points = (
+        ctx.db.query(TestPoint)
+        .filter(
+            TestPoint.project_id == project_id,
+        )
+        .order_by(TestPoint.priority.asc(), TestPoint.id.asc())
+        .all()
+    )
     return [_format_test_point(p) for p in points]
 
 
 def _check_is_old_project(ctx: PipelineContext, project_id: int) -> bool:
     from app.models.test_case import TestCase as TC
-    count = ctx.db.query(TC).filter(
-        TC.project_id == project_id,
-        TC.lifecycle_status != "archived",
-        TC.is_deleted.is_(False),
-    ).count()
+
+    count = (
+        ctx.db.query(TC)
+        .filter(
+            TC.project_id == project_id,
+            TC.lifecycle_status != "archived",
+            TC.is_deleted.is_(False),
+        )
+        .count()
+    )
     return count > 0
 
 
@@ -179,13 +213,15 @@ def _parse_xmind_to_testpoints(payload: dict[str, Any], project_id: int) -> list
     results = []
     for idx, item in enumerate(data):
         if isinstance(item, dict):
-            results.append({
-                "id": -(idx + 1),
-                "module": item.get("module", "xmind"),
-                "function": item.get("function", ""),
-                "point": item.get("point", item.get("title", f"xmind节点{idx+1}")),
-                "priority": item.get("priority", 3),
-            })
+            results.append(
+                {
+                    "id": -(idx + 1),
+                    "module": item.get("module", "xmind"),
+                    "function": item.get("function", ""),
+                    "point": item.get("point", item.get("title", f"xmind节点{idx + 1}")),
+                    "priority": item.get("priority", 3),
+                }
+            )
     return results
 
 

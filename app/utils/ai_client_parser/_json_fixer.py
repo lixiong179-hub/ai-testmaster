@@ -8,8 +8,8 @@ from loguru import logger
 # 方法名覆盖 AI 常见的字符串生成/补齐/拼接/截取场景
 _JS_STRING_METHOD_RE = re.compile(
     r'("(?:[^"\\]|\\.)*")\s*\.\s*'
-    r'(?:repeat|padEnd|padStart|concat|slice|substring|substr|replace|replaceAll)'
-    r'\s*\([^()]*\)',
+    r"(?:repeat|padEnd|padStart|concat|slice|substring|substr|replace|replaceAll)"
+    r"\s*\([^()]*\)",
 )
 
 
@@ -22,12 +22,12 @@ def strip_js_string_methods(text: str) -> str:
     合法 JSON 不会出现该结构（值位置字符串后应直接跟 , 或 }），故不会误伤。
     链式调用如 "a".repeat(2).repeat(3) 通过循环逐层剥离。
     """
-    if '"' not in text or '.' not in text:
+    if '"' not in text or "." not in text:
         return text
     prev = None
     while prev != text:
         prev = text
-        text = _JS_STRING_METHOD_RE.sub(r'\1', text)
+        text = _JS_STRING_METHOD_RE.sub(r"\1", text)
     return text
 
 
@@ -41,24 +41,24 @@ def fix_common_json_issues(json_str: str) -> str | None:
         pass
     parts = json_str.split('"')
     for i in range(0, len(parts), 2):
-        parts[i] = re.sub(r'//[^\n]*', '', parts[i])
+        parts[i] = re.sub(r"//[^\n]*", "", parts[i])
     json_str = '"'.join(parts)
-    json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
-    json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+    json_str = re.sub(r"/\*.*?\*/", "", json_str, flags=re.DOTALL)
+    json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
     try:
         json.loads(json_str)
         return json_str
     except json.JSONDecodeError as e:
         error_pos = e.pos
         context = max(0, error_pos - 50)
-        logger.debug(f"JSON解析失败位置 {error_pos}: ...{json_str[context:error_pos+50]}...")
+        logger.debug(f"JSON解析失败位置 {error_pos}: ...{json_str[context : error_pos + 50]}...")
         return None
 
 
 def clean_json_string(json_str: str) -> str | None:
     if not json_str:
         return None
-    json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
+    json_str = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", json_str)
     try:
         json.loads(json_str)
         return json_str
@@ -70,19 +70,19 @@ def clean_json_string(json_str: str) -> str | None:
         return fixed
     except (json.JSONDecodeError, ValueError):
         pass
-    fixed = re.sub(r':("?[^",\s][^}]*?)([,{])', r': \1\2', fixed)
+    fixed = re.sub(r':("?[^",\s][^}]*?)([,{])', r": \1\2", fixed)
     try:
         json.loads(fixed)
         return fixed
     except (json.JSONDecodeError, ValueError):
         pass
-    fixed = re.sub(r'(")\s+("\w+"\s*:)', r'\1,\2', fixed)
+    fixed = re.sub(r'(")\s+("\w+"\s*:)', r"\1,\2", fixed)
     try:
         json.loads(fixed)
         return fixed
     except (json.JSONDecodeError, ValueError):
         pass
-    fixed = re.sub(r'}(\s*{)', r'},\1', fixed)
+    fixed = re.sub(r"}(\s*{)", r"},\1", fixed)
     try:
         json.loads(fixed)
         return fixed

@@ -10,6 +10,7 @@ DB 有记录则使用 DB 内容，否则使用现有硬编码逻辑。
 
 extra_context 的渲染逻辑（task_type 分支）拆分至 _extra_context_renderer 模块。
 """
+
 from typing import Any, Optional, TYPE_CHECKING
 
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
@@ -60,7 +61,7 @@ class PromptBuilder:
 
     def for_test_case(
         self,
-        mode: str = 'linear',
+        mode: str = "linear",
         nodes: list[dict[str, Any]] | None = None,
         edges: list[dict[str, Any]] | None = None,
         module_info: dict[str, Any] | None = None,
@@ -114,9 +115,10 @@ class PromptBuilder:
         Returns:
             包含 prompt 和 weight_hint 的字典。
         """
-        if mode == 'graph':
+        if mode == "graph":
             prompt = _build_graph_prompt(
-                nodes=nodes or [], edges=edges or [],
+                nodes=nodes or [],
+                edges=edges or [],
                 module_info=module_info,
                 requirement_content=requirement_content,
                 test_point_json=test_point_json,
@@ -130,13 +132,15 @@ class PromptBuilder:
             )
             # graph 模式同样支持 extra_context（质量反馈/任务类型）
             prompt = _append_extra_context_sections(prompt, extra_context)
-            return {'prompt': prompt, 'weight_hint': 'graph'}
+            return {"prompt": prompt, "weight_hint": "graph"}
 
         prompt = _build_linear_prompt(
             requirement_content=requirement_content,
             ui_description=ui_description,
-            module=module, function=function,
-            point=point, priority=priority,
+            module=module,
+            function=function,
+            point=point,
+            priority=priority,
             ui_specs=ui_specs,
             case_type=case_type,
             min_case_count=min_case_count,
@@ -146,14 +150,14 @@ class PromptBuilder:
             execution_feedback=execution_feedback,
         )
         prompt = _append_extra_context_sections(prompt, extra_context)
-        return {'prompt': prompt, 'weight_hint': 'linear'}
+        return {"prompt": prompt, "weight_hint": "linear"}
 
     def for_test_data(
         self,
         field_definitions: list[dict[str, Any]],
         count: int = 1,
         context: str | None = None,
-        data_type: str = "normal"
+        data_type: str = "normal",
     ) -> str:
         """构建测试数据生成 Prompt。
 
@@ -231,7 +235,9 @@ class PromptBuilder:
             完整的 Prompt 字符串。
         """
         return _build_graph_prompt(
-            nodes=nodes, edges=edges, module_info=module_info,
+            nodes=nodes,
+            edges=edges,
+            module_info=module_info,
             requirement_content=requirement_content,
             test_point_json=test_point_json,
             ui_specs_text=ui_specs_text,
@@ -269,7 +275,9 @@ class PromptBuilder:
             包含图片 URL 引用的完整 Prompt 字符串。
         """
         return _build_graph_prompt(
-            nodes=nodes, edges=edges, module_info=module_info,
+            nodes=nodes,
+            edges=edges,
+            module_info=module_info,
             requirement_content=requirement_content,
             test_point_json=test_point_json,
             ui_specs_text=ui_specs_text,
@@ -319,8 +327,10 @@ class PromptBuilder:
         prompt = _build_linear_prompt(
             requirement_content=requirement_content,
             ui_description=ui_description,
-            module=module, function=function,
-            point=point, priority=priority,
+            module=module,
+            function=function,
+            point=point,
+            priority=priority,
             ui_specs=ui_specs,
             case_type=case_type,
             min_case_count=min_case_count,

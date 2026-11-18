@@ -14,6 +14,7 @@
     - /metadata 返回 application/xml 格式的 SP 元数据
     - 所有端点无需 CSRF 校验（已通过 RelayState 实现 CSRF 防护）
 """
+
 from __future__ import annotations
 
 
@@ -47,9 +48,7 @@ def _saml_service_or_503() -> SAMLService:
     try:
         return get_saml_service()
     except SAMLDisabledError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=e.msg
-        ) from e
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=e.msg) from e
     except SAMLConfigError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.msg) from e
 
@@ -105,17 +104,13 @@ async def saml_login(
         auth_url, _relay_state = service.build_login_redirect(
             provider=provider, redirect_to=redirect_to, request_data=request_data
         )
-        logger.info(
-            f"SAML 登录跳转: provider={provider or settings.SAML_DEFAULT_PROVIDER}"
-        )
+        logger.info(f"SAML 登录跳转: provider={provider or settings.SAML_DEFAULT_PROVIDER}")
         return RedirectResponse(url=auth_url, status_code=status.HTTP_302_FOUND)
     except SAMLConfigError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.msg) from e
     except SAMLServiceError as e:
         logger.error(f"SAML 登录跳转失败: {e.msg}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg
-        ) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg) from e
 
 
 @router.post(
@@ -129,16 +124,12 @@ async def saml_acs(
     request: Request,
     SAMLResponse: str = Form(..., description="IdP POST 的 Base64 编码 SAMLResponse"),
     RelayState: str = Form(..., description="登录请求时发送的 RelayState，用于 CSRF 防护"),
-    provider: str | None = Query(
-        None, description="IdP 标识；若未在 RelayState 中存储，需调用方显式传入"
-    ),
+    provider: str | None = Query(None, description="IdP 标识；若未在 RelayState 中存储，需调用方显式传入"),
     db: Session = Depends(get_db),
 ) -> dict:
     """处理 SAML ACS 回调。"""
     service = _saml_service_or_503()
-    request_data = SAMLService.build_request_data_from_request(
-        request, saml_response=SAMLResponse
-    )
+    request_data = SAMLService.build_request_data_from_request(request, saml_response=SAMLResponse)
     # provider 优先从查询参数获取，否则从 RelayState 上下文恢复
     actual_provider = provider or service.resolve_provider(None)
     try:
@@ -149,18 +140,14 @@ async def saml_acs(
             relay_state=RelayState,
             request_data=request_data,
         )
-        logger.info(
-            f"SAML ACS 回调成功: provider={actual_provider} user_id={result['user']['id']}"
-        )
+        logger.info(f"SAML ACS 回调成功: provider={actual_provider} user_id={result['user']['id']}")
         return create_response(data=result, msg="SAML 登录成功")
     except SAMLRelayStateError as e:
         logger.warning(f"SAML RelayState 校验失败: {e.msg}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.msg) from e
     except SAMLResponseError as e:
         logger.error(f"SAML SAMLResponse 校验失败: {e.msg}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=e.msg
-        ) from e
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=e.msg) from e
     except SAMLUserNotBoundError as e:
         logger.warning(f"SAML 用户未绑定: {e.msg}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.msg) from e
@@ -168,9 +155,7 @@ async def saml_acs(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.msg) from e
     except SAMLServiceError as e:
         logger.error(f"SAML ACS 回调失败: {e.msg}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg
-        ) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg) from e
 
 
 @router.get(
@@ -188,18 +173,12 @@ async def saml_slo(
     request_data = SAMLService.build_request_data_from_request(request)
     actual_provider = provider or service.resolve_provider(None)
     try:
-        success, message = service.handle_slo(
-            provider=actual_provider, request_data=request_data
-        )
+        success, message = service.handle_slo(provider=actual_provider, request_data=request_data)
         if success:
             return create_response(data={"logged_out": True}, msg=message)
-        return create_response(
-            data={"logged_out": False}, msg=message, code=status.HTTP_400_BAD_REQUEST
-        )
+        return create_response(data={"logged_out": False}, msg=message, code=status.HTTP_400_BAD_REQUEST)
     except SAMLConfigError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.msg) from e
     except SAMLServiceError as e:
         logger.error(f"SAML SLO 回调失败: {e.msg}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg
-        ) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.msg) from e

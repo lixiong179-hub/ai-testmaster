@@ -14,7 +14,7 @@ def create_requirement_link(
     auth_type: str = "none",
     auth_config: dict[str, Any] | None = None,
     description: str | None = None,
-    cache_expire_minutes: int = 60
+    cache_expire_minutes: int = 60,
 ) -> RequirementLink:
     db_link = RequirementLink(
         project_id=project_id,
@@ -25,7 +25,7 @@ def create_requirement_link(
         auth_type=auth_type,
         auth_config=auth_config,
         description=description,
-        cache_expire_minutes=cache_expire_minutes
+        cache_expire_minutes=cache_expire_minutes,
     )
     db.add(db_link)
     db.commit()
@@ -33,11 +33,7 @@ def create_requirement_link(
     return db_link
 
 
-def get_requirement_link_by_id(
-    db: Session,
-    link_id: int,
-    project_id: int | None = None
-) -> RequirementLink | None:
+def get_requirement_link_by_id(db: Session, link_id: int, project_id: int | None = None) -> RequirementLink | None:
     query = db.query(RequirementLink).filter(RequirementLink.id == link_id)
     if project_id:
         query = query.filter(RequirementLink.project_id == project_id)
@@ -51,11 +47,12 @@ def get_requirement_links_by_project(
     link_type: str | None = None,
     is_active: bool | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[RequirementLink]:
-    query = db.query(RequirementLink).join(Project).filter(
-        RequirementLink.project_id == project_id,
-        Project.user_id == user_id
+    query = (
+        db.query(RequirementLink)
+        .join(Project)
+        .filter(RequirementLink.project_id == project_id, Project.user_id == user_id)
     )
     if link_type:
         query = query.filter(RequirementLink.link_type == link_type)
@@ -65,15 +62,12 @@ def get_requirement_links_by_project(
 
 
 def get_requirement_links_count(
-    db: Session,
-    project_id: int,
-    user_id: int,
-    link_type: str | None = None,
-    is_active: bool | None = None
+    db: Session, project_id: int, user_id: int, link_type: str | None = None, is_active: bool | None = None
 ) -> int:
-    query = db.query(RequirementLink).join(Project).filter(
-        RequirementLink.project_id == project_id,
-        Project.user_id == user_id
+    query = (
+        db.query(RequirementLink)
+        .join(Project)
+        .filter(RequirementLink.project_id == project_id, Project.user_id == user_id)
     )
     if link_type:
         query = query.filter(RequirementLink.link_type == link_type)
@@ -83,14 +77,16 @@ def get_requirement_links_count(
 
 
 def get_requirement_links_by_types(
-    db: Session,
-    project_id: int,
-    user_id: int,
-    link_types: list[str]
+    db: Session, project_id: int, user_id: int, link_types: list[str]
 ) -> list[RequirementLink]:
-    return db.query(RequirementLink).join(Project).filter(
-        RequirementLink.project_id == project_id,
-        Project.user_id == user_id,
-        RequirementLink.link_type.in_(link_types),
-        RequirementLink.is_active.is_(True)
-    ).all()
+    return (
+        db.query(RequirementLink)
+        .join(Project)
+        .filter(
+            RequirementLink.project_id == project_id,
+            Project.user_id == user_id,
+            RequirementLink.link_type.in_(link_types),
+            RequirementLink.is_active.is_(True),
+        )
+        .all()
+    )

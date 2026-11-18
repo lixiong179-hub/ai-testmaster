@@ -3,6 +3,7 @@
 路由处理函数已内联在本模块（原 `_routes.py` 已合并）；项目归属校验、
 迭代序列化与资源清理下沉至 `app.services.iteration_helpers`。
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -30,20 +31,20 @@ ALLOWED_UPDATE_FIELDS = {"name", "version", "description", "start_date", "end_da
 
 @router.post("/", response_model=ApiResponse)
 async def create_iteration(
-    iteration_data: IterationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    iteration_data: IterationCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration_data.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration_data.project_id, current_user)
         service = iteration_service.IterationService(db)
         iteration = await service.create_iteration_async(
-            project_id=iteration_data.project_id, name=iteration_data.name,
-            version=iteration_data.version, description=iteration_data.description,
-            base_iteration_id=iteration_data.base_iteration_id, created_by=current_user.id,
-            start_date=iteration_data.start_date, end_date=iteration_data.end_date,
+            project_id=iteration_data.project_id,
+            name=iteration_data.name,
+            version=iteration_data.version,
+            description=iteration_data.description,
+            base_iteration_id=iteration_data.base_iteration_id,
+            created_by=current_user.id,
+            start_date=iteration_data.start_date,
+            end_date=iteration_data.end_date,
         )
         await asyncio.to_thread(db.commit)
         return create_response(data=_iteration_to_dict(iteration), msg="创建成功")
@@ -67,17 +68,13 @@ async def get_iterations(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        await asyncio.to_thread(
-            _verify_project_ownership, db, project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, project_id, current_user)
         skip = (page - 1) * page_size
         service = iteration_service.IterationService(db)
-        iterations = await service.list_iterations_async(
-            project_id=project_id, skip=skip, limit=page_size
-        )
+        iterations = await service.list_iterations_async(project_id=project_id, skip=skip, limit=page_size)
         total = await service.get_iterations_count_by_project_async(project_id=project_id)
         items = [_iteration_to_dict(it) for it in iterations]
         return create_response(
@@ -93,18 +90,14 @@ async def get_iterations(
 
 @router.get("/{iteration_id}", response_model=ApiResponse)
 async def get_iteration(
-    iteration_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    iteration_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = iteration_service.IterationService(db)
         iteration = await service.get_iteration_async(iteration_id=iteration_id)
         if not iteration:
             raise HTTPException(status_code=404, detail="迭代不存在")
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration.project_id, current_user)
         return create_response(data=_iteration_to_dict(iteration), msg="获取成功")
     except HTTPException:
         raise
@@ -118,26 +111,22 @@ async def update_iteration(
     iteration_id: int,
     update_data: IterationUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         service = iteration_service.IterationService(db)
         iteration = await service.get_iteration_async(iteration_id=iteration_id)
         if not iteration:
             raise HTTPException(status_code=404, detail="迭代不存在")
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration.project_id, current_user)
         update_kwargs = {}
         for field in ALLOWED_UPDATE_FIELDS:
             value = getattr(update_data, field, None)
             if value is not None:
-                if hasattr(value, 'value'):
+                if hasattr(value, "value"):
                     value = value.value
                 update_kwargs[field] = value
-        updated = await service.update_iteration_async(
-            iteration_id=iteration_id, **update_kwargs
-        )
+        updated = await service.update_iteration_async(iteration_id=iteration_id, **update_kwargs)
         if not updated:
             raise HTTPException(status_code=404, detail="迭代不存在")
         return create_response(data=_iteration_to_dict(updated), msg="更新成功")
@@ -153,18 +142,14 @@ async def update_iteration(
 
 @router.delete("/{iteration_id}", response_model=ApiResponse)
 async def delete_iteration(
-    iteration_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    iteration_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = iteration_service.IterationService(db)
         iteration = await service.get_iteration_async(iteration_id=iteration_id)
         if not iteration:
             raise HTTPException(status_code=404, detail="迭代不存在")
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration.project_id, current_user)
         await asyncio.to_thread(_cleanup_iteration_resources, db, iteration_id)
         await service.delete_iteration_async(iteration_id=iteration_id)
         return create_response(data={}, msg="删除成功")
@@ -178,18 +163,14 @@ async def delete_iteration(
 
 @router.post("/{iteration_id}/finalize", response_model=ApiResponse)
 async def finalize_iteration(
-    iteration_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    iteration_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = iteration_service.IterationService(db)
         iteration = await service.get_iteration_async(iteration_id=iteration_id)
         if not iteration:
             raise HTTPException(status_code=404, detail="迭代不存在")
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration.project_id, current_user)
         finalized = await service.finalize_iteration_async(iteration_id=iteration_id)
         await asyncio.to_thread(db.commit)
         return create_response(data=_iteration_to_dict(finalized), msg="定稿成功")
@@ -212,26 +193,34 @@ async def add_iteration_input(
     iteration_id: int,
     input_data: IterationInputCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         service = iteration_service.IterationService(db)
         iteration = await service.get_iteration_async(iteration_id=iteration_id)
         if not iteration:
             raise HTTPException(status_code=404, detail="迭代不存在")
-        await asyncio.to_thread(
-            _verify_project_ownership, db, iteration.project_id, current_user
-        )
+        await asyncio.to_thread(_verify_project_ownership, db, iteration.project_id, current_user)
         inp = await service.add_input_async(
-            iteration_id=iteration_id, kind=input_data.kind.value,
-            file_id=input_data.file_id, payload=input_data.payload, hash_value=input_data.hash,
+            iteration_id=iteration_id,
+            kind=input_data.kind.value,
+            file_id=input_data.file_id,
+            payload=input_data.payload,
+            hash_value=input_data.hash,
         )
         await asyncio.to_thread(db.commit)
-        return create_response(data={
-            "id": inp.id, "iteration_id": inp.iteration_id, "kind": inp.kind,
-            "file_id": inp.file_id, "payload": inp.payload,
-            "content_hash": inp.content_hash, "uploaded_at": inp.uploaded_at,
-        }, msg="添加输入成功")
+        return create_response(
+            data={
+                "id": inp.id,
+                "iteration_id": inp.iteration_id,
+                "kind": inp.kind,
+                "file_id": inp.file_id,
+                "payload": inp.payload,
+                "content_hash": inp.content_hash,
+                "uploaded_at": inp.uploaded_at,
+            },
+            msg="添加输入成功",
+        )
     except ValueError as e:
         await asyncio.to_thread(db.rollback)
         raise HTTPException(status_code=400, detail=str(e))
@@ -254,9 +243,10 @@ async def run_iteration_pipeline(
     iteration_id: int,
     body: PipelineRunRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     from app.api.v1.endpoints.pipeline import run_pipeline
+
     return await run_pipeline(iteration_id=iteration_id, body=body, db=db, current_user=current_user)
 
 

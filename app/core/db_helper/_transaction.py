@@ -8,9 +8,7 @@ from loguru import logger
 
 class TransactionHelper:
     @staticmethod
-    def with_transaction(
-        db: Session, operation: Callable[..., Any], *args, **kwargs
-    ) -> Any:
+    def with_transaction(db: Session, operation: Callable[..., Any], *args, **kwargs) -> Any:
         last_exception = None
         for attempt in range(3):
             try:
@@ -37,9 +35,7 @@ class TransactionHelper:
         raise last_exception
 
     @staticmethod
-    def safe_execute(
-        db: Session, operation: Callable[..., Any], *args, **kwargs
-    ) -> tuple[bool, Any]:
+    def safe_execute(db: Session, operation: Callable[..., Any], *args, **kwargs) -> tuple[bool, Any]:
         try:
             result = operation(*args, **kwargs)
             db.commit()

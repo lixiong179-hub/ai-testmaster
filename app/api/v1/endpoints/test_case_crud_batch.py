@@ -17,6 +17,7 @@
     消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await _execute(db, )。
     create_steps_and_test_data 已在 test_case_crud.py 中改为 async，此处直接 await 调用。
 """
+
 import asyncio
 from datetime import datetime
 
@@ -38,6 +39,7 @@ from app.api.v1.endpoints.test_case_crud import (
 from app.core.exception import create_response
 from loguru import logger
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -48,23 +50,22 @@ router = APIRouter()
 
 class BatchCreateRequest(BaseModel):
     """批量创建请求模型，限制单次最多创建200个用例"""
+
     cases: list[TestCaseCreate]
 
-    @field_validator('cases')
+    @field_validator("cases")
     @classmethod
     def validate_cases(cls, v: list[TestCaseCreate]) -> list[TestCaseCreate]:
         if not v:
-            raise ValueError('用例列表不能为空')
+            raise ValueError("用例列表不能为空")
         if len(v) > 200:
-            raise ValueError(f'一次最多创建200个用例，当前: {len(v)}')
+            raise ValueError(f"一次最多创建200个用例，当前: {len(v)}")
         return v
 
 
 @router.post("/batch-create")
 async def batch_create_test_cases(
-    request: BatchCreateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: BatchCreateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     批量创建测试用例（含步骤和测试数据，单事务）
@@ -72,34 +73,39 @@ async def batch_create_test_cases(
     所有用例在同一事务中创建，任一失败则全部回滚，保证数据一致性。
     """
     if not request.cases:
-        return create_response(data={
-            "success_count": 0,
-            "fail_count": 0,
-            "created_ids": [],
-            "errors": [],
-            "total": 0,
-            "message": "没有需要创建的用例",
-        })
+        return create_response(
+            data={
+                "success_count": 0,
+                "fail_count": 0,
+                "created_ids": [],
+                "errors": [],
+                "total": 0,
+                "message": "没有需要创建的用例",
+            }
+        )
 
     project_ids = {tc.project_id for tc in request.cases}
-    auth_result = await _execute(db,
+    auth_result = await _execute(
+        db,
         select(Project.id).where(
             Project.id.in_(project_ids),
             Project.user_id == current_user.id,
-        )
+        ),
     )
     authorized_project_ids = set(auth_result.scalars().all())
 
     unauthorized = project_ids - authorized_project_ids
     if unauthorized:
-        return create_response(data={
-            "success_count": 0,
-            "fail_count": len(request.cases),
-            "created_ids": [],
-            "errors": [f"无权限操作项目: {pid}" for pid in unauthorized],
-            "total": len(request.cases),
-            "message": f"无权限操作项目: {', '.join(str(p) for p in unauthorized)}",
-        })
+        return create_response(
+            data={
+                "success_count": 0,
+                "fail_count": len(request.cases),
+                "created_ids": [],
+                "errors": [f"无权限操作项目: {pid}" for pid in unauthorized],
+                "total": len(request.cases),
+                "message": f"无权限操作项目: {', '.join(str(p) for p in unauthorized)}",
+            }
+        )
 
     created_ids: list[int] = []
 
@@ -107,7 +113,8 @@ async def batch_create_test_cases(
         for test_case in request.cases:
             new_test_case = TestCase(
                 project_id=test_case.project_id,
-                case_no=test_case.case_no or f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}-{len(created_ids)}",
+                case_no=test_case.case_no
+                or f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}-{len(created_ids)}",
                 module=test_case.module,
                 title=test_case.title,
                 precondition=test_case.precondition,
@@ -138,62 +145,66 @@ async def batch_create_test_cases(
             f"[批量创建] 用户ID={current_user.id}, 用户名={current_user.username}, "
             f"成功创建{len(created_ids)}个用例, IDs={created_ids}"
         )
-        return create_response(data={
-            "success_count": len(created_ids),
-            "fail_count": 0,
-            "created_ids": created_ids,
-            "errors": [],
-            "total": len(request.cases),
-            "message": f"全部创建成功，共 {len(created_ids)} 条",
-        })
+        return create_response(
+            data={
+                "success_count": len(created_ids),
+                "fail_count": 0,
+                "created_ids": created_ids,
+                "errors": [],
+                "total": len(request.cases),
+                "message": f"全部创建成功，共 {len(created_ids)} 条",
+            }
+        )
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"[批量创建] 事务回滚: {e}")
-        return create_response(data={
-            "success_count": len(created_ids),
-            "fail_count": len(request.cases) - len(created_ids),
-            "created_ids": created_ids,
-            "errors": [str(e)],
-            "total": len(request.cases),
-            "message": f"批量创建失败: {e}",
-        })
+        return create_response(
+            data={
+                "success_count": len(created_ids),
+                "fail_count": len(request.cases) - len(created_ids),
+                "created_ids": created_ids,
+                "errors": [str(e)],
+                "total": len(request.cases),
+                "message": f"批量创建失败: {e}",
+            }
+        )
 
 
 class BatchRestoreRequest(BaseModel):
     """批量恢复请求模型，限制单次最多恢复500个用例"""
+
     project_id: int | None = None
     caseIds: list[int]
 
-    @field_validator('caseIds')
+    @field_validator("caseIds")
     @classmethod
     def validate_case_ids(cls, v: list[int]) -> list[int]:
         if not v:
-            raise ValueError('用例ID列表不能为空')
+            raise ValueError("用例ID列表不能为空")
         if len(v) > 500:
-            raise ValueError(f'一次最多恢复500个用例，当前: {len(v)}')
+            raise ValueError(f"一次最多恢复500个用例，当前: {len(v)}")
         return v
 
 
 class BatchDeleteRequest(BaseModel):
     """批量删除请求模型，限制单次最多删除500个用例"""
+
     project_id: int | None = None
     caseIds: list[int]
 
-    @field_validator('caseIds')
+    @field_validator("caseIds")
     @classmethod
     def validate_case_ids(cls, v: list[int]) -> list[int]:
         if not v:
-            raise ValueError('用例ID列表不能为空')
+            raise ValueError("用例ID列表不能为空")
         if len(v) > 500:
-            raise ValueError(f'一次最多删除500个用例，当前: {len(v)}')
+            raise ValueError(f"一次最多删除500个用例，当前: {len(v)}")
         return v
 
 
 @router.post("/batch-restore")
 async def batch_restore_test_cases(
-    request: BatchRestoreRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: BatchRestoreRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     批量恢复已删除的测试用例
@@ -241,22 +252,22 @@ async def batch_restore_test_cases(
         f"恢复用例IDs={restored_case_ids}, 成功={success_count}, 失败={fail_count}, 未找到={len(not_found_ids)}"
     )
 
-    return create_response(data={
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "not_found_count": len(not_found_ids),
-        "not_found_ids": not_found_ids,
-        "restored_ids": restored_case_ids,
-        "total": len(case_ids),
-        "message": f"恢复完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个"
-    })
+    return create_response(
+        data={
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "not_found_count": len(not_found_ids),
+            "not_found_ids": not_found_ids,
+            "restored_ids": restored_case_ids,
+            "total": len(case_ids),
+            "message": f"恢复完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个",
+        }
+    )
 
 
 @router.post("/batch-delete")
 async def batch_delete_test_cases(
-    request: BatchDeleteRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: BatchDeleteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     批量软删除测试用例
@@ -304,12 +315,14 @@ async def batch_delete_test_cases(
         f"删除用例IDs={deleted_case_ids}, 成功={success_count}, 失败={fail_count}, 未找到={len(not_found_ids)}"
     )
 
-    return create_response(data={
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "not_found_count": len(not_found_ids),
-        "not_found_ids": not_found_ids,
-        "deleted_ids": deleted_case_ids,
-        "total": len(case_ids),
-        "message": f"删除完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个"
-    })
+    return create_response(
+        data={
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "not_found_count": len(not_found_ids),
+            "not_found_ids": not_found_ids,
+            "deleted_ids": deleted_case_ids,
+            "total": len(case_ids),
+            "message": f"删除完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个",
+        }
+    )

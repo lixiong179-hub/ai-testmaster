@@ -17,6 +17,7 @@ OpenAI 兼容 AI Client 实现
     - app.ai.call_log : record_call
     - app.utils.ai_client_core : AIServiceError, _detect_ai_error
 """
+
 import json
 import time
 from typing import Any
@@ -143,8 +144,7 @@ class OpenAIClient:
             prompt_tokens = usage_data.prompt_tokens if usage_data else 0
             completion_tokens = usage_data.completion_tokens if usage_data else 0
             total_cost_usd = (
-                prompt_tokens / 1000 * _COST_PER_1K_PROMPT
-                + completion_tokens / 1000 * _COST_PER_1K_COMPLETION
+                prompt_tokens / 1000 * _COST_PER_1K_PROMPT + completion_tokens / 1000 * _COST_PER_1K_COMPLETION
             )
             usage = TokenUsage(
                 prompt_tokens=prompt_tokens,
@@ -197,6 +197,7 @@ class OpenAIClient:
         """
         try:
             from app.ai.call_log import record_call
+
             db = metadata.get("db") if metadata else None
             record_call(
                 db,
@@ -229,6 +230,7 @@ class OpenAIClient:
         """
         try:
             from app.ai.call_log import record_call
+
             db = metadata.get("db") if metadata else None
             record_call(
                 db,

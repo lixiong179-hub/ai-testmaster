@@ -28,10 +28,9 @@
 依赖关系:
     - app.services.execution_mode_types: 执行模式类型定义
 """
+
 from loguru import logger
-from app.services.execution_mode_types import (
-    ExecutionMode, ExecutionStrategy, StrategyConfig, ExecutionConfig
-)
+from app.services.execution_mode_types import ExecutionMode, ExecutionStrategy, StrategyConfig, ExecutionConfig
 
 
 class ExecutionModeSelector:
@@ -56,10 +55,7 @@ class ExecutionModeSelector:
 
     # 默认执行配置
     DEFAULT_CONFIG = ExecutionConfig(
-        mode=ExecutionMode.AI_VISION,
-        strategy=ExecutionStrategy.SMART,
-        headless=True,
-        record_video=False
+        mode=ExecutionMode.AI_VISION, strategy=ExecutionStrategy.SMART, headless=True, record_video=False
     )
 
     # 用例类型到执行模式的映射表
@@ -84,23 +80,44 @@ class ExecutionModeSelector:
     # 执行策略到策略配置的映射表
     STRATEGY_CONFIGS = {
         ExecutionStrategy.STRICT: StrategyConfig(
-            use_css_selector=True, use_xpath=True, use_ai_vision=True,
-            max_retries=3, retry_delay=2.0, ai_timeout=45,
-            confidence_threshold=0.95, use_locator_cache=True,
-            cache_ttl_minutes=120, enable_batch_recognition=False, batch_size=1
+            use_css_selector=True,
+            use_xpath=True,
+            use_ai_vision=True,
+            max_retries=3,
+            retry_delay=2.0,
+            ai_timeout=45,
+            confidence_threshold=0.95,
+            use_locator_cache=True,
+            cache_ttl_minutes=120,
+            enable_batch_recognition=False,
+            batch_size=1,
         ),
         ExecutionStrategy.SMART: StrategyConfig(
-            use_css_selector=True, use_xpath=True, use_ai_vision=True,
-            max_retries=1, retry_delay=1.0, ai_timeout=30,
-            confidence_threshold=0.9, use_locator_cache=True,
-            cache_ttl_minutes=60, enable_batch_recognition=True, batch_size=5
+            use_css_selector=True,
+            use_xpath=True,
+            use_ai_vision=True,
+            max_retries=1,
+            retry_delay=1.0,
+            ai_timeout=30,
+            confidence_threshold=0.9,
+            use_locator_cache=True,
+            cache_ttl_minutes=60,
+            enable_batch_recognition=True,
+            batch_size=5,
         ),
         ExecutionStrategy.FAST: StrategyConfig(
-            use_css_selector=True, use_xpath=False, use_ai_vision=True,
-            max_retries=0, retry_delay=0.0, ai_timeout=20,
-            confidence_threshold=0.85, use_locator_cache=False,
-            cache_ttl_minutes=30, enable_batch_recognition=True, batch_size=10
-        )
+            use_css_selector=True,
+            use_xpath=False,
+            use_ai_vision=True,
+            max_retries=0,
+            retry_delay=0.0,
+            ai_timeout=20,
+            confidence_threshold=0.85,
+            use_locator_cache=False,
+            cache_ttl_minutes=30,
+            enable_batch_recognition=True,
+            batch_size=10,
+        ),
     }
 
     @classmethod
@@ -171,7 +188,7 @@ class ExecutionModeSelector:
         case_headless: bool | None = None,
         case_record_video: bool | None = None,
         case_strategy: str | None = None,
-        video_path: str | None = None
+        video_path: str | None = None,
     ) -> ExecutionConfig:
         """组装完整的执行配置，支持全局/任务/用例三层覆盖。
 
@@ -227,7 +244,7 @@ class ExecutionModeSelector:
             headless=headless,
             record_video=record_video,
             video_path=video_path,
-            strategy_config=strategy_config
+            strategy_config=strategy_config,
         )
         logger.info(
             f"执行配置: mode={config.mode.value}, "

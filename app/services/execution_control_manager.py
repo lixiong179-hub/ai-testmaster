@@ -13,6 +13,7 @@
   run_async_coro_in_thread 在独立线程+独立事件循环中运行，
   asyncio.Event 无法跨事件循环使用
 """
+
 import threading
 
 from loguru import logger

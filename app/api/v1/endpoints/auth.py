@@ -16,6 +16,7 @@
     - ProjectAccessChecker: 项目权限校验器（可复用的权限检查类）
     - oauth2_scheme: OAuth2密码模式令牌提取器
 """
+
 from fastapi import APIRouter
 from app.api.v1.endpoints.auth_endpoints import router as endpoints_router
 from app.api.v1.endpoints.auth_deps import (

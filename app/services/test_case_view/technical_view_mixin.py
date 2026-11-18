@@ -3,6 +3,7 @@
 技术视图面向测试工程师和自动化执行，展示定位信息、测试数据
 和执行参数。支持导出为JSON和Python脚本格式。
 """
+
 import re
 from typing import Any
 from loguru import logger
@@ -13,7 +14,6 @@ from app.models.test_data import TestData
 
 
 class TechnicalViewMixin:
-
     def get_technical_view(self, test_case_id: int) -> dict[str, Any] | None:
         """获取测试用例的技术视图，包含定位信息、测试数据和前置条件步骤。
 
@@ -29,10 +29,12 @@ class TechnicalViewMixin:
             logger.warning(f"测试用例不存在: {test_case_id}")
             return None
 
-        steps = self.db.query(TestStep).filter(
-            TestStep.test_case_id == test_case_id,
-            TestStep.is_technical_view == 1
-        ).order_by(TestStep.step_number).all()
+        steps = (
+            self.db.query(TestStep)
+            .filter(TestStep.test_case_id == test_case_id, TestStep.is_technical_view == 1)
+            .order_by(TestStep.step_number)
+            .all()
+        )
 
         step_ids = [s.id for s in steps]
         locators, test_data_map = self._batch_query_step_data(step_ids)
@@ -54,7 +56,7 @@ class TechnicalViewMixin:
             "precondition_steps": precondition_steps_data,
             "steps": technical_steps,
             "locator_coverage": locator_coverage,
-            "execution_history": []
+            "execution_history": [],
         }
 
     def _batch_query_step_data(self, step_ids: list) -> tuple:
@@ -64,14 +66,10 @@ class TechnicalViewMixin:
         if not step_ids:
             return locators, test_data_map
 
-        locator_list = self.db.query(ElementLocator).filter(
-            ElementLocator.step_id.in_(step_ids)
-        ).all()
+        locator_list = self.db.query(ElementLocator).filter(ElementLocator.step_id.in_(step_ids)).all()
         locators = {loc.step_id: loc for loc in locator_list}
 
-        td_list = self.db.query(TestData).filter(
-            TestData.step_id.in_(step_ids)
-        ).order_by(TestData.sort_order).all()
+        td_list = self.db.query(TestData).filter(TestData.step_id.in_(step_ids)).order_by(TestData.sort_order).all()
         for td in td_list:
             if td.step_id not in test_data_map:
                 test_data_map[td.step_id] = []
@@ -100,7 +98,7 @@ class TechnicalViewMixin:
                 "has_locator": bool(step.has_locator == 1),
                 "locator_status": str(step.locator_status),
                 "locator": None,
-                "test_data": test_data_map.get(step.id, [])
+                "test_data": test_data_map.get(step.id, []),
             }
 
             if locator:
@@ -112,7 +110,9 @@ class TechnicalViewMixin:
                     "ai_coordinate": locator.ai_coordinate,
                     "confidence": float(locator.ai_confidence) if locator.ai_confidence else None,
                     "locator_type": best_locator.get("type") if best_locator else None,
-                    "locator_value": str(best_locator.get("value")) if best_locator and best_locator.get("value") is not None else None
+                    "locator_value": str(best_locator.get("value"))
+                    if best_locator and best_locator.get("value") is not None
+                    else None,
                 }
 
             technical_steps.append(step_data)
@@ -121,16 +121,19 @@ class TechnicalViewMixin:
 
     def _build_precondition_steps(self, test_case_id: int) -> list:
         """构建前置条件步骤数据。"""
-        pc_steps = self.db.query(TestCasePreconditionStep).filter(
-            TestCasePreconditionStep.test_case_id == test_case_id
-        ).order_by(TestCasePreconditionStep.step_number).all()
+        pc_steps = (
+            self.db.query(TestCasePreconditionStep)
+            .filter(TestCasePreconditionStep.test_case_id == test_case_id)
+            .order_by(TestCasePreconditionStep.step_number)
+            .all()
+        )
 
         pc_step_ids = [s.id for s in pc_steps]
         pc_locators = {}
         if pc_step_ids:
-            pc_locator_list = self.db.query(ElementLocator).filter(
-                ElementLocator.precondition_step_id.in_(pc_step_ids)
-            ).all()
+            pc_locator_list = (
+                self.db.query(ElementLocator).filter(ElementLocator.precondition_step_id.in_(pc_step_ids)).all()
+            )
             pc_locators = {loc.precondition_step_id: loc for loc in pc_locator_list}
 
         precondition_steps_data = []
@@ -146,7 +149,7 @@ class TechnicalViewMixin:
                 "target_element": str(pc_step.target_element) if pc_step.target_element else "",
                 "has_locator": bool(pc_step.has_locator == 1),
                 "locator_status": str(pc_step.locator_status),
-                "locator": None
+                "locator": None,
             }
             if pc_locator:
                 pc_best = pc_locator.get_best_locator()
@@ -157,7 +160,9 @@ class TechnicalViewMixin:
                     "ai_coordinate": pc_locator.ai_coordinate,
                     "confidence": float(pc_locator.ai_confidence) if pc_locator.ai_confidence else None,
                     "locator_type": pc_best.get("type") if pc_best else None,
-                    "locator_value": str(pc_best.get("value")) if pc_best and pc_best.get("value") is not None else None
+                    "locator_value": str(pc_best.get("value"))
+                    if pc_best and pc_best.get("value") is not None
+                    else None,
                 }
             precondition_steps_data.append(pc_step_data)
 
@@ -180,24 +185,27 @@ class TechnicalViewMixin:
             "# 自动生成的测试脚本",
             f"# 用例: {view.get('title', '')}",
             f"# 编号: {view.get('case_no', '')}",
-            "", "import pytest",
-            "from playwright.async_api import async_playwright", "",
+            "",
+            "import pytest",
+            "from playwright.async_api import async_playwright",
+            "",
             "@pytest.mark.asyncio",
             f"async def test_{(view.get('case_no') or 'unknown').lower()}():",
-            '    async with async_playwright() as p:',
-            '        browser = await p.chromium.launch(headless=False)',
-            '        page = await browser.new_page()', ""
+            "    async with async_playwright() as p:",
+            "        browser = await p.chromium.launch(headless=False)",
+            "        page = await browser.new_page()",
+            "",
         ]
 
-        for step in view.get('steps', []):
-            action = step.get('action', '')
+        for step in view.get("steps", []):
+            action = step.get("action", "")
             safe_action = action.replace('"', '\\"').replace("'", "\\'")
             lines.append(f"        # 步骤 {step.get('step_number')}: {safe_action}")
 
-            locator = step.get('locator', {}) or {}
-            css_selector = locator.get('css_selector') if locator else None
+            locator = step.get("locator", {}) or {}
+            css_selector = locator.get("css_selector") if locator else None
 
-            if step.get('has_locator') and css_selector:
+            if step.get("has_locator") and css_selector:
                 safe_css = css_selector.replace("'", "\\'").replace('"', '\\"')
                 lines.append(f"        # CSS选择器: {safe_css}")
                 if "点击" in action or "click" in action.lower():

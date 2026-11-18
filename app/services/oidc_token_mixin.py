@@ -1,4 +1,5 @@
 """OIDC token 换取与 id_token 解析 mixin（从 oidc_service.py 拆出）。"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -121,24 +122,16 @@ class OIDCTokenMixin:
             else:
                 # 未配置 jwks：生产环境强制拒绝（防止伪造 id_token），仅开发环境降级跳过验签
                 if settings.ENVIRONMENT == "prod":
-                    raise OIDCTokenError(
-                        f"OIDC IdP {provider} 未配置 jwks，生产环境禁止跳过 id_token 验签"
-                    )
-                logger.warning(
-                    f"OIDC IdP {provider} 未配置 jwks，跳过 id_token 验签（仅限开发环境）"
-                )
+                    raise OIDCTokenError(f"OIDC IdP {provider} 未配置 jwks，生产环境禁止跳过 id_token 验签")
+                logger.warning(f"OIDC IdP {provider} 未配置 jwks，跳过 id_token 验签（仅限开发环境）")
                 # 手动解析 JWT payload（不验签），避免依赖 PyJWT
                 # 标准 JWT 格式：header.payload.signature，payload 为 base64url 编码的 JSON
                 claims = self._decode_jwt_payload_unverified(id_token)
                 # 手动校验 iss / aud（跳过签名时不校验这些）
                 if issuer and claims.get("iss") != issuer:
-                    raise OIDCTokenError(
-                        f"id_token iss 校验失败: expected={issuer} actual={claims.get('iss')}"
-                    )
+                    raise OIDCTokenError(f"id_token iss 校验失败: expected={issuer} actual={claims.get('iss')}")
                 if claims.get("aud") != client_id:
-                    raise OIDCTokenError(
-                        f"id_token aud 校验失败: expected={client_id} actual={claims.get('aud')}"
-                    )
+                    raise OIDCTokenError(f"id_token aud 校验失败: expected={client_id} actual={claims.get('aud')}")
         except OIDCTokenError:
             raise
         except Exception as e:

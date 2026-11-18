@@ -71,16 +71,11 @@ class TaskPushMixin:
         """
         if self._push_service is None:
             from app.services.push_service import get_push_service
+
             self._push_service = get_push_service()
         return self._push_service
 
-    async def push_execution_log(
-        self,
-        task_id: int,
-        case_id: int,
-        level: str,
-        message: str
-    ) -> None:
+    async def push_execution_log(self, task_id: int, case_id: int, level: str, message: str) -> None:
         """推送用例执行日志，包含任务ID、用例ID、日志级别和消息内容。
 
         日志数据结构:
@@ -109,20 +104,14 @@ class TaskPushMixin:
                 "case_id": case_id,
                 "level": level,
                 "message": message,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
             await self._get_push_service().push(f"task:{task_id}", log_data)
         except Exception as e:
             # 推送失败不影响任务执行，仅记录警告
             logger.warning(f"推送执行日志失败: {e}")
 
-    async def push_execution_progress(
-        self,
-        task_id: int,
-        status: str,
-        progress: int,
-        message: str
-    ) -> None:
+    async def push_execution_progress(self, task_id: int, status: str, progress: int, message: str) -> None:
         """推送任务执行进度，包含状态、百分比和当前阶段描述。
 
         进度数据结构:
@@ -151,7 +140,7 @@ class TaskPushMixin:
                 "status": status,
                 "progress": progress,
                 "message": message,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
             await self._get_push_service().push(f"task:{task_id}", progress_data)
         except Exception as e:

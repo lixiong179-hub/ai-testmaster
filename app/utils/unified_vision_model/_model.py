@@ -51,5 +51,5 @@ def create_vision_model(
 def get_default_vision_model() -> UnifiedVisionModel:
     from app.core.config import settings
 
-    max_tokens = getattr(settings, 'VISION_MAX_TOKENS', 4096)
+    max_tokens = getattr(settings, "VISION_MAX_TOKENS", 4096)
     return create_vision_model(max_tokens=max_tokens)

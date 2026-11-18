@@ -43,7 +43,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         base_url_env="KIMI_BASE_URL",
         model_name_env="KIMI_MODEL",
         default_base_url="https://api.moonshot.cn/v1",
-        default_model_name="moonshot-v1-128k-vision-preview"
+        default_model_name="moonshot-v1-128k-vision-preview",
     ),
     VisionModelType.ZHIPU: ModelProviderConfig(
         model_type=VisionModelType.ZHIPU,
@@ -51,7 +51,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         base_url_env="ZHIPU_BASE_URL",
         model_name_env="ZHIPU_MODEL",
         default_base_url="https://open.bigmodel.cn/api/paas/v4",
-        default_model_name="glm-4v-plus"
+        default_model_name="glm-4v-plus",
     ),
     VisionModelType.QWEN: ModelProviderConfig(
         model_type=VisionModelType.QWEN,
@@ -62,7 +62,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         default_model_name="qwen3-vl-235b-a22b-thinking",
         api_endpoint="/chat/completions",
         build_payload_fn=None,
-        parse_response_fn=None
+        parse_response_fn=None,
     ),
     VisionModelType.BAIDU: ModelProviderConfig(
         model_type=VisionModelType.BAIDU,
@@ -71,7 +71,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         model_name_env="BAIDU_MODEL",
         default_base_url="https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop",
         default_model_name="ernie-bot-4",
-        api_endpoint="/chat/completions"
+        api_endpoint="/chat/completions",
     ),
     VisionModelType.DOUBAO: ModelProviderConfig(
         model_type=VisionModelType.DOUBAO,
@@ -79,7 +79,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         base_url_env="DOUBAO_BASE_URL",
         model_name_env="DOUBAO_MODEL",
         default_base_url="https://ark.cn-beijing.volces.com/api/v3",
-        default_model_name="doubao-vision-pro-32k"
+        default_model_name="doubao-vision-pro-32k",
     ),
     VisionModelType.MIMO: ModelProviderConfig(
         model_type=VisionModelType.MIMO,
@@ -87,7 +87,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
         base_url_env="MIMO_BASE_URL",
         model_name_env="MIMO_MODEL",
         default_base_url="https://token-plan-cn.xiaomimimo.com/v1",
-        default_model_name="mimo-v2.5"
+        default_model_name="mimo-v2.5",
     ),
 }
 
@@ -95,7 +95,7 @@ MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
 def resolve_default_model_type() -> VisionModelType:
     from app.core.config import settings
 
-    default_name = getattr(settings, 'VISION_MODEL_DEFAULT', 'qwen')
+    default_name = getattr(settings, "VISION_MODEL_DEFAULT", "qwen")
     try:
         return VisionModelType(default_name.lower())
     except ValueError:

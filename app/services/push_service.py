@@ -21,6 +21,7 @@
     get_push_service工厂函数遵循依赖注入原则，避免调用方直接new实例，
     便于测试时替换Mock实现。
 """
+
 from typing import Any
 from loguru import logger
 

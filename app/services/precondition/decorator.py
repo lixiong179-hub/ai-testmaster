@@ -1,5 +1,5 @@
-
 """前置条件错误处理装饰器。"""
+
 import functools
 from typing import Any
 from collections.abc import Callable
@@ -16,6 +16,7 @@ def handle_precondition_errors(func: Callable) -> Callable:
         - BrowserError: 转换为PreconditionError
         - 其他异常: 转换为PreconditionError，记录完整堆栈
     """
+
     @functools.wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -24,6 +25,7 @@ def handle_precondition_errors(func: Callable) -> Callable:
             raise
         except Exception as e:
             from app.utils.browser_controller_v2 import BrowserError
+
             if isinstance(e, BrowserError):
                 error_msg = f"浏览器操作失败: {str(e)}"
                 logger.error(error_msg)
@@ -31,4 +33,5 @@ def handle_precondition_errors(func: Callable) -> Callable:
             error_msg = f"{func.__name__} 失败: {str(e)}"
             logger.error(error_msg)
             raise PreconditionError(error_msg) from e
+
     return wrapper

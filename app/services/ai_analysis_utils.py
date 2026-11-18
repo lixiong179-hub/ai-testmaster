@@ -2,6 +2,7 @@
 """AI分析服务 - 工具函数模块
 包含文件读取、Prompt生成、响应解析等工具函数
 """
+
 import json
 from typing import Any
 from loguru import logger
@@ -10,7 +11,7 @@ from loguru import logger
 def read_file_content(file_path: str) -> str:
     """读取本地文件内容"""
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         logger.error(f"读取文件失败: {file_path}, 错误: {e}")
@@ -81,13 +82,13 @@ def parse_ai_response(test_points_data: list[dict[str, Any]]) -> list[dict[str, 
     try:
         for point_data in test_points_data:
             test_point = {
-                'module': point_data.get('module', '未命名模块'),
-                'function': point_data.get('function', '未命名功能'),
-                'point': point_data.get('point', ''),
-                'priority': max(1, min(3, point_data.get('priority', 2))),
-                'ai_prompt': json.dumps(point_data)
+                "module": point_data.get("module", "未命名模块"),
+                "function": point_data.get("function", "未命名功能"),
+                "point": point_data.get("point", ""),
+                "priority": max(1, min(3, point_data.get("priority", 2))),
+                "ai_prompt": json.dumps(point_data),
             }
-            if test_point['point']:
+            if test_point["point"]:
                 test_points.append(test_point)
     except Exception as e:
         logger.error(f"解析AI响应失败: {e}")

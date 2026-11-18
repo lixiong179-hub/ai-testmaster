@@ -18,6 +18,7 @@
     - TestPoint.status 字段引用
     - TestCase.lifecycle_status 字段引用
 """
+
 from enum import IntEnum, StrEnum
 
 
@@ -39,9 +40,10 @@ class LocatorStatus(StrEnum):
         RECORDED : 已记录，定位信息已成功记录
         FAILED : 定位失败，无法获取有效的定位信息
     """
-    PENDING = "pending"       # 待定位
-    RECORDED = "recorded"     # 已记录
-    FAILED = "failed"         # 定位失败
+
+    PENDING = "pending"  # 待定位
+    RECORDED = "recorded"  # 已记录
+    FAILED = "failed"  # 定位失败
 
 
 # CapabilityStatus 的合法值，用于 schema pattern 校验
@@ -59,6 +61,7 @@ class CapabilityStatus(StrEnum):
         DEPRECATED : 已废弃，不再推荐使用但保留兼容
         ARCHIVED : 已归档，终态不可恢复
     """
+
     ACTIVE = "active"
     DEPRECATED = "deprecated"
     ARCHIVED = "archived"
@@ -80,10 +83,11 @@ class TestPointStatus(StrEnum):
         DEPRECATED : 已废弃，不再推荐使用
         ARCHIVED : 已归档，终态
     """
-    DRAFT = "draft"           # 草稿
-    ACTIVE = "active"         # 活跃
-    DEPRECATED = "deprecated" # 已废弃
-    ARCHIVED = "archived"     # 已归档
+
+    DRAFT = "draft"  # 草稿
+    ACTIVE = "active"  # 活跃
+    DEPRECATED = "deprecated"  # 已废弃
+    ARCHIVED = "archived"  # 已归档
 
 
 # TestCaseLifecycleStatus 的合法值，用于 schema pattern 校验
@@ -106,14 +110,15 @@ class TestCaseLifecycleStatus(StrEnum):
         DEPRECATED : 已废弃，不再推荐使用
         ARCHIVED : 已归档，终态
     """
+
     __test__ = False
-    DRAFT = "draft"                     # 草稿
-    ACTIVE = "active"                    # 活跃
-    PENDING_REVIEW = "pending_review"    # 待审核
-    NEEDS_MODIFY = "needs_modify"        # 需修改
-    LOCATOR_BROKEN = "locator_broken"    # 定位失效
-    DEPRECATED = "deprecated"            # 已废弃
-    ARCHIVED = "archived"                # 已归档
+    DRAFT = "draft"  # 草稿
+    ACTIVE = "active"  # 活跃
+    PENDING_REVIEW = "pending_review"  # 待审核
+    NEEDS_MODIFY = "needs_modify"  # 需修改
+    LOCATOR_BROKEN = "locator_broken"  # 定位失效
+    DEPRECATED = "deprecated"  # 已废弃
+    ARCHIVED = "archived"  # 已归档
 
 
 # IterationPipelineStatus 的合法值，用于 schema pattern 校验
@@ -135,11 +140,12 @@ class IterationPipelineStatus(StrEnum):
         FINALIZED : 已定稿，评审已 finalize
         ARCHIVED : 已归档
     """
-    DRAFT = "draft"                     # 草稿
-    IN_PIPELINE = "in_pipeline"         # 流水线运行中
-    IN_REVIEW = "in_review"             # 评审中
-    FINALIZED = "finalized"             # 已定稿
-    ARCHIVED = "archived"               # 已归档
+
+    DRAFT = "draft"  # 草稿
+    IN_PIPELINE = "in_pipeline"  # 流水线运行中
+    IN_REVIEW = "in_review"  # 评审中
+    FINALIZED = "finalized"  # 已定稿
+    ARCHIVED = "archived"  # 已归档
 
 
 # IterationInputKind 的合法值
@@ -160,12 +166,13 @@ class IterationInputKind(StrEnum):
         SUPPLEMENT_FORM : 补充表单（JSON payload）
         CHANGE_NOTES : 变更说明
     """
-    PRD = "prd"                         # 需求文档
-    PROTOTYPE = "prototype"             # UI原型
-    XMIND = "xmind"                     # XMind思维导图
-    TESTPOINT = "testpoint"             # 测试点
-    SUPPLEMENT_FORM = "supplement_form" # 补充表单
-    CHANGE_NOTES = "change_notes"       # 变更说明
+
+    PRD = "prd"  # 需求文档
+    PROTOTYPE = "prototype"  # UI原型
+    XMIND = "xmind"  # XMind思维导图
+    TESTPOINT = "testpoint"  # 测试点
+    SUPPLEMENT_FORM = "supplement_form"  # 补充表单
+    CHANGE_NOTES = "change_notes"  # 变更说明
 
 
 class PipelineRunStatus(StrEnum):
@@ -182,16 +189,16 @@ class PipelineRunStatus(StrEnum):
         FAILED : 执行失败
         CANCELLED : 已取消
     """
-    PENDING = "pending"                    # 待执行
-    RUNNING = "running"                    # 执行中
+
+    PENDING = "pending"  # 待执行
+    RUNNING = "running"  # 执行中
     WAITING_FOR_USER = "waiting_for_user"  # 等待用户确认
-    COMPLETED = "completed"                # 已完成
-    FAILED = "failed"                      # 执行失败
-    CANCELLED = "cancelled"                # 已取消
+    COMPLETED = "completed"  # 已完成
+    FAILED = "failed"  # 执行失败
+    CANCELLED = "cancelled"  # 已取消
 
 
 class PipelineStepStatus(StrEnum):
-
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -201,14 +208,12 @@ class PipelineStepStatus(StrEnum):
 
 
 class ReviewKind(StrEnum):
-
     FORWARD = "forward"
     BACKWARD = "backward"
     MERGED = "merged"
 
 
 class ReviewStatus(StrEnum):
-
     DRAFT = "draft"
     IN_PROGRESS = "in_progress"
     FINALIZED = "finalized"
@@ -216,7 +221,6 @@ class ReviewStatus(StrEnum):
 
 
 class ReviewTargetKind(StrEnum):
-
     CASE = "case"
     TESTPOINT = "testpoint"
     CAPABILITY = "capability"

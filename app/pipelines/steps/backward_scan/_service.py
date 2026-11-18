@@ -16,7 +16,6 @@ MAX_BATCH_RETRIES = 3
 
 
 class BackwardScanService:
-
     def __init__(self, ai_client: Any, batch_size: int = 50) -> None:
         self.ai_client = ai_client
         self.batch_size = batch_size
@@ -36,7 +35,8 @@ class BackwardScanService:
         for module_label, batch_fps in batches:
             if check_budget is not None and not check_budget():
                 logger.warning(
-                    "预算不足，跳过模块 {} 剩余批次", module_label,
+                    "预算不足，跳过模块 {} 剩余批次",
+                    module_label,
                 )
                 for fp in batch_fps:
                     all_verdicts.append(
@@ -70,7 +70,8 @@ class BackwardScanService:
         return all_verdicts, stats
 
     def _slice_by_module(
-        self, fingerprints: list[dict[str, Any]],
+        self,
+        fingerprints: list[dict[str, Any]],
     ) -> list[tuple]:
         module_map: dict[str, list[dict[str, Any]]] = {}
         for fp in fingerprints:
@@ -80,12 +81,12 @@ class BackwardScanService:
         batches = []
         for module_label, fps in module_map.items():
             for i in range(0, len(fps), self.batch_size):
-                batch = fps[i:i + self.batch_size]
+                batch = fps[i : i + self.batch_size]
                 batches.append((module_label, batch))
 
         if not batches and fingerprints:
             for i in range(0, len(fingerprints), self.batch_size):
-                batch = fingerprints[i:i + self.batch_size]
+                batch = fingerprints[i : i + self.batch_size]
                 batches.append(("全部", batch))
 
         return batches
@@ -115,7 +116,8 @@ class BackwardScanService:
 
         logger.warning(
             "批次重试耗尽，切半重跑 (module={}, count={})",
-            module_label, len(batch_fps),
+            module_label,
+            len(batch_fps),
         )
         return self._fallback_split(
             change_signals=change_signals,
@@ -147,7 +149,9 @@ class BackwardScanService:
                 last_result = result
                 logger.warning(
                     "AI 返回校验失败 (attempt {}/{}): {}",
-                    attempt, MAX_BATCH_RETRIES, result.errors,
+                    attempt,
+                    MAX_BATCH_RETRIES,
+                    result.errors,
                 )
                 _record_json_validation_failure(
                     step_name="backward_scan",
@@ -156,7 +160,9 @@ class BackwardScanService:
             except Exception as e:
                 logger.warning(
                     "AI 调用异常 (attempt {}/{}): {}",
-                    attempt, MAX_BATCH_RETRIES, e,
+                    attempt,
+                    MAX_BATCH_RETRIES,
+                    e,
                 )
 
         if last_result is not None:
@@ -213,7 +219,9 @@ class BackwardScanService:
         return all_verdicts, total_retries, total_degraded, total_auto_corrected
 
     def _mark_uncertain(
-        self, batch_fps: list[dict[str, Any]], reason: str,
+        self,
+        batch_fps: list[dict[str, Any]],
+        reason: str,
     ) -> tuple:
         verdicts = [
             BackwardCaseVerdict(
@@ -233,6 +241,7 @@ def _record_json_validation_failure(
 ) -> None:
     try:
         from app.services.metrics_service import record_metric
+
         record_metric("json_validation_failure", step_name=step_name, detail=detail)
     except Exception:
         logger.debug("记录JSON校验失败指标失败", exc_info=True)

@@ -4,7 +4,6 @@ from datetime import datetime
 
 
 class _CoreMixin:
-
     async def connect(self, websocket: WebSocket, execution_id: str) -> bool:
         await websocket.accept()
 
@@ -19,7 +18,9 @@ class _CoreMixin:
                 self.active_connections[execution_id] = []
 
             self.active_connections[execution_id].append(websocket)
-            logger.info(f"WebSocket连接建立: execution_id={execution_id}, 当前连接数={len(self.active_connections[execution_id])}")
+            logger.info(
+                f"WebSocket连接建立: execution_id={execution_id}, 当前连接数={len(self.active_connections[execution_id])}"
+            )
             return True
 
     def disconnect(self, websocket: WebSocket, execution_id: str):

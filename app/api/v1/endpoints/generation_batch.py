@@ -5,6 +5,7 @@
 
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
+
 import asyncio
 import hashlib
 import json
@@ -47,16 +48,12 @@ async def create_generation_batch(
     current_user: User = Depends(get_current_user),
 ):
     """创建生成批次。"""
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == body.project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == body.project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalar_one_or_none()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限")
 
     batch = GenerationBatch(
         batch_no=_generate_batch_no(body.project_id),
@@ -84,18 +81,12 @@ async def get_generation_batch(
     current_user: User = Depends(get_current_user),
 ):
     """获取生成批次详情。"""
-    batch_result = await _execute(db,
-        select(GenerationBatch).where(GenerationBatch.id == batch_id)
-    )
+    batch_result = await _execute(db, select(GenerationBatch).where(GenerationBatch.id == batch_id))
     batch = batch_result.scalar_one_or_none()
     if not batch:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在")
     if batch.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此批次"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此批次")
     return create_response(data=_batch_to_response(batch))
 
 
@@ -106,18 +97,12 @@ async def update_generation_batch(
     current_user: User = Depends(get_current_user),
 ):
     """更新生成批次状态与上下文统计。"""
-    batch_result = await _execute(db,
-        select(GenerationBatch).where(GenerationBatch.id == batch_id)
-    )
+    batch_result = await _execute(db, select(GenerationBatch).where(GenerationBatch.id == batch_id))
     batch = batch_result.scalar_one_or_none()
     if not batch:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在")
     if batch.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次")
 
     if body.status is not None:
         _validate_status_transition(batch.status, body.status)
@@ -145,31 +130,27 @@ async def save_generation_batch(
     current_user: User = Depends(get_current_user),
 ):
     """保存批次预览用例（支持新增/更新/废弃，幂等键防重）。"""
-    batch_result = await _execute(db,
-        select(GenerationBatch).where(GenerationBatch.id == batch_id)
-    )
+    batch_result = await _execute(db, select(GenerationBatch).where(GenerationBatch.id == batch_id))
     batch = batch_result.scalar_one_or_none()
     if not batch:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在")
     if batch.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次")
 
-    existing_save_result = await _execute(db,
+    existing_save_result = await _execute(
+        db,
         select(GenerationBatchSave).where(
             GenerationBatchSave.batch_id == batch_id,
             GenerationBatchSave.idempotency_key == body.idempotency_key,
-        )
+        ),
     )
     existing_save = existing_save_result.scalar_one_or_none()
     if existing_save:
         new_hash = hashlib.sha256(
             json.dumps(
                 {"save_mode": body.save_mode, "cases": body.cases},
-                default=str, ensure_ascii=False,
+                default=str,
+                ensure_ascii=False,
             ).encode()
         ).hexdigest()
         if existing_save.request_hash and existing_save.request_hash != new_hash:
@@ -186,7 +167,8 @@ async def save_generation_batch(
     request_hash = hashlib.sha256(
         json.dumps(
             {"save_mode": body.save_mode, "cases": body.cases},
-            default=str, ensure_ascii=False,
+            default=str,
+            ensure_ascii=False,
         ).encode()
     ).hexdigest()
 
@@ -197,10 +179,7 @@ async def save_generation_batch(
 
     cases_to_save = body.cases
     if body.save_mode == "passed_only":
-        cases_to_save = [
-            c for c in cases_to_save
-            if c.quality_status in ("passed", "warning") and c.selected_for_save
-        ]
+        cases_to_save = [c for c in cases_to_save if c.quality_status in ("passed", "warning") and c.selected_for_save]
     else:
         cases_to_save = [c for c in cases_to_save if c.selected_for_save]
 
@@ -220,12 +199,13 @@ async def save_generation_batch(
         if isinstance(rid, int):
             all_req_file_ids.add(rid)
     if all_req_file_ids:
-        valid_files_result = await _execute(db,
+        valid_files_result = await _execute(
+            db,
             select(ProjectFile.id).where(
                 ProjectFile.id.in_(all_req_file_ids),
                 ProjectFile.project_id == batch.project_id,
                 ProjectFile.resource_type == "requirement",
-            )
+            ),
         )
         valid_ids = set(valid_files_result.scalars().all())
         invalid_ids = all_req_file_ids - valid_ids
@@ -239,18 +219,17 @@ async def save_generation_batch(
         try:
             with db.begin_nested():
                 if case_payload.update_action == "update_existing" and case_payload.history_case_id:
-                    existing_case_result = await _execute(db,
+                    existing_case_result = await _execute(
+                        db,
                         select(TestCase).where(
                             TestCase.id == case_payload.history_case_id,
                             TestCase.project_id == batch.project_id,
                             TestCase.is_deleted.is_(False),
-                        )
+                        ),
                     )
                     existing_case = existing_case_result.scalar_one_or_none()
                     if not existing_case:
-                        raise ValueError(
-                            f"用例ID={case_payload.history_case_id}不存在或不属于当前项目"
-                        )
+                        raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
 
                     await _create_case_version_snapshot(
                         db=db,
@@ -270,9 +249,7 @@ async def save_generation_batch(
                     if case_payload.steps:
                         steps_list = [step.model_dump() for step in case_payload.steps]
                         existing_case.steps_json = steps_list
-                        await _execute(db,
-                            delete(TestStep).where(TestStep.test_case_id == existing_case.id)
-                        )
+                        await _execute(db, delete(TestStep).where(TestStep.test_case_id == existing_case.id))
                         for step_idx, step_data in enumerate(case_payload.steps):
                             test_step = TestStep(
                                 test_case_id=existing_case.id,
@@ -290,18 +267,17 @@ async def save_generation_batch(
                     await asyncio.to_thread(db.flush)
                     saved_case_ids.append(existing_case.id)
                 elif case_payload.update_action == "deprecate" and case_payload.history_case_id:
-                    existing_case_result = await _execute(db,
+                    existing_case_result = await _execute(
+                        db,
                         select(TestCase).where(
                             TestCase.id == case_payload.history_case_id,
                             TestCase.project_id == batch.project_id,
                             TestCase.is_deleted.is_(False),
-                        )
+                        ),
                     )
                     existing_case = existing_case_result.scalar_one_or_none()
                     if not existing_case:
-                        raise ValueError(
-                            f"用例ID={case_payload.history_case_id}不存在或不属于当前项目"
-                        )
+                        raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
 
                     await _create_case_version_snapshot(
                         db=db,
@@ -309,7 +285,9 @@ async def save_generation_batch(
                         change_type="update",
                         operator_id=batch.user_id,
                         change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
-                        changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
+                        changed_fields={
+                            "lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}
+                        },
                     )
                     await asyncio.to_thread(db.flush)
 
@@ -327,7 +305,11 @@ async def save_generation_batch(
                         refs = case_payload.source_refs
                         if "requirement_file_id" in refs:
                             req_file_id = refs["requirement_file_id"]
-                        elif "requirement_file_ids" in refs and isinstance(refs["requirement_file_ids"], list) and refs["requirement_file_ids"]:
+                        elif (
+                            "requirement_file_ids" in refs
+                            and isinstance(refs["requirement_file_ids"], list)
+                            and refs["requirement_file_ids"]
+                        ):
                             req_file_id = refs["requirement_file_ids"][0]
                     if req_file_id is None:
                         req_ids = batch.requirement_file_ids_json or []
@@ -337,9 +319,7 @@ async def save_generation_batch(
                     steps_list = [step.model_dump() for step in case_payload.steps]
                     test_category = case_payload.case_category or ""
 
-                    case_no = await asyncio.to_thread(
-                        CaseNumberService.generate, batch.project_id, db
-                    )
+                    case_no = await asyncio.to_thread(CaseNumberService.generate, batch.project_id, db)
 
                     new_case = TestCase(
                         case_no=case_no,
@@ -378,11 +358,13 @@ async def save_generation_batch(
                     saved_case_ids.append(new_case.id)
         except Exception as e:
             logger.warning(f"batch save 单条用例保存失败: {e}")
-            failures.append(BatchSaveFailureItem(
-                client_id=case_payload.client_id,
-                title=case_payload.title,
-                reason=str(e)[:500],
-            ))
+            failures.append(
+                BatchSaveFailureItem(
+                    client_id=case_payload.client_id,
+                    title=case_payload.title,
+                    reason=str(e)[:500],
+                )
+            )
 
     saved_count = len(saved_case_ids)
     failed_count = len(failures)
@@ -428,18 +410,10 @@ async def _execute(db: Session, stmt):
 
 router = APIRouter(tags=["生成批次"])
 
-router.add_api_route(
-    "", create_generation_batch, methods=["POST"], response_model=ApiResponse
-)
-router.add_api_route(
-    "/{batch_id}", get_generation_batch, methods=["GET"], response_model=ApiResponse
-)
-router.add_api_route(
-    "/{batch_id}", update_generation_batch, methods=["PATCH"], response_model=ApiResponse
-)
-router.add_api_route(
-    "/{batch_id}/save", save_generation_batch, methods=["POST"], response_model=ApiResponse
-)
+router.add_api_route("", create_generation_batch, methods=["POST"], response_model=ApiResponse)
+router.add_api_route("/{batch_id}", get_generation_batch, methods=["GET"], response_model=ApiResponse)
+router.add_api_route("/{batch_id}", update_generation_batch, methods=["PATCH"], response_model=ApiResponse)
+router.add_api_route("/{batch_id}/save", save_generation_batch, methods=["POST"], response_model=ApiResponse)
 
 __all__ = [
     "router",

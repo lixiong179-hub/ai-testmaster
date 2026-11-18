@@ -40,6 +40,7 @@ from app.api.v1.endpoints.file_upload import _file_to_dict
 from app.core.exception import create_response
 from loguru import logger
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -58,9 +59,7 @@ async def get_all_files(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        user_projects_result = await _execute(db,
-            select(Project).where(Project.user_id == current_user.id)
-        )
+        user_projects_result = await _execute(db, select(Project).where(Project.user_id == current_user.id))
         user_projects = user_projects_result.scalars().all()
 
         project_ids = [project.id for project in user_projects]
@@ -81,12 +80,11 @@ async def get_all_files(
                 conditions.append(ProjectFile.iteration_id == iteration_id)
 
         # P1-1: 添加分页支持，避免全量加载
-        total_result = await _execute(db,
-            select(func.count()).select_from(ProjectFile).where(*conditions)
-        )
+        total_result = await _execute(db, select(func.count()).select_from(ProjectFile).where(*conditions))
         total = total_result.scalar() or 0
         skip = (page - 1) * page_size
-        files_result = await _execute(db,
+        files_result = await _execute(
+            db,
             select(ProjectFile)
             .where(*conditions)
             .order_by(
@@ -95,7 +93,7 @@ async def get_all_files(
                 ProjectFile.upload_time.desc(),
             )
             .offset(skip)
-            .limit(page_size)
+            .limit(page_size),
         )
         files = files_result.scalars().all()
 
@@ -110,9 +108,7 @@ async def get_all_files(
         )
     except Exception as e:
         logger.error(f"获取文件列表失败: {e}")
-        raise HTTPException(
-            status_code=500, detail="获取文件列表失败"
-        )
+        raise HTTPException(status_code=500, detail="获取文件列表失败")
 
 
 @router.get("/list/{project_id}", response_model=ApiResponse)
@@ -126,10 +122,8 @@ async def get_file_list(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
 
@@ -154,12 +148,11 @@ async def get_file_list(
             else:
                 conditions.append(ProjectFile.iteration_id == iteration_id)
 
-        total_result = await _execute(db,
-            select(func.count()).select_from(ProjectFile).where(*conditions)
-        )
+        total_result = await _execute(db, select(func.count()).select_from(ProjectFile).where(*conditions))
         total = total_result.scalar() or 0
         skip = (page - 1) * page_size
-        files_result = await _execute(db,
+        files_result = await _execute(
+            db,
             select(ProjectFile)
             .where(*conditions)
             .order_by(
@@ -168,7 +161,7 @@ async def get_file_list(
                 ProjectFile.upload_time.desc(),
             )
             .offset(skip)
-            .limit(page_size)
+            .limit(page_size),
         )
         files = files_result.scalars().all()
 
@@ -185,9 +178,7 @@ async def get_file_list(
         raise
     except Exception as e:
         logger.error(f"获取文件列表失败: {e}")
-        raise HTTPException(
-            status_code=500, detail="获取文件列表失败"
-        )
+        raise HTTPException(status_code=500, detail="获取文件列表失败")
 
 
 @router.put("/{file_id}", response_model=ApiResponse)
@@ -198,18 +189,17 @@ async def update_file(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        file_result = await _execute(db,
-            select(ProjectFile).where(ProjectFile.id == file_id)
-        )
+        file_result = await _execute(db, select(ProjectFile).where(ProjectFile.id == file_id))
         file = file_result.scalars().first()
         if not file:
             raise HTTPException(status_code=404, detail="文件不存在")
 
-        project_result = await _execute(db,
+        project_result = await _execute(
+            db,
             select(Project).where(
                 Project.id == file.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
 
@@ -230,18 +220,15 @@ async def update_file(
             file.is_active = update_data.is_active
 
         if update_data.iteration_id is not None:
-            iteration_value = (
-                update_data.iteration_id
-                if update_data.iteration_id > 0
-                else None
-            )
+            iteration_value = update_data.iteration_id if update_data.iteration_id > 0 else None
 
             if iteration_value:
-                iteration_result = await _execute(db,
+                iteration_result = await _execute(
+                    db,
                     select(Iteration).where(
                         Iteration.id == iteration_value,
                         Iteration.project_id == file.project_id,
-                    )
+                    ),
                 )
                 iteration = iteration_result.scalars().first()
                 if not iteration:
@@ -276,10 +263,8 @@ async def delete_file(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
 
@@ -289,17 +274,13 @@ async def delete_file(
                 detail="无权限操作此项目",
             )
 
-        file_result = await _execute(db,
-            select(ProjectFile).where(
-                ProjectFile.id == file_id, ProjectFile.project_id == project_id
-            )
+        file_result = await _execute(
+            db, select(ProjectFile).where(ProjectFile.id == file_id, ProjectFile.project_id == project_id)
         )
         file = file_result.scalars().first()
 
         if not file:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
 
         file.is_active = False
         await asyncio.to_thread(db.commit)

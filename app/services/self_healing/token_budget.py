@@ -17,6 +17,7 @@ Redis 不可用时降级为进程内内存计数，不阻断主流程。
     本模块仅保留自愈场景的 limit / daily_budget 配置绑定与 namespace 常量。
     原有公开方法签名与模块常量保留以避免破坏性变更，自愈测试用例无需改动。
 """
+
 from app.core.config import settings
 from app.services.common.token_budget import BaseTokenBudgetGuard
 

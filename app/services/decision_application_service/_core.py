@@ -44,6 +44,7 @@ def apply_decisions(
 ) -> list[ApplyResult]:
     if decisions is None and review_id is not None:
         from app.services.decision_application_service._handlers import _load_decisions_from_review
+
         decisions = _load_decisions_from_review(review_id, db)
     if decisions is None:
         decisions = []
@@ -64,6 +65,7 @@ _ACTION_HANDLERS = {
     MergedAction.CONFLICT: lambda db, d, _a: _handle_conflict(d),
     MergedAction.PENDING_REVIEW: lambda db, d, _a: _handle_pending_review(d),
 }
+
 
 def apply_single(
     db: Session,
@@ -121,8 +123,11 @@ def _handle_needs_modify(
         return _build_result(decision, success=False, error="review_id is required for needs_modify")
     try:
         lifecycle_transition(
-            db, case_id=target_id, to_status="needs_modify",
-            review_id=decision.review_id, modification_hint=decision.modification_hint,
+            db,
+            case_id=target_id,
+            to_status="needs_modify",
+            review_id=decision.review_id,
+            modification_hint=decision.modification_hint,
             actor_id=actor_id,
         )
         return _build_result(decision, success=True)

@@ -10,6 +10,7 @@
 XMind导入端点已迁移至 test_point_import.py。
 所有端点均需要Bearer令牌认证。
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
@@ -31,6 +32,7 @@ from app.services.ai_analysis_service import (
 )
 from app.services.file_content_extractor import FileContentExtractor
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -51,39 +53,36 @@ async def extract_test_points(
     """从需求文件内容中AI提取测试点。"""
     try:
         if not request.file_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="请提供 file_id"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供 file_id")
 
-        file_result = await _execute(db,
+        file_result = await _execute(
+            db,
             select(ProjectFile).where(
-                ProjectFile.id == request.file_id, ProjectFile.is_active == True  # noqa: E712
-            )
+                ProjectFile.id == request.file_id,
+                ProjectFile.is_active == True,  # noqa: E712
+            ),
         )
         file = file_result.scalars().first()
         if not file:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
-            )
-        project_result = await _execute(db,
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+        project_result = await _execute(
+            db,
             select(Project).where(
-                Project.id == file.project_id, Project.user_id == current_user.id,
-            )
+                Project.id == file.project_id,
+                Project.user_id == current_user.id,
+            ),
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         # FileContentExtractor 内部使用 sync Session API，需独立 sync 会话
         # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
         from app.utils.async_sync_bridge import run_async_coro_in_thread
+
         sync_db = PrimarySessionLocal()
         try:
             extractor = FileContentExtractor(sync_db)
-            result = await run_async_coro_in_thread(
-                extractor.extract_file_content(file, force_refresh=False)
-            )
+            result = await run_async_coro_in_thread(extractor.extract_file_content(file, force_refresh=False))
         finally:
             sync_db.close()
         if not result.get("success"):
@@ -94,24 +93,23 @@ async def extract_test_points(
         file_content = result.get("content", "")
         logger.info(f"文件内容提取成功, 长度: {len(file_content)}")
         if not file_content:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="文件内容为空或无法提取"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="文件内容为空或无法提取")
         test_points = await extract_test_points_from_content(
-            content=file_content, project_id=file.project_id, user_id=current_user.id,
+            content=file_content,
+            project_id=file.project_id,
+            user_id=current_user.id,
         )
         logger.info(f"AI提取完成, 测试点数量: {len(test_points)}")
         return {
-            "code": 200, "message": "测试点提取成功",
+            "code": 200,
+            "message": "测试点提取成功",
             "data": {"items": test_points, "total": len(test_points)},
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"提取测试点失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="提取测试点失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="提取测试点失败")
 
 
 # ── UI原型提取端点 ────────────────────────────────────────
@@ -125,21 +123,24 @@ async def extract_test_points_from_ui(
 ):
     """从UI原型屏幕提取测试点（三维策略：页面 x 可交互元素 x 流程边）。"""
     try:
-        project_result = await _execute(db,
+        project_result = await _execute(
+            db,
             select(Project).where(
-                Project.id == request.project_id, Project.user_id == current_user.id,
-            )
+                Project.id == request.project_id,
+                Project.user_id == current_user.id,
+            ),
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
-        count_result = await _execute(db,
-            select(func.count()).select_from(UIPrototypeScreen).where(
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
+        count_result = await _execute(
+            db,
+            select(func.count())
+            .select_from(UIPrototypeScreen)
+            .where(
                 UIPrototypeScreen.id.in_(request.ui_screen_ids),
                 UIPrototypeScreen.project_id == request.project_id,
-            )
+            ),
         )
         screen_count = count_result.scalar() or 0
         if screen_count != len(request.ui_screen_ids):
@@ -147,11 +148,12 @@ async def extract_test_points_from_ui(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="部分屏幕ID不存在或不属于当前项目",
             )
-        pending_result = await _execute(db,
+        pending_result = await _execute(
+            db,
             select(UIPrototypeScreen).where(
                 UIPrototypeScreen.id.in_(request.ui_screen_ids),
                 UIPrototypeScreen.parse_status != "completed",
-            )
+            ),
         )
         pending_screens = pending_result.scalars().all()
         if pending_screens:
@@ -163,18 +165,22 @@ async def extract_test_points_from_ui(
         # extract_test_points_from_ui_specs 接受 sync db，使用独立 sync 会话
         # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
         from app.utils.async_sync_bridge import run_async_coro_in_thread
+
         sync_db = PrimarySessionLocal()
         try:
             test_points = await run_async_coro_in_thread(
                 extract_test_points_from_ui_specs(
-                    screen_ids=request.ui_screen_ids, project_id=request.project_id, db=sync_db,
+                    screen_ids=request.ui_screen_ids,
+                    project_id=request.project_id,
+                    db=sync_db,
                 )
             )
         finally:
             sync_db.close()
         logger.info(f"从UI原型提取测试点完成, 数量: {len(test_points)}")
         return {
-            "code": 200, "message": "从UI原型提取测试点成功",
+            "code": 200,
+            "message": "从UI原型提取测试点成功",
             "data": {"items": test_points, "total": len(test_points)},
         }
     except HTTPException:

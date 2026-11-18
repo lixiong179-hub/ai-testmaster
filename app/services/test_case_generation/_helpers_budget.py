@@ -3,6 +3,7 @@
 基于确定性 token 估算的预算控制，并按关键词相关性裁剪需求文本，
 保留高分段落及相邻上下文。
 """
+
 import re
 from typing import Any
 
@@ -47,11 +48,7 @@ def _trim_requirement_text(
     if len(text) <= 800:
         return budget.trim_text(text, token_budget), False
 
-    chunks = [
-        chunk.strip()
-        for chunk in re.split(r"(?<=[。！？；;\n])\s*", text)
-        if chunk and chunk.strip()
-    ]
+    chunks = [chunk.strip() for chunk in re.split(r"(?<=[。！？；;\n])\s*", text) if chunk and chunk.strip()]
     scored_chunks = []
     for index, chunk in enumerate(chunks):
         score = _score_terms(terms, chunk)

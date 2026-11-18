@@ -27,6 +27,7 @@ Pipeline Runner 执行引擎
         - _runner_metrics  : FMEA 监控指标记录
         - _runner_executor : Step 执行/重试/降级/产物持久化（Mixin）
 """
+
 import logging
 
 from app.models.pipeline import PipelineRun
@@ -75,14 +76,12 @@ class PipelineRunner(_StepExecutionMixin):
         """
         logger.info(
             "Pipeline '%s' started: run_id=%d, iteration_id=%d",
-            self.pipeline_name, ctx.run.id, ctx.iteration_id,
+            self.pipeline_name,
+            ctx.run.id,
+            ctx.iteration_id,
         )
 
-        current_run = (
-            ctx.db.query(PipelineRun)
-            .filter(PipelineRun.id == ctx.run.id)
-            .first()
-        )
+        current_run = ctx.db.query(PipelineRun).filter(PipelineRun.id == ctx.run.id).first()
         resume_from_step: str | None = None
         if current_run and current_run.pause_payload and isinstance(current_run.pause_payload, dict):
             resume_from_step = current_run.pause_payload.get("step_name")
@@ -91,14 +90,17 @@ class PipelineRunner(_StepExecutionMixin):
 
         if resume_from_step is not None:
             _record_fmea_metric(
-                ctx, "pipeline_recovery",
+                ctx,
+                "pipeline_recovery",
                 step_name=resume_from_step,
                 detail={"reason": "Pipeline resumed after pause"},
             )
 
         status = "waiting_for_user" if resume_from_step else "running"
         pipeline_service.update_run_status(
-            db=ctx.db, run_id=ctx.run.id, status=status,
+            db=ctx.db,
+            run_id=ctx.run.id,
+            status=status,
         )
         _push_pipeline_progress(ctx.run.id, "", status, 0.0, status)
 
@@ -119,19 +121,20 @@ class PipelineRunner(_StepExecutionMixin):
             # 协作式取消检查：API 端点写入 cancelled 状态，Runner 在 Step 间检测
             # 先 commit 当前事务，确保在 REPEATABLE READ 隔离级别下能看到其他事务的更新
             ctx.db.commit()
-            fresh_run = (
-                ctx.db.query(PipelineRun)
-                .filter(PipelineRun.id == ctx.run.id)
-                .first()
-            )
+            fresh_run = ctx.db.query(PipelineRun).filter(PipelineRun.id == ctx.run.id).first()
             if fresh_run and fresh_run.status == "cancelled":
                 logger.info(
                     "Pipeline '%s' cancelled at step '%s': run_id=%d",
-                    self.pipeline_name, step.name, ctx.run.id,
+                    self.pipeline_name,
+                    step.name,
+                    ctx.run.id,
                 )
                 _push_pipeline_progress(
-                    ctx.run.id, step.name, "cancelled",
-                    round((step_idx / total_steps) * 100, 1), "cancelled",
+                    ctx.run.id,
+                    step.name,
+                    "cancelled",
+                    round((step_idx / total_steps) * 100, 1),
+                    "cancelled",
                 )
                 return
 
@@ -142,34 +145,47 @@ class PipelineRunner(_StepExecutionMixin):
             if not ctx.check_budget():
                 logger.warning(
                     "Pipeline '%s' paused: token budget exceeded at step '%s'",
-                    self.pipeline_name, step.name,
+                    self.pipeline_name,
+                    step.name,
                 )
                 _record_fmea_metric(
-                    ctx, "token_budget_exceeded",
+                    ctx,
+                    "token_budget_exceeded",
                     step_name=step.name,
                     detail={"reason": "Token budget exceeded"},
                 )
                 pipeline_service.update_run_status(
-                    db=ctx.db, run_id=ctx.run.id, status="waiting_for_user",
+                    db=ctx.db,
+                    run_id=ctx.run.id,
+                    status="waiting_for_user",
                     error=f"Token budget exceeded at step '{step.name}'",
                 )
                 _push_pipeline_progress(
-                    ctx.run.id, step.name, "waiting_for_user",
-                    round((step_idx / total_steps) * 100, 1), "waiting_for_user",
+                    ctx.run.id,
+                    step.name,
+                    "waiting_for_user",
+                    round((step_idx / total_steps) * 100, 1),
+                    "waiting_for_user",
                 )
                 ctx.db.commit()
                 return
 
             _push_pipeline_progress(
-                ctx.run.id, step.name, "running",
-                round((step_idx / total_steps) * 100, 1), "running",
+                ctx.run.id,
+                step.name,
+                "running",
+                round((step_idx / total_steps) * 100, 1),
+                "running",
             )
             result = self._execute_step_with_retry(ctx, step)
 
             if result is None:
                 _push_pipeline_progress(
-                    ctx.run.id, step.name, "done",
-                    round(((step_idx + 1) / total_steps) * 100, 1), "running",
+                    ctx.run.id,
+                    step.name,
+                    "done",
+                    round(((step_idx + 1) / total_steps) * 100, 1),
+                    "running",
                 )
                 continue
 
@@ -182,10 +198,13 @@ class PipelineRunner(_StepExecutionMixin):
                 }
                 logger.info(
                     "Pipeline '%s' paused at step '%s': reason='%s'",
-                    self.pipeline_name, step.name, pause_info.get("reason"),
+                    self.pipeline_name,
+                    step.name,
+                    pause_info.get("reason"),
                 )
                 _record_fmea_metric(
-                    ctx, "low_confidence_pause",
+                    ctx,
+                    "low_confidence_pause",
                     step_name=step.name,
                     detail={
                         "reason": pause_info.get("reason", ""),
@@ -193,32 +212,42 @@ class PipelineRunner(_StepExecutionMixin):
                     },
                 )
                 pipeline_service.update_run_status(
-                    db=ctx.db, run_id=ctx.run.id, status="waiting_for_user",
+                    db=ctx.db,
+                    run_id=ctx.run.id,
+                    status="waiting_for_user",
                 )
-                current_run_obj = ctx.db.query(PipelineRun).filter(
-                    PipelineRun.id == ctx.run.id
-                ).first()
+                current_run_obj = ctx.db.query(PipelineRun).filter(PipelineRun.id == ctx.run.id).first()
                 if current_run_obj:
                     current_run_obj.pause_payload = pause_info
                 ctx.db.commit()
                 _push_pipeline_progress(
-                    ctx.run.id, step.name, "waiting_for_user",
-                    round((step_idx / total_steps) * 100, 1), "waiting_for_user",
+                    ctx.run.id,
+                    step.name,
+                    "waiting_for_user",
+                    round((step_idx / total_steps) * 100, 1),
+                    "waiting_for_user",
                 )
                 return
 
             if not result.success:
                 logger.error(
                     "Pipeline '%s' failed at step '%s': %s",
-                    self.pipeline_name, step.name, result.error,
+                    self.pipeline_name,
+                    step.name,
+                    result.error,
                 )
                 pipeline_service.update_run_status(
-                    db=ctx.db, run_id=ctx.run.id, status="failed",
+                    db=ctx.db,
+                    run_id=ctx.run.id,
+                    status="failed",
                     error=f"Step '{step.name}' failed: {result.error}",
                 )
                 _push_pipeline_progress(
-                    ctx.run.id, step.name, "failed",
-                    round(((step_idx + 1) / total_steps) * 100, 1), "failed",
+                    ctx.run.id,
+                    step.name,
+                    "failed",
+                    round(((step_idx + 1) / total_steps) * 100, 1),
+                    "failed",
                 )
                 ctx.db.commit()
                 return
@@ -227,18 +256,23 @@ class PipelineRunner(_StepExecutionMixin):
                 self._persist_artifact(ctx, step, result)
 
             _push_pipeline_progress(
-                ctx.run.id, step.name,
+                ctx.run.id,
+                step.name,
                 "degraded" if result.degraded else "done",
-                round(((step_idx + 1) / total_steps) * 100, 1), "running",
+                round(((step_idx + 1) / total_steps) * 100, 1),
+                "running",
             )
 
         pipeline_service.update_run_status(
-            db=ctx.db, run_id=ctx.run.id, status="completed",
+            db=ctx.db,
+            run_id=ctx.run.id,
+            status="completed",
         )
         _push_pipeline_progress(ctx.run.id, "", "completed", 100.0, "completed")
         ctx.db.commit()
 
         logger.info(
             "Pipeline '%s' completed: run_id=%d",
-            self.pipeline_name, ctx.run.id,
+            self.pipeline_name,
+            ctx.run.id,
         )

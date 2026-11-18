@@ -33,6 +33,7 @@ router = APIRouter(tags=["历史资产"])
 
 UPLOAD_DIR = "uploads/history_assets"
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -51,16 +52,12 @@ async def upload_history_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限")
 
     if asset_type not in _ALLOWED_ASSET_TYPES:
         raise HTTPException(
@@ -137,34 +134,30 @@ async def list_history_assets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限")
 
-    total_result = await _execute(db,
-        select(func.count()).select_from(HistoryAsset)
-        .where(HistoryAsset.project_id == project_id)
+    total_result = await _execute(
+        db, select(func.count()).select_from(HistoryAsset).where(HistoryAsset.project_id == project_id)
     )
     total = total_result.scalar() or 0
     skip = (page - 1) * page_size
-    assets_result = await _execute(db,
-        select(HistoryAsset).where(HistoryAsset.project_id == project_id)
+    assets_result = await _execute(
+        db,
+        select(HistoryAsset)
+        .where(HistoryAsset.project_id == project_id)
         .order_by(HistoryAsset.created_at.desc())
-        .offset(skip).limit(page_size)
+        .offset(skip)
+        .limit(page_size),
     )
     assets = assets_result.scalars().all()
 
     items = [_asset_to_upload_response(a) for a in assets]
-    return create_response(
-        data={"items": items, "total": total, "page": page, "page_size": page_size}
-    )
+    return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size})
 
 
 @router.post("/align")
@@ -193,22 +186,19 @@ async def align_history_assets(
             detail=f"参数 JSON 解析失败: {e}",
         ) from e
 
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限")
 
-    assets_result = await _execute(db,
+    assets_result = await _execute(
+        db,
         select(HistoryAsset).where(
             HistoryAsset.id.in_(asset_ids),
             HistoryAsset.project_id == project_id,
-        )
+        ),
     )
     assets = assets_result.scalars().all()
     if len(assets) != len(asset_ids):
@@ -224,33 +214,38 @@ async def align_history_assets(
         if asset.parsed_cases_json:
             all_cases.extend(asset.parsed_cases_json)
 
-    system_cases_result = await _execute(db,
+    system_cases_result = await _execute(
+        db,
         select(TestCase).where(
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
-        )
+        ),
     )
     system_cases_query = system_cases_result.scalars().all()
     system_cases: list[dict[str, Any]] = []
     for sc in system_cases_query:
-        system_cases.append({
-            "case_id": sc.id,
-            "title": sc.title,
-            "module": sc.module,
-            "precondition": sc.precondition,
-            "steps": sc.steps_json or [],
-            "expected_result": sc.expected_result,
-            "priority": sc.priority,
-        })
+        system_cases.append(
+            {
+                "case_id": sc.id,
+                "title": sc.title,
+                "module": sc.module,
+                "precondition": sc.precondition,
+                "steps": sc.steps_json or [],
+                "expected_result": sc.expected_result,
+                "priority": sc.priority,
+            }
+        )
 
     requirement_keywords: list[str] = []
     if req_file_ids:
         from app.models.project import ProjectFile
-        req_files_result = await _execute(db,
+
+        req_files_result = await _execute(
+            db,
             select(ProjectFile).where(
                 ProjectFile.id.in_(req_file_ids),
                 ProjectFile.project_id == project_id,
-            )
+            ),
         )
         req_files = req_files_result.scalars().all()
         for rf in req_files:
@@ -290,23 +285,20 @@ async def import_system_cases(
             detail=f"case_ids JSON 解析失败: {e}",
         ) from e
 
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限")
 
-    cases_result = await _execute(db,
+    cases_result = await _execute(
+        db,
         select(TestCase).where(
             TestCase.id.in_(parsed_case_ids),
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
-        )
+        ),
     )
     cases = cases_result.scalars().all()
     if len(cases) != len(parsed_case_ids):
@@ -319,17 +311,19 @@ async def import_system_cases(
 
     parsed_cases: list[dict[str, Any]] = []
     for case in cases:
-        parsed_cases.append({
-            "case_id": case.id,
-            "case_no": case.case_no,
-            "title": case.title,
-            "module": case.module,
-            "precondition": case.precondition,
-            "steps": case.steps_json or [],
-            "expected_result": case.expected_result,
-            "priority": case.priority,
-            "case_type": case.case_type,
-        })
+        parsed_cases.append(
+            {
+                "case_id": case.id,
+                "case_no": case.case_no,
+                "title": case.title,
+                "module": case.module,
+                "precondition": case.precondition,
+                "steps": case.steps_json or [],
+                "expected_result": case.expected_result,
+                "priority": case.priority,
+                "case_type": case.case_type,
+            }
+        )
 
     asset = HistoryAsset(
         project_id=project_id,
@@ -354,16 +348,10 @@ async def get_history_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    asset_result = await _execute(db,
-        select(HistoryAsset).where(HistoryAsset.id == asset_id)
-    )
+    asset_result = await _execute(db, select(HistoryAsset).where(HistoryAsset.id == asset_id))
     asset = asset_result.scalars().first()
     if not asset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="历史资产不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="历史资产不存在")
     if asset.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此历史资产"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此历史资产")
     return create_response(data=_asset_to_detail_response(asset))

@@ -65,14 +65,14 @@ def _filter_prd_by_testpoint(prd_content: str, tp: dict[str, Any]) -> str:
     for field in ["module", "function", "point"]:
         val = tp.get(field, "")
         if val:
-            for part in re.split(r'[/、，,\s]+', val):
+            for part in re.split(r"[/、，,\s]+", val):
                 if len(part) >= 2:
                     keywords.add(part.lower())
 
     if not keywords:
         return prd_content[:_PRD_MAX_CHARS]
 
-    paragraphs = re.split(r'\n{2,}', prd_content)
+    paragraphs = re.split(r"\n{2,}", prd_content)
 
     scored_paragraphs = []
     for i, para in enumerate(paragraphs):
@@ -108,9 +108,7 @@ def _filter_prd_by_testpoint(prd_content: str, tp: dict[str, Any]) -> str:
     return "\n\n".join(ordered)
 
 
-def _filter_ui_specs_by_testpoint(
-    ui_specs: list[dict[str, Any]], tp: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _filter_ui_specs_by_testpoint(ui_specs: list[dict[str, Any]], tp: dict[str, Any]) -> list[dict[str, Any]]:
     if not ui_specs or len(ui_specs) <= 10:
         return ui_specs
 
@@ -118,7 +116,7 @@ def _filter_ui_specs_by_testpoint(
     for field in ["module", "function"]:
         val = tp.get(field, "")
         if val:
-            for part in re.split(r'[/、，,\s]+', val):
+            for part in re.split(r"[/、，,\s]+", val):
                 if len(part) >= 2:
                     keywords.add(part.lower())
 
@@ -145,6 +143,6 @@ def _filter_ui_specs_by_testpoint(
 
     result = matched[:10]
     if len(result) < 10:
-        result.extend(unmatched[:10 - len(result)])
+        result.extend(unmatched[: 10 - len(result)])
 
     return result

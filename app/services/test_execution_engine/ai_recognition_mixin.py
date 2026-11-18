@@ -1,5 +1,5 @@
-"""AI视觉识别Mixin - 通过视觉模型识别页面元素位置。
-"""
+"""AI视觉识别Mixin - 通过视觉模型识别页面元素位置。"""
+
 import re
 from typing import Any
 from loguru import logger
@@ -10,12 +10,7 @@ from app.utils.ai_client_parser import parse_ai_json_object
 
 
 class AIRecognitionMixin:
-
-    async def recognize_element_with_ai(
-        self,
-        screenshot: bytes,
-        action_description: str
-    ) -> dict[str, Any] | None:
+    async def recognize_element_with_ai(self, screenshot: bytes, action_description: str) -> dict[str, Any] | None:
         if not self.vision_model:
             logger.warning("视觉模型未初始化，跳过AI元素识别")
             return None
@@ -38,7 +33,7 @@ class AIRecognitionMixin:
 """
         try:
             response = self.vision_model.analyze_image(screenshot, prompt)
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 element_info = parse_ai_json_object(json_match.group())
                 if element_info is not None:
@@ -54,11 +49,7 @@ class AIRecognitionMixin:
             return None
 
     async def verify_execution_result(
-        self,
-        before_screenshot: bytes,
-        after_screenshot: bytes,
-        action_description: str,
-        expected_result: str
+        self, before_screenshot: bytes, after_screenshot: bytes, action_description: str, expected_result: str
     ) -> bool:
         if not self.vision_model:
             logger.warning("视觉模型未初始化，跳过AI验证")
@@ -79,7 +70,7 @@ class AIRecognitionMixin:
 """
         try:
             response = self.vision_model.analyze_image(after_screenshot, prompt)
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 result = parse_ai_json_object(json_match.group())
                 if result is not None:
@@ -94,17 +85,12 @@ class AIRecognitionMixin:
             return False
 
     async def smart_locate_with_ai_fallback(
-        self,
-        action_description: str,
-        test_data: dict[str, str] | None = None,
-        max_retries: int = 3
+        self, action_description: str, test_data: dict[str, str] | None = None, max_retries: int = 3
     ) -> dict[str, Any] | None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
 
-        action_text = self._substitute_parameters_in_action(
-            action_description, test_data or {}
-        )
+        action_text = self._substitute_parameters_in_action(action_description, test_data or {})
 
         logger.info(f"智能元素定位开始: {action_text}")
 
@@ -122,8 +108,7 @@ class AIRecognitionMixin:
             try:
                 page_title = await self.browser.execute_javascript("document.title")
                 element_info = await self.locator_service.smart_locate_element(
-                    action_description=action_text,
-                    page_title=page_title
+                    action_description=action_text, page_title=page_title
                 )
                 if element_info:
                     logger.info("策略2成功: ElementLocatorService")
@@ -135,21 +120,19 @@ class AIRecognitionMixin:
             for attempt in range(max_retries):
                 try:
                     screenshot = await self.browser.take_screenshot()
-                    element_info = await self.recognize_element_with_ai(
-                        screenshot, action_text
-                    )
+                    element_info = await self.recognize_element_with_ai(screenshot, action_text)
                     if element_info:
                         logger.info(f"策略3成功: AI识别 (尝试 {attempt + 1}/{max_retries})")
                         element_attrs = await self._get_element_attributes_from_coords(
                             element_info.get("x", 0),
                             element_info.get("y", 0),
                             element_info.get("width", 0),
-                            element_info.get("height", 0)
+                            element_info.get("height", 0),
                         )
                         if element_attrs:
                             css_selector = self._build_css_selector_from_attrs(element_attrs)
                             if css_selector:
-                                element_info['css_selector'] = css_selector
+                                element_info["css_selector"] = css_selector
                         return element_info
                 except Exception as e:
                     logger.warning(f"策略3尝试 {attempt + 1} 失败: {e}")
@@ -158,7 +141,7 @@ class AIRecognitionMixin:
         return None
 
     def _get_element_selector(self, action_text: str) -> str | None:
-        if not hasattr(self, '_selector_registry'):
+        if not hasattr(self, "_selector_registry"):
             self._selector_registry = SelectorRegistry()
         return self._selector_registry.get_selector(None, action_text)
 
@@ -189,8 +172,9 @@ class AIRecognitionMixin:
 
     async def _locate_with_selector(self, selector: str) -> dict[str, Any] | None:
         try:
-            first_selector = selector.split(',')[0].strip()
-            element_info = await self.browser.execute_javascript("""
+            first_selector = selector.split(",")[0].strip()
+            element_info = await self.browser.execute_javascript(
+                """
                 (function() {
                     var el = document.querySelector(arguments[0]);
                     if (el) {
@@ -206,7 +190,10 @@ class AIRecognitionMixin:
                     }
                     return null;
                 })()
-            """, first_selector, selector)
+            """,
+                first_selector,
+                selector,
+            )
             if element_info:
                 return element_info
             return None
@@ -220,7 +207,8 @@ class AIRecognitionMixin:
         center_x = x + width // 2
         center_y = y + height // 2
         try:
-            attrs = await self.browser.execute_javascript("""
+            attrs = await self.browser.execute_javascript(
+                """
                 (function() {
                     var element = document.elementFromPoint(arguments[0], arguments[1]);
                     if (!element) return null;
@@ -233,7 +221,10 @@ class AIRecognitionMixin:
                         placeholder: element.getAttribute('placeholder') || null
                     };
                 })()
-            """, center_x, center_y)
+            """,
+                center_x,
+                center_y,
+            )
             return attrs
         except Exception as e:
             logger.warning(f"获取元素属性失败: {e}")

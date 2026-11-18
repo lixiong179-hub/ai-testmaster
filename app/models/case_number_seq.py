@@ -6,6 +6,7 @@
 核心类:
     CaseNumberSeq: 编号序列模型，project_id 为主键，current_seq 记录当前序号
 """
+
 from sqlalchemy import Column, Integer
 from app.db.database import Base
 
@@ -20,6 +21,7 @@ class CaseNumberSeq(Base):
     表关系:
         - project_id 与 projects.id 逻辑关联（不建外键，避免级联删除影响序列）
     """
+
     __tablename__ = "case_number_seqs"
 
     project_id = Column(Integer, primary_key=True, comment="项目ID，同时为主键")

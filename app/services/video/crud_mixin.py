@@ -1,5 +1,5 @@
-"""CRUD Mixin - 视频记录的数据库增删改查操作。
-"""
+"""CRUD Mixin - 视频记录的数据库增删改查操作。"""
+
 from pathlib import Path
 from sqlalchemy.orm import Session
 from loguru import logger

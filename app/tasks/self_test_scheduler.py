@@ -7,6 +7,7 @@
     - SelfTestScheduler 继承 SelfTestExecutorMixin 保持
       `scheduler.xxx()` 调用方式零改动。
 """
+
 import asyncio
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -80,11 +81,7 @@ class SelfTestScheduler(SelfTestExecutorMixin):
         if self._scheduler is None:
             self.start()
         valid_job_ids: set[str] = set()
-        projects = (
-            await db.execute(
-                select(Project).where(Project.is_self_test.is_(True))
-            )
-        ).scalars().all()
+        projects = (await db.execute(select(Project).where(Project.is_self_test.is_(True)))).scalars().all()
         for project in projects:
             if project.self_test_schedule:
                 self.add_job(project.id, project.self_test_schedule)
@@ -122,11 +119,7 @@ class SelfTestScheduler(SelfTestExecutorMixin):
 
         db = AsyncPrimarySessionLocal()
         try:
-            project = (
-                await db.execute(
-                    select(Project).where(Project.id == project_id)
-                )
-            ).scalars().first()
+            project = (await db.execute(select(Project).where(Project.id == project_id))).scalars().first()
             if not project:
                 logger.error(f"自测项目不存在: {project_id}")
                 return
@@ -135,9 +128,7 @@ class SelfTestScheduler(SelfTestExecutorMixin):
             self_test_mode = self._get_self_test_mode(project)
 
             if self_test_mode == "full_pipeline":
-                logger.info(
-                    f"自测项目 {project_id} 使用全链路执行模式 (full_pipeline)"
-                )
+                logger.info(f"自测项目 {project_id} 使用全链路执行模式 (full_pipeline)")
                 result = await run_defect_discovery_self_test(
                     db=db,
                     project_id=project_id,
@@ -149,9 +140,7 @@ class SelfTestScheduler(SelfTestExecutorMixin):
                     f"defects={result.get('defect_summary')}"
                 )
             else:
-                logger.info(
-                    f"自测项目 {project_id} 使用 UI 自动化执行模式 (ui_automation)"
-                )
+                logger.info(f"自测项目 {project_id} 使用 UI 自动化执行模式 (ui_automation)")
                 # ui_automation 模式保持原有逻辑：仅执行已有用例
                 await self._execute_ui_automation(db, project)
 
@@ -177,6 +166,7 @@ class SelfTestScheduler(SelfTestExecutorMixin):
         if isinstance(config, str):
             try:
                 import json
+
                 config = json.loads(config)
             except (TypeError, ValueError):
                 config = {}

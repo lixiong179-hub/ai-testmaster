@@ -2,6 +2,7 @@
 
 定义 Visual AI API 端点的请求/响应 Schema，使用项目统一的 ApiResponse[T] 包装。
 """
+
 from __future__ import annotations
 
 from typing import Any

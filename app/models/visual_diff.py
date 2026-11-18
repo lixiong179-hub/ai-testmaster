@@ -20,6 +20,7 @@
     - llm_analysis    : LLM 语义分析结果（JSON 字符串，含分类/置信度/建议）
     - llm_token_cost  : LLM Token 消耗
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -65,10 +66,18 @@ class VisualDiff(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="Diff主键ID")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
-    baseline_id = Column(BigInteger, ForeignKey("visual_baselines.id", ondelete="CASCADE"), nullable=False, comment="对比的基线ID")
-    test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试用例ID")
-    test_result_id = Column(Integer, ForeignKey("test_results.id", ondelete="SET NULL"), nullable=True, comment="关联测试结果ID")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
+    baseline_id = Column(
+        BigInteger, ForeignKey("visual_baselines.id", ondelete="CASCADE"), nullable=False, comment="对比的基线ID"
+    )
+    test_case_id = Column(
+        Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试用例ID"
+    )
+    test_result_id = Column(
+        Integer, ForeignKey("test_results.id", ondelete="SET NULL"), nullable=True, comment="关联测试结果ID"
+    )
 
     current_image_key = Column(String(512), nullable=False, comment="当前截图在StorageBackend中的对象key")
     diff_image_key = Column(String(512), nullable=True, comment="差异图存储key（高亮差异区域的叠加图）")
@@ -77,9 +86,13 @@ class VisualDiff(Base):
     diff_pixel_count = Column(Integer, nullable=False, default=0, comment="差异像素数")
     total_pixel_count = Column(Integer, nullable=False, default=0, comment="总像素数（用于计算百分比）")
 
-    match_level = Column(String(32), nullable=False, default="strict", comment="使用的对比模式: strict/layout/ignore_colors")
+    match_level = Column(
+        String(32), nullable=False, default="strict", comment="使用的对比模式: strict/layout/ignore_colors"
+    )
 
-    status = Column(String(32), nullable=False, default="pending", comment="审批状态: pending/approved/rejected/auto_approved")
+    status = Column(
+        String(32), nullable=False, default="pending", comment="审批状态: pending/approved/rejected/auto_approved"
+    )
 
     llm_analysis = Column(Text, nullable=True, comment="LLM语义分析结果（JSON字符串，含分类/置信度/建议）")
     llm_token_cost = Column(Integer, nullable=False, default=0, comment="LLM Token消耗")

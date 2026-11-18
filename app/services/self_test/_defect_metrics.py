@@ -1,4 +1,5 @@
 """Defect discovery rate metrics calculation."""
+
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -7,10 +8,14 @@ from app.models.test_result import TestResult
 
 
 # 隐性缺陷判定键：defect_evidence 中这些键任一非空即视为隐性缺陷
-_IMPLICIT_DEFECT_EVIDENCE_KEYS = frozenset({
-    "console_errors", "network_failures",
-    "memory_leak_suspect", "uncaught_exceptions",
-})
+_IMPLICIT_DEFECT_EVIDENCE_KEYS = frozenset(
+    {
+        "console_errors",
+        "network_failures",
+        "memory_leak_suspect",
+        "uncaught_exceptions",
+    }
+)
 
 
 def _is_implicit_defect(defect_evidence: dict[str, Any] | None) -> bool:
@@ -28,10 +33,7 @@ def _is_implicit_defect(defect_evidence: dict[str, Any] | None) -> bool:
     """
     if not defect_evidence:
         return False
-    return any(
-        bool(defect_evidence.get(key))
-        for key in _IMPLICIT_DEFECT_EVIDENCE_KEYS
-    )
+    return any(bool(defect_evidence.get(key)) for key in _IMPLICIT_DEFECT_EVIDENCE_KEYS)
 
 
 def _collect_implicit_evidence(
@@ -150,9 +152,7 @@ def calculate_defect_metrics(
 
     # --- 4. 高严重度缺陷占比 ---
     high_severity_count = p0_count + p1_count
-    high_severity_ratio = (
-        round(high_severity_count / total_defects, 4) if total_defects > 0 else 0.0
-    )
+    high_severity_ratio = round(high_severity_count / total_defects, 4) if total_defects > 0 else 0.0
 
     # --- 5. 缺陷发现覆盖率 ---
     # 发现缺陷的功能模块集合（通过 Bug 关联的 test_case.module 获取）
@@ -175,9 +175,7 @@ def calculate_defect_metrics(
 
     total_modules = len(all_modules)
     covered_modules = len(modules_with_defects & all_modules)
-    defect_coverage_rate = (
-        round(covered_modules / total_modules, 4) if total_modules > 0 else 0.0
-    )
+    defect_coverage_rate = round(covered_modules / total_modules, 4) if total_modules > 0 else 0.0
 
     # --- 6. 隐性缺陷发现率 ---
     # 查询任务下所有测试结果
@@ -196,15 +194,11 @@ def calculate_defect_metrics(
         if result.exec_status == ExecStatus.PASSED and _is_implicit_defect(result.defect_evidence):
             implicit_defect_count += 1
 
-    implicit_defect_rate = (
-        round(implicit_defect_count / total_defects, 4) if total_defects > 0 else 0.0
-    )
+    implicit_defect_rate = round(implicit_defect_count / total_defects, 4) if total_defects > 0 else 0.0
 
     # --- 7. coverage_insufficient_warning ---
     # 100% 用例通过率 + 0 缺陷发现 → true
-    passed_count = sum(
-        1 for r in test_results if r.exec_status == ExecStatus.PASSED
-    )
+    passed_count = sum(1 for r in test_results if r.exec_status == ExecStatus.PASSED)
     all_passed = executed_count > 0 and passed_count == executed_count
     coverage_insufficient_warning = all_passed and total_defects == 0
 

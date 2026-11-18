@@ -14,6 +14,7 @@
 异常处理：URL 非法（ValueError）返回 422，与 spec Scenario "URL 非法 → 422"
 一致；建项/探索等服务依赖异常返回 503，表示快速测试服务暂不可用。
 """
+
 import asyncio
 import time
 from collections import defaultdict, deque
@@ -35,6 +36,7 @@ from app.schemas.quick_test import (
     QuickTestStatusResponse,
 )
 from app.services.url_driven.quick_launcher import QuickLauncher
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -63,9 +65,7 @@ class _PerUserRateLimiter:
         self.max_requests = max_requests
         self.time_window = time_window
         # deque(maxlen) 提供极端情况下的兜底淘汰，精确限流仍依赖时间窗口清理
-        self._requests: defaultdict = defaultdict(
-            lambda: deque(maxlen=max_requests)
-        )
+        self._requests: defaultdict = defaultdict(lambda: deque(maxlen=max_requests))
         self._redis_client = None
         self._use_redis = False
         self._init_redis()
@@ -79,7 +79,7 @@ class _PerUserRateLimiter:
         try:
             import redis
 
-            redis_url = getattr(settings, 'REDIS_URL', None)
+            redis_url = getattr(settings, "REDIS_URL", None)
             if redis_url:
                 self._redis_client = redis.from_url(
                     redis_url,
@@ -225,11 +225,12 @@ async def get_quick_test_status(
     仅返回当前用户执行的任务（executor_id 过滤），避免越权查询他人任务。
     参数化查询 TestTask.id，防 SQL 注入。
     """
-    result = await _execute(db,
+    result = await _execute(
+        db,
         select(TestTask).where(
             TestTask.id == task_id,
             TestTask.executor_id == current_user.id,
-        )
+        ),
     )
     task = result.scalar_one_or_none()
     if task is None:

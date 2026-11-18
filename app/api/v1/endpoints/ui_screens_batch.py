@@ -21,6 +21,7 @@ optimize-case-generation-flow Task 6.1）。
     - 等价性：批量接口返回的某 id 的 data URL 解码后的字节，与单条接口
       返回该 id 的图片字节完全一致（同一文件）。
 """
+
 import asyncio
 import base64
 import os
@@ -121,10 +122,7 @@ def _build_data_url(screen: UIPrototypeScreen) -> str | None:
         with open(file_path, "rb") as f:
             file_bytes = f.read()
     except OSError as e:
-        logger.warning(
-            f"读取UI截图文件失败: screen_id={screen.id}, "
-            f"path={file_path}, error={e}"
-        )
+        logger.warning(f"读取UI截图文件失败: screen_id={screen.id}, path={file_path}, error={e}")
         return None
 
     ext = (screen.file_type or "png").lower()

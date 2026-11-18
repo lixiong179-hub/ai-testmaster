@@ -3,6 +3,7 @@
 从 runner.py 拆分而来，负责在 Pipeline 运行过程中记录 FMEA 监控指标。
 指标记录失败不阻塞业务流程。
 """
+
 import logging
 
 from app.models.iteration import Iteration
@@ -21,11 +22,16 @@ def _record_fmea_metric(
     """在 Pipeline 运行中记录 FMEA 监控指标（失败不阻塞业务）。"""
     try:
         from app.services.metrics_service import record_metric
+
         project_id = ctx._cached_project_id
         if project_id is None and ctx.iteration_id:
-            iteration = ctx.db.query(Iteration).filter(
-                Iteration.id == ctx.iteration_id,
-            ).first()
+            iteration = (
+                ctx.db.query(Iteration)
+                .filter(
+                    Iteration.id == ctx.iteration_id,
+                )
+                .first()
+            )
             if iteration:
                 project_id = iteration.project_id
             ctx._cached_project_id = project_id

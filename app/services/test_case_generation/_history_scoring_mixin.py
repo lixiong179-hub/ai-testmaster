@@ -5,6 +5,7 @@
 
 与 _ContextLoadersMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
+
 from typing import Any
 
 from app.models.project import Project
@@ -28,8 +29,10 @@ class _HistoryScoringMixin:
     ) -> None:
         """注入历史用例并基于信任度过滤，计算上下文完整性评分。"""
         from app.services.test_case_generation.history_context import (
-            _extract_terms as _extract_history_terms, _score_terms as _score_history_terms,
-            _assess_history_trust, _summarize_history_case,
+            _extract_terms as _extract_history_terms,
+            _score_terms as _score_history_terms,
+            _assess_history_trust,
+            _summarize_history_case,
         )
 
         current_requirement_ids: set[int] = set()
@@ -45,12 +48,16 @@ class _HistoryScoringMixin:
             cases = []
             similarity_by_case_id = {}
         elif history_case_ids is not None and len(history_case_ids) > 0:
-            cases = self.db.query(TestCase).filter(
-                TestCase.id.in_(history_case_ids),
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-                TestCase.lifecycle_status.notin_(['archived', 'deprecated']),
-            ).all()
+            cases = (
+                self.db.query(TestCase)
+                .filter(
+                    TestCase.id.in_(history_case_ids),
+                    TestCase.project_id == project_id,
+                    TestCase.is_deleted.is_(False),
+                    TestCase.lifecycle_status.notin_(["archived", "deprecated"]),
+                )
+                .all()
+            )
             similarity_by_case_id = {}
         else:
             search_terms = []
@@ -58,17 +65,26 @@ class _HistoryScoringMixin:
                 if isinstance(tp, dict):
                     search_terms.append(f"{tp.get('module', '')} {tp.get('point', '')} {tp.get('function', '')}")
             query_terms = _extract_history_terms(*search_terms) if search_terms else set()
-            all_cases = self.db.query(TestCase).filter(
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-                TestCase.lifecycle_status.notin_(['archived', 'deprecated']),
-            ).order_by(TestCase.id).all()
+            all_cases = (
+                self.db.query(TestCase)
+                .filter(
+                    TestCase.project_id == project_id,
+                    TestCase.is_deleted.is_(False),
+                    TestCase.lifecycle_status.notin_(["archived", "deprecated"]),
+                )
+                .order_by(TestCase.id)
+                .all()
+            )
             if query_terms:
                 scored_cases = []
                 for case in all_cases:
                     score = _score_history_terms(
-                        query_terms, case.module, case.title,
-                        case.summary, case.expected_result, case.steps_json,
+                        query_terms,
+                        case.module,
+                        case.title,
+                        case.summary,
+                        case.expected_result,
+                        case.steps_json,
                     )
                     if score > 0:
                         scored_cases.append((score, case))
@@ -76,52 +92,69 @@ class _HistoryScoringMixin:
                 max_score = scored_cases[0][0] if scored_cases else 0
                 cases = [case for _, case in scored_cases[:history_limit]]
                 similarity_by_case_id = {
-                    case.id: (score / max_score if max_score else 0.0)
-                    for score, case in scored_cases[:history_limit]
+                    case.id: (score / max_score if max_score else 0.0) for score, case in scored_cases[:history_limit]
                 }
                 if not cases:
-                    context.setdefault("warnings", []).append({
-                        "code": "HISTORY_NO_SIMILAR_CASE",
-                        "message": "未找到与当前测试点相似的历史用例，默认不注入历史参考",
-                        "detail": {"limit": history_limit},
-                    })
+                    context.setdefault("warnings", []).append(
+                        {
+                            "code": "HISTORY_NO_SIMILAR_CASE",
+                            "message": "未找到与当前测试点相似的历史用例，默认不注入历史参考",
+                            "detail": {"limit": history_limit},
+                        }
+                    )
             else:
                 cases = []
                 similarity_by_case_id = {}
-                context.setdefault("warnings", []).append({
-                    "code": "HISTORY_NO_QUERY_TEXT",
-                    "message": "测试点文本为空，默认不注入历史用例",
-                    "detail": {},
-                })
+                context.setdefault("warnings", []).append(
+                    {
+                        "code": "HISTORY_NO_QUERY_TEXT",
+                        "message": "测试点文本为空，默认不注入历史用例",
+                        "detail": {},
+                    }
+                )
 
         history_cases = []
         low_trust_filtered_count = 0
         for c in cases:
             trust_level, staleness_reason = _assess_history_trust(
-                c, current_requirement_ids, current_ui_screen_ids, self.db,
+                c,
+                current_requirement_ids,
+                current_ui_screen_ids,
+                self.db,
             )
             if trust_level == "low":
                 low_trust_filtered_count += 1
-                context.setdefault("warnings", []).append({
-                    "code": "HISTORY_LOW_TRUST_FILTERED",
-                    "message": f"历史用例「{c.title}」需求不匹配，已从生成上下文中剔除",
-                    "detail": {"case_id": c.id, "case_no": c.case_no, "staleness_reason": staleness_reason},
-                })
+                context.setdefault("warnings", []).append(
+                    {
+                        "code": "HISTORY_LOW_TRUST_FILTERED",
+                        "message": f"历史用例「{c.title}」需求不匹配，已从生成上下文中剔除",
+                        "detail": {"case_id": c.id, "case_no": c.case_no, "staleness_reason": staleness_reason},
+                    }
+                )
                 continue
             if trust_level == "medium":
                 low_trust_filtered_count += 1
-                context.setdefault("warnings", []).append({
-                    "code": "HISTORY_POTENTIALLY_STALE",
-                    "message": f"历史用例「{c.title}」可信度不足，已从生成上下文中剔除",
-                    "detail": {"case_id": c.id, "case_no": c.case_no, "trust_level": trust_level, "staleness_reason": staleness_reason},
-                })
+                context.setdefault("warnings", []).append(
+                    {
+                        "code": "HISTORY_POTENTIALLY_STALE",
+                        "message": f"历史用例「{c.title}」可信度不足，已从生成上下文中剔除",
+                        "detail": {
+                            "case_id": c.id,
+                            "case_no": c.case_no,
+                            "trust_level": trust_level,
+                            "staleness_reason": staleness_reason,
+                        },
+                    }
+                )
                 continue
-            history_cases.append(_summarize_history_case(
-                c,
-                similarity_by_case_id.get(c.id),
-                trust_level=trust_level,
-                staleness_reason=staleness_reason,
-            ))
+            history_cases.append(
+                _summarize_history_case(
+                    c,
+                    similarity_by_case_id.get(c.id),
+                    trust_level=trust_level,
+                    staleness_reason=staleness_reason,
+                )
+            )
 
         context["history_cases"] = history_cases
         context.setdefault("evidence_refs", {})["history_cases"] = [
@@ -144,19 +177,22 @@ class _HistoryScoringMixin:
         context["context_stats"]["missing_core_context"] = completeness["missing_core_context"]
         context["context_stats"]["low_confidence_reasons"] = completeness["low_confidence_reasons"]
         if completeness["score"] < 80:
-            context.setdefault("warnings", []).append({
-                "code": "CONTEXT_COMPLETENESS_LOW",
-                "message": (
-                    f"上下文完整性评分 {completeness['score']}，"
-                    + ("建议人工复核" if completeness["score"] < 50 else "部分步骤可能需标记待确认")
-                ),
-                "detail": {"score": completeness["score"], "missing": completeness["missing_core_context"]},
-            })
+            context.setdefault("warnings", []).append(
+                {
+                    "code": "CONTEXT_COMPLETENESS_LOW",
+                    "message": (
+                        f"上下文完整性评分 {completeness['score']}，"
+                        + ("建议人工复核" if completeness["score"] < 50 else "部分步骤可能需标记待确认")
+                    ),
+                    "detail": {"score": completeness["score"], "missing": completeness["missing_core_context"]},
+                }
+            )
         context["evidence_refs"]["warnings"] = context.get("warnings", [])
 
         try:
             from app.db.database import PrimarySessionLocal
             from app.services.ab_test_service import ABTestService
+
             _ab_db = PrimarySessionLocal()
             try:
                 _ab_service = ABTestService(_ab_db)
@@ -230,13 +266,15 @@ class _HistoryScoringMixin:
 
         has_flow = any(
             _has_flow_intent(f"{tp.get('module', '')} {tp.get('point', '')}")
-            for tp in test_points if isinstance(tp, dict)
+            for tp in test_points
+            if isinstance(tp, dict)
         )
         if has_flow and has_ui:
             matched_screen_ids = {s.get("screen_id") or s.get("id") for s in ui_descriptions if isinstance(s, dict)}
             has_navigation = any(
                 isinstance(s.get("navigation_flow") or s.get("related_screens"), (dict, list))
-                for s in ui_specs if isinstance(s, dict)
+                for s in ui_specs
+                if isinstance(s, dict)
             )
             if has_navigation or len(matched_screen_ids) > 1:
                 score += WEIGHT_FLOW

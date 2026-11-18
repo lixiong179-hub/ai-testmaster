@@ -20,6 +20,7 @@ Mixin组合（MRO顺序）:
     # 调用入口
     await engine.execute_action(step, action_info, step_id, test_data)
 """
+
 from typing import Any
 
 from app.services.test_execution_engine.action_executor_basic_mixin import ActionExecutorBasicMixin
@@ -50,7 +51,7 @@ class ActionExecutorMixin(ActionExecutorBasicMixin, ActionExecutorComplexMixin):
         step: Any,
         action_info: dict[str, Any],
         step_id: int | None = None,
-        step_test_data: dict[str, str] | None = None
+        step_test_data: dict[str, str] | None = None,
     ) -> None:
         """统一动作执行入口 - 根据动作类型分发到具体的执行方法。
 
@@ -78,14 +79,9 @@ class ActionExecutorMixin(ActionExecutorBasicMixin, ActionExecutorComplexMixin):
         action_type = action_info.get("type", ActionType.CLICK)
 
         if step_id is None:
-            step_id = getattr(step, 'id', None)
+            step_id = getattr(step, "id", None)
 
-        await self._execute_action_by_type(
-            action_type,
-            action_info,
-            step_id,
-            step_test_data
-        )
+        await self._execute_action_by_type(action_type, action_info, step_id, step_test_data)
 
     def _parse_step_action(self, action_text: str) -> dict[str, Any]:
         """解析步骤动作文本为结构化信息。

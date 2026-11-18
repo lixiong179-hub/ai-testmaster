@@ -3,6 +3,7 @@
 将 AI 相关逻辑独立成子 Mixin，便于单独维护 Prompt 构建与响应解析的
 复杂分支。本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db。
 """
+
 from typing import Any, Protocol, runtime_checkable
 
 from loguru import logger
@@ -101,8 +102,11 @@ class CaseMigrationAiMixin:
             return {"success": False, "error": f"AI迁移失败: {e}"}
 
         created_cases = await self._create_migrated_cases(
-            migration_result, source_case, target_device,
-            target_project_id, batch_id,
+            migration_result,
+            source_case,
+            target_device,
+            target_project_id,
+            batch_id,
         )
         if not created_cases and migration_result.get("migration_type") != "deprecated":
             return {
@@ -141,10 +145,7 @@ class CaseMigrationAiMixin:
             if callable(ai_client):
                 response = ai_client(prompt)
                 return str(response) if response else None
-            logger.error(
-                "AI客户端未实现 complete/chat 方法且不可调用，"
-                "类型: %s", type(ai_client).__name__
-            )
+            logger.error("AI客户端未实现 complete/chat 方法且不可调用，类型: %s", type(ai_client).__name__)
             return None
         except Exception as e:
             logger.error(f"AI调用异常: {e}")

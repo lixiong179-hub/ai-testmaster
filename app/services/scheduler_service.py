@@ -16,6 +16,7 @@ APScheduler 定时任务调度服务模块
     - app.services.pipeline_timeout_service : cancel_timed_out_pipelines
     - app.db.database : PrimarySessionLocal
 """
+
 from loguru import logger
 from apscheduler.schedulers.background import BackgroundScheduler
 import contextlib

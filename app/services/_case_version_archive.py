@@ -3,6 +3,7 @@
 从 case_version_service.py 拆分，包含版本保留策略归档、changed_fields 构建
 与相关常量。所有函数均为模块级纯函数，由 CaseVersionService 类方法薄委托调用。
 """
+
 from datetime import datetime, timedelta, UTC
 from typing import Any
 
@@ -14,8 +15,12 @@ from app.models.test_case_version import TestCaseVersion
 
 # 需要追踪变更的核心字段
 TRACKED_FIELDS: list[str] = [
-    "title", "module", "precondition", "steps_json",
-    "expected_result", "priority",
+    "title",
+    "module",
+    "precondition",
+    "steps_json",
+    "expected_result",
+    "priority",
 ]
 
 # 版本保留策略阈值
@@ -34,9 +39,13 @@ def archive_old_versions(db: Session, test_case_id: int) -> None:
         db: 数据库会话。
         test_case_id: 用例ID。
     """
-    total = db.query(TestCaseVersion).filter(
-        TestCaseVersion.test_case_id == test_case_id,
-    ).count()
+    total = (
+        db.query(TestCaseVersion)
+        .filter(
+            TestCaseVersion.test_case_id == test_case_id,
+        )
+        .count()
+    )
 
     if total <= MAX_VERSIONS_PER_CASE:
         return
@@ -63,8 +72,7 @@ def archive_old_versions(db: Session, test_case_id: int) -> None:
     if archived_count > 0:
         db.flush()
         logger.info(
-            f"版本归档完成: case_id={test_case_id}, "
-            f"archived={archived_count}, remaining={total - archived_count}"
+            f"版本归档完成: case_id={test_case_id}, archived={archived_count}, remaining={total - archived_count}"
         )
 
 

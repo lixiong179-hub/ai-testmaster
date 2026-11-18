@@ -20,6 +20,7 @@
     - 异常映射: AgentError→400, NotImplementedError→501, HTTPException 透传, 其他→500。
     - 复用 execution_core._helpers.verify_project_permission_async 校验项目归属，避免重复。
 """
+
 from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -48,6 +49,7 @@ from app.schemas.agent import (
     SessionResponse,
 )
 from app.schemas.common import ApiResponse
+
 # 仅轻量导入 Artifact 基类（pydantic 模型）用于类型注解；
 # ArtifactRegistry / 具体 artifact 类 / AgentRuntime 均在函数内延迟导入 ——
 # 它们会连带加载 _tool_executor 等重依赖，顶层导入会在 HTTP 请求中触发
@@ -65,6 +67,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 _session_service = SessionService()
 _audit_service = AgentAuditService()
 _metrics = get_metrics()
+
 
 def _build_artifact_registry():
     """构造并注册全部内置 artifact 类的注册表（延迟导入重依赖）。"""
@@ -133,13 +136,9 @@ def _raise_for_agent(e: Exception, action: str) -> NoReturn:
     if isinstance(e, HTTPException):
         raise e
     if isinstance(e, NotImplementedError):
-        raise HTTPException(
-            status_code=http_status.HTTP_501_NOT_IMPLEMENTED, detail=str(e)
-        )
+        raise HTTPException(status_code=http_status.HTTP_501_NOT_IMPLEMENTED, detail=str(e))
     if isinstance(e, AgentError):
-        raise HTTPException(
-            status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(e))
     logger.error(f"{action}失败: {e}")
     raise HTTPException(
         status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -148,7 +147,9 @@ def _raise_for_agent(e: Exception, action: str) -> NoReturn:
 
 
 async def _check_session_ownership(
-    db: Session, session_id: int, current_user: User,
+    db: Session,
+    session_id: int,
+    current_user: User,
 ) -> AgentSession | None:
     """校验当前用户是否为指定会话的所有者，超级管理员绕过。
 
@@ -167,7 +168,9 @@ async def _check_session_ownership(
 
 
 async def _check_audit_session_ownership(
-    db: Session, audit_id: int, current_user: User,
+    db: Session,
+    audit_id: int,
+    current_user: User,
 ) -> None:
     """按 audit_id 查询审计记录，校验其关联会话的归属。
 
@@ -175,9 +178,7 @@ async def _check_audit_session_ownership(
     存在则校验 session 归属，越权抛 403。AgentAudit.session_id ondelete=CASCADE，
     审计存在即意味着会话存在，无需单独处理会话缺失。
     """
-    audit = (
-        await execute_async(db, select(AgentAudit).where(AgentAudit.id == audit_id))
-    ).scalar_one_or_none()
+    audit = (await execute_async(db, select(AgentAudit).where(AgentAudit.id == audit_id))).scalar_one_or_none()
     if audit is None:
         return
     await _check_session_ownership(db, audit.session_id, current_user)
@@ -323,8 +324,7 @@ async def cancel_session(
     response_model=ApiResponse[list[AuditResponse]],
     summary="查询会话审计（工具调用）记录",
     description=(
-        "R1-3：按 id 升序返回该会话的完整审计链。"
-        "复用 _check_session_ownership 防越权（非本人会话 403、超管绕过）。"
+        "R1-3：按 id 升序返回该会话的完整审计链。复用 _check_session_ownership 防越权（非本人会话 403、超管绕过）。"
     ),
 )
 async def list_session_audits(
@@ -413,8 +413,7 @@ async def approve_audit(
     response_model=ApiResponse[RollbackResponse],
     summary="回滚 Agent 审计动作",
     description=(
-        "回滚已记录的 Agent 动作，写入补偿审计记录。"
-        "未注册回滚处理器的 action_type 返回 501，审计记录不存在返回 400。"
+        "回滚已记录的 Agent 动作，写入补偿审计记录。未注册回滚处理器的 action_type 返回 501，审计记录不存在返回 400。"
     ),
 )
 async def rollback_audit(

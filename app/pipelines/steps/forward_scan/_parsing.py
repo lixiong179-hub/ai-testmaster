@@ -77,7 +77,7 @@ def _try_parse_json(raw: str) -> dict[str, Any] | None:
     except (json.JSONDecodeError, TypeError):
         pass
 
-    match = re.search(r'\{[\s\S]*\}', raw)
+    match = re.search(r"\{[\s\S]*\}", raw)
     if match:
         try:
             data = json.loads(match.group())

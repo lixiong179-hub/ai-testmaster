@@ -1,5 +1,5 @@
-"""可见模式配置 - 环境变量加载器
-"""
+"""可见模式配置 - 环境变量加载器"""
+
 import os
 from app.services.visibility_config.models import VisibilityConfig
 
@@ -7,11 +7,7 @@ from app.services.visibility_config.models import VisibilityConfig
 class VisibilityEnvLoader:
     """从环境变量加载可见模式配置"""
 
-    SPEED_DELAY_MAP = {
-        "slow": 1000,
-        "normal": 500,
-        "fast": 100
-    }
+    SPEED_DELAY_MAP = {"slow": 1000, "normal": 500, "fast": 100}
 
     @staticmethod
     def load_from_env() -> VisibilityConfig:

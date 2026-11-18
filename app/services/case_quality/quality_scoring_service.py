@@ -6,6 +6,7 @@ _classify_* 判定与 quality_scoring_constants 常量，消除同一字段在�
 评分函数中给出冲突分数的问题。常量与正则统一在 quality_scoring_constants
 定义，本模块仅包含判定与评分逻辑。
 """
+
 from typing import Any, Literal
 
 from app.services.case_quality.quality_scoring_constants import (
@@ -116,9 +117,8 @@ class QualityScoringService:
         if not expected_result or not expected_result.strip():
             return "empty"
         expected_result = expected_result.strip()
-        if (
-            any(word in expected_result for word in EXPECTED_VAGUE_WORDS)
-            or EXPECTED_VAGUE_PATTERNS.search(expected_result)
+        if any(word in expected_result for word in EXPECTED_VAGUE_WORDS) or EXPECTED_VAGUE_PATTERNS.search(
+            expected_result
         ):
             return "vague"
         if len(expected_result) < 10:
@@ -268,28 +268,34 @@ class QualityScoringService:
 
         pre_v = QualityScoringService._classify_precondition(case.get("precondition", ""))
         precondition_score = {
-            "empty": 0.0, "missing_login": 4.0, "contradictory": 4.0,
-            "short": 7.0, "ok": 10.0,
+            "empty": 0.0,
+            "missing_login": 4.0,
+            "contradictory": 4.0,
+            "short": 7.0,
+            "ok": 10.0,
         }[pre_v]
 
         steps_v = QualityScoringService._classify_steps(case.get("steps", []), case_type)
         steps_score = {
-            "empty": 0.0, "insufficient": 7.0,
-            "content_issue": 4.0, "ok": 10.0,
+            "empty": 0.0,
+            "insufficient": 7.0,
+            "content_issue": 4.0,
+            "ok": 10.0,
         }[steps_v]
 
         expected_v = QualityScoringService._classify_expected(case.get("expected_result", ""))
         expected_score = {
-            "empty": 0.0, "vague": 4.0, "short": 7.0, "ok": 10.0,
+            "empty": 0.0,
+            "vague": 4.0,
+            "short": 7.0,
+            "ok": 10.0,
         }[expected_v]
 
         cat_v = QualityScoringService._classify_case_category(case.get("case_category", ""))
         case_category_score = {"empty": 0.0, "invalid": 0.0, "ok": 10.0}[cat_v]
 
         action_type_score = QualityScoringService._score_action_type_dim(case.get("steps", []))
-        atomicity_score = 10.0 if QualityScoringService._check_atomicity(
-            case.get("steps", [])
-        ) else 4.0
+        atomicity_score = 10.0 if QualityScoringService._check_atomicity(case.get("steps", [])) else 4.0
 
         return {
             "title": title_score,
@@ -329,7 +335,10 @@ class QualityScoringService:
         """
         # 延迟导入避免循环依赖：_scoring 复用本模块常量
         from app.pipelines.steps._scoring import (
-            _score_expected_result, _score_precondition, _score_steps, _score_title,
+            _score_expected_result,
+            _score_precondition,
+            _score_steps,
+            _score_title,
         )
 
         case_type = case.get("case_type", "")
@@ -338,9 +347,7 @@ class QualityScoringService:
         expected_score = _score_expected_result(case.get("expected_result", ""))
         precondition_score = _score_precondition(case.get("precondition", ""))
 
-        content_score = max(
-            0.0, min(100.0, title_score + steps_score + expected_score + precondition_score)
-        )
+        content_score = max(0.0, min(100.0, title_score + steps_score + expected_score + precondition_score))
         breakdown: dict[str, float] = {
             "title_quality": round(title_score, 2),
             "steps_quality": round(steps_score, 2),

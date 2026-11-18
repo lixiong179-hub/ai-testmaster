@@ -1,11 +1,13 @@
-"""时间线构建Mixin - 构建执行过程的时间线视图。
-"""
+"""时间线构建Mixin - 构建执行过程的时间线视图。"""
+
 import os
 from loguru import logger
 
 from app.models.test_case import TestCaseExecution, TestStep, TestCasePreconditionStep
 from app.services.execution_replay.models import (
-    ReplayEvent, ReplayEventType, ExecutionTimeline,
+    ReplayEvent,
+    ReplayEventType,
+    ExecutionTimeline,
 )
 
 
@@ -21,9 +23,7 @@ class TimelineMixin:
         Returns:
             ExecutionTimeline对象，不存在时返回None。
         """
-        execution = self.db.query(TestCaseExecution).filter(
-            TestCaseExecution.id == execution_id
-        ).first()
+        execution = self.db.query(TestCaseExecution).filter(TestCaseExecution.id == execution_id).first()
 
         if not execution:
             logger.warning(f"执行记录不存在: {execution_id}")
@@ -43,9 +43,12 @@ class TimelineMixin:
             total_duration_ms=duration_ms,
         )
 
-        steps = self.db.query(TestStep).filter(
-            TestStep.test_case_id == execution.test_case_id
-        ).order_by(TestStep.step_number).all()
+        steps = (
+            self.db.query(TestStep)
+            .filter(TestStep.test_case_id == execution.test_case_id)
+            .order_by(TestStep.step_number)
+            .all()
+        )
 
         base_timestamp = 0.0
 
@@ -64,9 +67,12 @@ class TimelineMixin:
             timeline.events.append(event)
             base_timestamp += max(step.estimated_duration_ms or 2000, 500) / 1000.0
 
-        precondition_steps = self.db.query(TestCasePreconditionStep).filter(
-            TestCasePreconditionStep.test_case_id == execution.test_case_id
-        ).order_by(TestCasePreconditionStep.step_number).all()
+        precondition_steps = (
+            self.db.query(TestCasePreconditionStep)
+            .filter(TestCasePreconditionStep.test_case_id == execution.test_case_id)
+            .order_by(TestCasePreconditionStep.step_number)
+            .all()
+        )
 
         pc_events = []
         pc_timestamp = 0.0
@@ -126,10 +132,7 @@ class TimelineMixin:
             return ReplayEventType.CLICK
 
     def _resolve_screenshot_path(
-        self,
-        execution_id: int,
-        step_id: int | None = None,
-        precondition_step_id: int | None = None
+        self, execution_id: int, step_id: int | None = None, precondition_step_id: int | None = None
     ) -> str | None:
         """根据执行ID和步骤ID解析截图文件路径，支持多种命名模式的查找。
 
@@ -141,7 +144,7 @@ class TimelineMixin:
         Returns:
             存在的截图文件绝对路径，均不存在时返回None。
         """
-        base_dir = getattr(self, '_screenshot_base_dir', '/tmp/test_screenshots')
+        base_dir = getattr(self, "_screenshot_base_dir", "/tmp/test_screenshots")
         path_patterns = []
 
         if step_id:

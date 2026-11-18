@@ -7,6 +7,7 @@
 由 _get_context_for_generation_precision 通过 self.* 调用，借助 ContextBuilder 多继承 MRO 解析。
 与 _HistoryScoringMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
+
 from typing import Any
 
 from app.crud import test_point as test_point_crud
@@ -114,17 +115,11 @@ class _ContextLoadersMixin:
             context, project_id, test_point_ids, test_point_page, test_point_page_size
         )
 
-        await self._load_requirement_from_files(
-            context, project_id, requirement_file_ids, budget, force_refresh
-        )
-        self._load_requirement_from_test_points(
-            context, project_id, selected_point_models, search_terms, budget
-        )
+        await self._load_requirement_from_files(context, project_id, requirement_file_ids, budget, force_refresh)
+        self._load_requirement_from_test_points(context, project_id, selected_point_models, search_terms, budget)
         self._assess_requirement_quality(context)
 
-        self._load_ui_descriptions(
-            context, project_id, ui_screen_ids, ui_file_ids, search_text, search_terms
-        )
+        self._load_ui_descriptions(context, project_id, ui_screen_ids, ui_file_ids, search_text, search_terms)
         self._check_required_ui_terms(context, search_text)
         self._finalize_context(context, budget)
 
@@ -201,7 +196,7 @@ class _ContextLoadersMixin:
                     point.id,
                 )
             )
-            selected_point_models = all_points[skip: skip + page_limit]
+            selected_point_models = all_points[skip : skip + page_limit]
             for point in selected_point_models:
                 context["test_points"].append(_test_point_entry(point))
             context["pagination"] = {
@@ -226,11 +221,13 @@ class _ContextLoadersMixin:
         """检查 UI 元素是否覆盖测试点所需关键词，缺失时记录警告。"""
         missing_required_ui_terms = _find_missing_required_ui_terms(search_text, context["ui_specs"])
         if missing_required_ui_terms:
-            context["warnings"].append(_warning(
-                "UI_REQUIRED_ELEMENT_MISSING",
-                "当前页面解析数据可能缺少测试点所需的UI元素",
-                {"missing_terms": missing_required_ui_terms},
-            ))
+            context["warnings"].append(
+                _warning(
+                    "UI_REQUIRED_ELEMENT_MISSING",
+                    "当前页面解析数据可能缺少测试点所需的UI元素",
+                    {"missing_terms": missing_required_ui_terms},
+                )
+            )
 
     def _finalize_context(
         self,
@@ -241,22 +238,24 @@ class _ContextLoadersMixin:
         context["files_used"] = _dedupe_ints(context["files_used"])
         seen_requirement_ids = set()
         context["evidence_refs"]["requirements"] = [
-            ref for ref in context["evidence_refs"]["requirements"]
+            ref
+            for ref in context["evidence_refs"]["requirements"]
             if not (ref["id"] in seen_requirement_ids or seen_requirement_ids.add(ref["id"]))
         ]
         seen_file_ids = set()
         context["evidence_refs"]["requirement_files"] = [
-            ref for ref in context["evidence_refs"]["requirement_files"]
+            ref
+            for ref in context["evidence_refs"]["requirement_files"]
             if not (ref["id"] in seen_file_ids or seen_file_ids.add(ref["id"]))
         ]
         seen_screen_ids = set()
         context["evidence_refs"]["ui_screens"] = [
-            ref for ref in context["evidence_refs"]["ui_screens"]
+            ref
+            for ref in context["evidence_refs"]["ui_screens"]
             if not (ref["id"] in seen_screen_ids or seen_screen_ids.add(ref["id"]))
         ]
-        context["context_stats"]["requirements_used"] = (
-            len(context["evidence_refs"]["requirements"]) +
-            len(context["evidence_refs"]["requirement_files"])
+        context["context_stats"]["requirements_used"] = len(context["evidence_refs"]["requirements"]) + len(
+            context["evidence_refs"]["requirement_files"]
         )
         context["context_stats"]["ui_screens_used"] = len(context["evidence_refs"]["ui_screens"])
         context["context_stats"]["estimated_tokens"] = {
@@ -272,11 +271,13 @@ class _ContextLoadersMixin:
         requirement_text = context["requirement_content"].strip()
         requirement_quality, quality_warning = _assess_requirement_quality(requirement_text)
         if requirement_quality == "insufficient":
-            context["warnings"].append(_warning(
-                "REQUIREMENT_TOO_SHORT",
-                "需求文档内容过短（<50字），生成质量可能受限",
-                {"char_count": len(requirement_text)},
-            ))
+            context["warnings"].append(
+                _warning(
+                    "REQUIREMENT_TOO_SHORT",
+                    "需求文档内容过短（<50字），生成质量可能受限",
+                    {"char_count": len(requirement_text)},
+                )
+            )
         if quality_warning is not None:
             context["warnings"].append(quality_warning)
         context["context_stats"]["requirement_quality"] = requirement_quality

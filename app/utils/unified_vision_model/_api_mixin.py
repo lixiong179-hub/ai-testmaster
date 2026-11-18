@@ -22,10 +22,7 @@ class _VisionApiMixin:
         system_prompt = self._get_element_recognition_prompt()
         user_prompt = f"请识别截图中与'{description}'相关的所有可交互元素"
 
-        user_content = [
-            {"type": "image", "image": encoded_image},
-            {"type": "text", "text": user_prompt}
-        ]
+        user_content = [{"type": "image", "image": encoded_image}, {"type": "text", "text": user_prompt}]
 
         payload = self._build_request_payload(system_prompt, user_content)
         content = self._make_request(payload)
@@ -44,7 +41,7 @@ class _VisionApiMixin:
         system_prompt = "你是一个专业的UI测试工程师，请详细描述当前页面内容。"
         user_content = [
             {"type": "image", "image": encoded_image},
-            {"type": "text", "text": "请描述这个页面的主要内容、布局和可交互元素"}
+            {"type": "text", "text": "请描述这个页面的主要内容、布局和可交互元素"},
         ]
 
         payload = self._build_request_payload(system_prompt, user_content)
@@ -61,10 +58,7 @@ class _VisionApiMixin:
         if system_prompt is None:
             system_prompt = "你是一个专业的UI测试工程师，擅长分析页面截图。"
 
-        user_content = [
-            {"type": "image", "image": encoded_image},
-            {"type": "text", "text": prompt}
-        ]
+        user_content = [{"type": "image", "image": encoded_image}, {"type": "text", "text": prompt}]
 
         payload = self._build_request_payload(system_prompt, user_content)
         result = self._make_request(payload)
@@ -91,7 +85,7 @@ class _VisionApiMixin:
             {"type": "text", "text": f"操作: {action_description}\n预期结果: {expected_result}"},
             {"type": "image", "image": before_encoded},
             {"type": "image", "image": after_encoded},
-            {"type": "text", "text": "请验证操作是否成功，以JSON格式返回结果"}
+            {"type": "text", "text": "请验证操作是否成功，以JSON格式返回结果"},
         ]
 
         payload = self._build_request_payload(system_prompt, user_content)
@@ -159,7 +153,7 @@ class _VisionApiMixin:
         try:
             elements_data = json.loads(content)
         except json.JSONDecodeError:
-            json_match = re.search(r'\[\s*\{[\s\S]*\}\s*\]', content)
+            json_match = re.search(r"\[\s*\{[\s\S]*\}\s*\]", content)
             if json_match:
                 raw = json_match.group(0)
                 for fix_fn in (fix_common_json_issues, clean_json_string):
@@ -185,13 +179,13 @@ class _VisionApiMixin:
             for elem_data in elements_data:
                 try:
                     element = ElementInfo(
-                        type=elem_data.get('type', 'unknown'),
-                        text=elem_data.get('text', ''),
-                        x=int(elem_data.get('x', 0)),
-                        y=int(elem_data.get('y', 0)),
-                        width=int(elem_data.get('width', 0)),
-                        height=int(elem_data.get('height', 0)),
-                        confidence=float(elem_data.get('confidence', 0))
+                        type=elem_data.get("type", "unknown"),
+                        text=elem_data.get("text", ""),
+                        x=int(elem_data.get("x", 0)),
+                        y=int(elem_data.get("y", 0)),
+                        width=int(elem_data.get("width", 0)),
+                        height=int(elem_data.get("height", 0)),
+                        confidence=float(elem_data.get("confidence", 0)),
                     )
                     if element.confidence >= min_confidence:
                         elements.append(element)
@@ -215,8 +209,8 @@ class _VisionApiMixin:
         if result is None:
             return (False, "无法解析验证结果")
 
-        success = result.get('success', False)
-        reason = result.get('reason', '无说明')
+        success = result.get("success", False)
+        reason = result.get("reason", "无说明")
 
         return (success, reason)
 

@@ -16,6 +16,7 @@
     - SOC2 审计前完整性验证
     - 安全事件后取证验证
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -109,11 +110,7 @@ class AuditChainService:
         Returns:
             ChainIntegrityResult: 校验结果
         """
-        stmt = (
-            select(AuditLog)
-            .where(AuditLog.id >= start_id)
-            .order_by(AuditLog.id.asc())
-        )
+        stmt = select(AuditLog).where(AuditLog.id >= start_id).order_by(AuditLog.id.asc())
         if limit:
             stmt = stmt.limit(limit)
 
@@ -131,12 +128,7 @@ class AuditChainService:
         expected_prev_hash = _GENESIS_HASH
         # 如果不是从头开始，获取前一条记录的 hash 作为期望的 prev_hash
         if start_id > 1:
-            prev_stmt = (
-                select(AuditLog.hash)
-                .where(AuditLog.id < start_id)
-                .order_by(AuditLog.id.desc())
-                .limit(1)
-            )
+            prev_stmt = select(AuditLog.hash).where(AuditLog.id < start_id).order_by(AuditLog.id.desc()).limit(1)
             prev_hash = self._db.execute(prev_stmt).scalar_one_or_none()
             if prev_hash:
                 expected_prev_hash = prev_hash

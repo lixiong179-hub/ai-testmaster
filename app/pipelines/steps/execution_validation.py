@@ -16,6 +16,7 @@
     - assertion_failed  : 验证步骤失败（VERIFY 类型步骤失败）
     - other             : 其他失败（环境错误、前置条件失败等）
 """
+
 from typing import Any, ClassVar
 
 from loguru import logger
@@ -34,13 +35,15 @@ FAILURE_TYPE_OTHER = "other"
 # 合法失败类型集合，用于校验外部输入
 # 与迁移脚本 alembic/versions/20260624_add_execution_failure_type_and_verified_at.py
 # 的 comment 列保持一致：element_not_found/timeout/assertion_failed/network_error/other
-VALID_FAILURE_TYPES = frozenset({
-    FAILURE_TYPE_ELEMENT_NOT_FOUND,
-    FAILURE_TYPE_TIMEOUT,
-    FAILURE_TYPE_ASSERTION_FAILED,
-    FAILURE_TYPE_NETWORK_ERROR,
-    FAILURE_TYPE_OTHER,
-})
+VALID_FAILURE_TYPES = frozenset(
+    {
+        FAILURE_TYPE_ELEMENT_NOT_FOUND,
+        FAILURE_TYPE_TIMEOUT,
+        FAILURE_TYPE_ASSERTION_FAILED,
+        FAILURE_TYPE_NETWORK_ERROR,
+        FAILURE_TYPE_OTHER,
+    }
+)
 
 
 class ExecutionValidation(PipelineStep):
@@ -127,7 +130,8 @@ class ExecutionValidation(PipelineStep):
         if unmatched_count > 0:
             logger.warning(
                 "执行验证结果有 {} 条未匹配到 generated_cases（共 {} 条结果）",
-                unmatched_count, total_results,
+                unmatched_count,
+                total_results,
             )
 
         payload = self._build_payload(ctx, cases_artifact, total_results, applied_count)
@@ -182,7 +186,8 @@ class ExecutionValidation(PipelineStep):
         )
 
     def _build_results_by_title(
-        self, validation_results: dict[str, Any],
+        self,
+        validation_results: dict[str, Any],
     ) -> dict[str, dict[str, Any]]:
         """将执行验证结果列表转为 case_title -> result 映射。
 
@@ -345,7 +350,8 @@ class ExecutionValidation(PipelineStep):
             return None
         if ratio < 0.0 or ratio > 1.0:
             logger.warning(
-                "element_verified_ratio 越界: {}，已钳制到 [0.0, 1.0]", ratio,
+                "element_verified_ratio 越界: {}，已钳制到 [0.0, 1.0]",
+                ratio,
             )
             ratio = max(0.0, min(1.0, ratio))
         return ratio

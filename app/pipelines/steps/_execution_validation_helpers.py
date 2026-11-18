@@ -8,6 +8,7 @@
     - VALID_FAILURE_TYPES 合法集合
     - 三个 sanitize_* 函数：对外部输入做类型/范围校验后返回安全值
 """
+
 from typing import Any
 
 from loguru import logger
@@ -23,13 +24,15 @@ FAILURE_TYPE_OTHER = "other"
 # 合法失败类型集合，用于校验外部输入
 # 与迁移脚本 alembic/versions/20260624_add_execution_failure_type_and_verified_at.py
 # 的 comment 列保持一致：element_not_found/timeout/assertion_failed/network_error/other
-VALID_FAILURE_TYPES = frozenset({
-    FAILURE_TYPE_ELEMENT_NOT_FOUND,
-    FAILURE_TYPE_TIMEOUT,
-    FAILURE_TYPE_ASSERTION_FAILED,
-    FAILURE_TYPE_NETWORK_ERROR,
-    FAILURE_TYPE_OTHER,
-})
+VALID_FAILURE_TYPES = frozenset(
+    {
+        FAILURE_TYPE_ELEMENT_NOT_FOUND,
+        FAILURE_TYPE_TIMEOUT,
+        FAILURE_TYPE_ASSERTION_FAILED,
+        FAILURE_TYPE_NETWORK_ERROR,
+        FAILURE_TYPE_OTHER,
+    }
+)
 
 
 def sanitize_verified(value: Any) -> bool | None:
@@ -70,7 +73,8 @@ def sanitize_ratio(value: Any) -> float | None:
         return None
     if ratio < 0.0 or ratio > 1.0:
         logger.warning(
-            "element_verified_ratio 越界: {}，已钳制到 [0.0, 1.0]", ratio,
+            "element_verified_ratio 越界: {}，已钳制到 [0.0, 1.0]",
+            ratio,
         )
         ratio = max(0.0, min(1.0, ratio))
     return ratio

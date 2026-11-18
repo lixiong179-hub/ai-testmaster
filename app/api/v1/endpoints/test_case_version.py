@@ -10,6 +10,7 @@
 详见各 @router 装饰器，主要包括:
     - 版本列表/详情/恢复
 """
+
 import asyncio
 import json
 
@@ -26,6 +27,7 @@ from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
 from loguru import logger
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -35,6 +37,7 @@ router = APIRouter()
 
 # 将导出子模块路由注册到主路由
 from app.api.v1.endpoints.test_case_export import router as export_router
+
 router.include_router(export_router)
 
 
@@ -57,7 +60,7 @@ async def get_test_case_versions(
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     获取测试用例版本列表
@@ -72,58 +75,58 @@ async def get_test_case_versions(
     from app.models.project import Project
     from app.models.test_case_version import TestCaseVersion
 
-    test_case_result = await _execute(db,
-        select(TestCase).join(Project).where(
-            TestCase.id == test_case_id,
-            TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        )
+    test_case_result = await _execute(
+        db,
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
     base_filter = TestCaseVersion.test_case_id == test_case_id
-    count_result = await _execute(db,
-        select(func.count()).select_from(TestCaseVersion).where(base_filter)
-    )
+    count_result = await _execute(db, select(func.count()).select_from(TestCaseVersion).where(base_filter))
     total = count_result.scalar() or 0
 
     offset = (page - 1) * page_size
-    versions_result = await _execute(db,
-        select(TestCaseVersion).where(base_filter)
+    versions_result = await _execute(
+        db,
+        select(TestCaseVersion)
+        .where(base_filter)
         .order_by(TestCaseVersion.version_number.desc())
-        .offset(offset).limit(page_size)
+        .offset(offset)
+        .limit(page_size),
     )
     versions = versions_result.scalars().all()
 
     items = []
     for v in versions:
-        items.append({
-            "id": v.id,
-            "test_case_id": v.test_case_id,
-            "version_number": v.version_number,
-            "change_type": v.change_type,
-            "change_description": v.change_description,
-            "changed_fields": v.changed_fields if isinstance(v.changed_fields, dict) else json.loads(v.changed_fields or "{}"),
-            "snapshot_data": v.snapshot_data if isinstance(v.snapshot_data, dict) else json.loads(v.snapshot_data or "{}"),
-            "operator_id": v.operator_id,
-            "operator_name": v.operator_name,
-            "created_at": v.created_at.isoformat() if v.created_at else None
-        })
+        items.append(
+            {
+                "id": v.id,
+                "test_case_id": v.test_case_id,
+                "version_number": v.version_number,
+                "change_type": v.change_type,
+                "change_description": v.change_description,
+                "changed_fields": v.changed_fields
+                if isinstance(v.changed_fields, dict)
+                else json.loads(v.changed_fields or "{}"),
+                "snapshot_data": v.snapshot_data
+                if isinstance(v.snapshot_data, dict)
+                else json.loads(v.snapshot_data or "{}"),
+                "operator_id": v.operator_id,
+                "operator_name": v.operator_name,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+            }
+        )
     data = {"total": total, "items": items, "page": page, "page_size": page_size}
     return create_response(data=data)
 
 
 @router.get("/{test_case_id}/versions/{version_id}")
 async def get_test_case_version_detail(
-    test_case_id: int,
-    version_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, version_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     获取指定版本详情
@@ -138,32 +141,23 @@ async def get_test_case_version_detail(
     from app.models.test_case_version import TestCaseVersion
     from app.models.project import Project
 
-    test_case_result = await _execute(db,
-        select(TestCase).join(Project).where(
-            TestCase.id == test_case_id,
-            TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        )
+    test_case_result = await _execute(
+        db,
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
-    version_result = await _execute(db,
-        select(TestCaseVersion).where(
-            TestCaseVersion.id == version_id,
-            TestCaseVersion.test_case_id == test_case_id
-        )
+    version_result = await _execute(
+        db,
+        select(TestCaseVersion).where(TestCaseVersion.id == version_id, TestCaseVersion.test_case_id == test_case_id),
     )
     version = version_result.scalars().first()
     if not version:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="版本记录不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本记录不存在")
 
     data = {
         "id": version.id,
@@ -171,21 +165,22 @@ async def get_test_case_version_detail(
         "version_number": version.version_number,
         "change_type": version.change_type,
         "change_description": version.change_description,
-        "changed_fields": version.changed_fields if isinstance(version.changed_fields, dict) else json.loads(version.changed_fields or "{}"),
-        "snapshot_data": version.snapshot_data if isinstance(version.snapshot_data, dict) else json.loads(version.snapshot_data or "{}"),
+        "changed_fields": version.changed_fields
+        if isinstance(version.changed_fields, dict)
+        else json.loads(version.changed_fields or "{}"),
+        "snapshot_data": version.snapshot_data
+        if isinstance(version.snapshot_data, dict)
+        else json.loads(version.snapshot_data or "{}"),
         "operator_id": version.operator_id,
         "operator_name": version.operator_name,
-        "created_at": version.created_at.isoformat() if version.created_at else None
+        "created_at": version.created_at.isoformat() if version.created_at else None,
     }
     return create_response(data=data)
 
 
 @router.post("/{test_case_id}/versions/{version_id}/restore")
 async def restore_test_case_version(
-    test_case_id: int,
-    version_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, version_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     恢复到指定版本
@@ -203,19 +198,15 @@ async def restore_test_case_version(
     from app.services.case_version_service import CaseVersionService
 
     # async 权限校验：查询当前用户是否拥有该用例
-    test_case_result = await _execute(db,
-        select(TestCase).join(Project).where(
-            TestCase.id == test_case_id,
-            TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        )
+    test_case_result = await _execute(
+        db,
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
     # CaseVersionService.restore_version 是 sync 写操作，使用独立 sync 会话 + to_thread 释放事件循环
     def _do_restore(sync_db):
@@ -226,10 +217,7 @@ async def restore_test_case_version(
             operator_id=current_user.id,
         )
         if not restored_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本记录不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本记录不存在")
         sync_db.commit()
         sync_db.refresh(restored_case)
         return build_test_case_response(restored_case)
@@ -243,18 +231,12 @@ async def restore_test_case_version(
         logger.info(f"[版本恢复] 用户ID={current_user.id}, 用例ID={test_case_id}, 恢复到版本ID={version_id}")
         return create_response(data=data)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"恢复测试用例版本失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="恢复版本失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="恢复版本失败")
 
 
 @router.get("/{test_case_id}/versions/{v1_id}/diff/{v2_id}")
@@ -263,7 +245,7 @@ async def diff_test_case_versions(
     v1_id: int,
     v2_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """对比两个版本的字段级差异
 
@@ -284,19 +266,15 @@ async def diff_test_case_versions(
     from app.services.case_version_service import CaseVersionService
 
     # async 权限校验
-    test_case_result = await _execute(db,
-        select(TestCase).join(Project).where(
-            TestCase.id == test_case_id,
-            TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        )
+    test_case_result = await _execute(
+        db,
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
     # CaseVersionService.compare_versions 是 sync 读操作，使用独立 sync 会话 + to_thread 释放事件循环
     def _do_diff(sync_db) -> dict:
@@ -315,7 +293,4 @@ async def diff_test_case_versions(
             sync_db.close()
         return create_response(data=result)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

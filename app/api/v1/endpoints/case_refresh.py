@@ -28,13 +28,9 @@ class ScanStaleRequest(BaseModel):
     project_id: int = Field(..., description="项目ID")
 
 
-async def _verify_project_ownership(
-    project_id: int, current_user: User, db: Session
-) -> Project:
+async def _verify_project_ownership(project_id: int, current_user: User, db: Session) -> Project:
     """校验当前用户对项目的所有权，不通过时抛 404/403。"""
-    result = await execute_async(
-        db, select(Project).where(Project.id == project_id)
-    )
+    result = await execute_async(db, select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
@@ -55,9 +51,7 @@ async def list_refresh_suggestions(
 ) -> dict[str, Any]:
     await _verify_project_ownership(project_id, current_user, db)
     service = CaseRefreshService(db)
-    result = await service.list_suggestions(
-        project_id, page, page_size, suggestion_status, review_status
-    )
+    result = await service.list_suggestions(project_id, page, page_size, suggestion_status, review_status)
     return create_response(data=result)
 
 
@@ -104,9 +98,7 @@ async def review_refresh_suggestion(
     except Exception as e:
         await rollback_async(db)
         logger.error(f"审核保鲜建议失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="审核失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="审核失败")
 
 
 @router.post("/projects/{project_id}/scan-stale-cases", response_model=ApiResponse)
@@ -148,9 +140,7 @@ async def auto_refresh_suggestions(
     service = CaseRefreshService(db)
     stale_cases = await service.scan_stale_cases(project_id)
     if not stale_cases:
-        return create_response(
-            data={"created": [], "errors": [], "total_scanned": 0}, msg="无过期用例"
-        )
+        return create_response(data={"created": [], "errors": [], "total_scanned": 0}, msg="无过期用例")
 
     asyncio.create_task(_run_auto_refresh_async(project_id, max_cases))
     return create_response(

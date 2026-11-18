@@ -9,6 +9,7 @@
 - 输出格式约束为 JSON，每测试点生成 3-5 条用例（正向+边界+异常）；
 - 单文件聚焦 Prompt 文案，与生成主流程/校验逻辑解耦，便于随 Prompt 演进独立调整。
 """
+
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ _ELEMENT_TABLE_HEADER = "| 序号 | role | name | locator |\n|------|------|----
 _NO_FABRICATION_RULE = (
     "⚠️ 严禁编造元素：步骤中引用的所有 target_element 必须且只能来自"
     "上方元素清单表格，禁止使用表格中不存在的元素名称或 locator。"
-    "若无合适元素，改用导航类步骤或显式标注\"无可用元素\"，不得臆造控件。"
+    '若无合适元素，改用导航类步骤或显式标注"无可用元素"，不得臆造控件。'
 )
 
 # AI 输出 JSON Schema 描述（写入 prompt 约束格式，schema 参数亦同时传入）
@@ -52,8 +53,8 @@ _OUTPUT_JSON_SPEC = (
 # 解析层已有 strip_js_string_methods 兜底，此处从源头约束减少发生
 _NO_JS_EXPRESSION_RULE = (
     "⚠️ 所有值必须是 JSON 字面量：禁止使用任何 JavaScript 表达式，"
-    "如 \"a\".repeat(500)、\"x\".padEnd(100, \"0\")、Array(10).fill(0) 等。"
-    "字符串值直接写字面量（如 \"test_input\"），数值直接写数字。"
+    '如 "a".repeat(500)、"x".padEnd(100, "0")、Array(10).fill(0) 等。'
+    '字符串值直接写字面量（如 "test_input"），数值直接写数字。'
 )
 
 

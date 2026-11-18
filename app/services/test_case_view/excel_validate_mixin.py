@@ -1,4 +1,5 @@
 """Excel验证Mixin - 标准格式和功能用例格式的Excel验证。"""
+
 from typing import Any
 from loguru import logger
 
@@ -19,26 +20,26 @@ class ExcelValidateMixin:
             xl = pd.ExcelFile(file_path)
             sheet_names = xl.sheet_names
 
-            if '用例信息' not in sheet_names:
+            if "用例信息" not in sheet_names:
                 result["errors"].append("缺少'用例信息'sheet")
-            if '测试步骤' not in sheet_names:
+            if "测试步骤" not in sheet_names:
                 result["errors"].append("缺少'测试步骤'sheet")
             if result["errors"]:
                 return result
 
-            case_info_df = pd.read_excel(file_path, sheet_name='用例信息')
+            case_info_df = pd.read_excel(file_path, sheet_name="用例信息")
             if case_info_df.empty:
                 result["errors"].append("'用例信息'sheet为空")
             else:
-                for col in ['用例标题']:
+                for col in ["用例标题"]:
                     if col not in case_info_df.columns:
                         result["errors"].append(f"'用例信息'sheet缺少'{col}'列")
 
-            steps_df = pd.read_excel(file_path, sheet_name='测试步骤')
+            steps_df = pd.read_excel(file_path, sheet_name="测试步骤")
             if steps_df.empty:
                 result["errors"].append("'测试步骤'sheet为空")
             else:
-                for col in ['步骤编号', '操作步骤', '预期结果']:
+                for col in ["步骤编号", "操作步骤", "预期结果"]:
                     if col not in steps_df.columns:
                         result["errors"].append(f"'测试步骤'sheet缺少'{col}'列")
 
@@ -71,19 +72,19 @@ class ExcelValidateMixin:
             df.columns = [str(col).strip() for col in df.columns]
 
             required_pairs = [
-                (['用例描述', '标题'], '用例描述/标题'),
-                (['操作步骤', '步骤描述'], '操作步骤/步骤描述'),
-                (['期望结果', '预期结果'], '期望结果/预期结果'),
+                (["用例描述", "标题"], "用例描述/标题"),
+                (["操作步骤", "步骤描述"], "操作步骤/步骤描述"),
+                (["期望结果", "预期结果"], "期望结果/预期结果"),
             ]
             for aliases, label in required_pairs:
                 if not any(a in df.columns for a in aliases):
                     result["errors"].append(f"缺少必要列: '{label}'")
 
             optional_pairs = [
-                (['用例序号', '执行用例ID'], '用例序号/执行用例ID'),
-                (['所属模块'], '所属模块'),
-                (['初始条件', '前置条件'], '初始条件/前置条件'),
-                (['优先级', '用例等级'], '优先级/用例等级'),
+                (["用例序号", "执行用例ID"], "用例序号/执行用例ID"),
+                (["所属模块"], "所属模块"),
+                (["初始条件", "前置条件"], "初始条件/前置条件"),
+                (["优先级", "用例等级"], "优先级/用例等级"),
             ]
             for aliases, label in optional_pairs:
                 if not any(a in df.columns for a in aliases):
@@ -92,9 +93,9 @@ class ExcelValidateMixin:
             if not result["errors"]:
                 result["valid"] = True
                 # 过滤掉模块分组标题行（操作步骤/步骤描述列为空的行）
-                step_col = next((c for c in ['操作步骤', '步骤描述'] if c in df.columns), None)
+                step_col = next((c for c in ["操作步骤", "步骤描述"] if c in df.columns), None)
                 if step_col:
-                    data_rows = df[df[step_col].notna() & (df[step_col].astype(str).str.strip() != '')]
+                    data_rows = df[df[step_col].notna() & (df[step_col].astype(str).str.strip() != "")]
                     result["case_count"] = len(data_rows)
                 else:
                     result["case_count"] = len(df)

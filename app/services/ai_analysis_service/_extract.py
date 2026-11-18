@@ -6,7 +6,6 @@ from app.utils.ai_client_core import AIServiceError
 
 
 class _ExtractMixin:
-
     async def extract_test_points_from_content(
         self,
         content: str,
@@ -165,7 +164,7 @@ UI设计信息：
         except json.JSONDecodeError:
             pass
 
-        json_match = re.search(r'\[[\s\S]*?\]', content)
+        json_match = re.search(r"\[[\s\S]*?\]", content)
         if json_match:
             try:
                 return json.loads(json_match.group(0))

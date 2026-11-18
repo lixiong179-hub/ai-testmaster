@@ -17,7 +17,6 @@ class RecognitionResult:
 
 
 class ElementRecognizer(ABC):
-
     @abstractmethod
     async def recognize(self, browser, operation_description: str, action_type: str | None = None) -> RecognitionResult:
         pass

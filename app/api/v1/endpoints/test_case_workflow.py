@@ -1,5 +1,6 @@
 import asyncio
 import json
+
 """
 测试用例工作流端点模块
 
@@ -38,15 +39,11 @@ router = APIRouter()
 
 @router.get("/{test_case_id}/technical-view")
 async def get_test_case_technical_view(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_technical_view)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_technical_view)
 ):
     try:
         service = TestCaseViewService(db)
-        technical_view = await asyncio.to_thread(
-            service.get_technical_view, test_case_id
-        )
+        technical_view = await asyncio.to_thread(service.get_technical_view, test_case_id)
         if not technical_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=technical_view)
@@ -59,15 +56,11 @@ async def get_test_case_technical_view(
 
 @router.get("/{test_case_id}/business-view")
 async def get_test_case_business_view(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = TestCaseViewService(db)
-        business_view = await asyncio.to_thread(
-            service.get_business_view, test_case_id
-        )
+        business_view = await asyncio.to_thread(service.get_business_view, test_case_id)
         if not business_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=business_view.to_dict())
@@ -80,15 +73,11 @@ async def get_test_case_business_view(
 
 @router.get("/{test_case_id}/locator-coverage")
 async def get_locator_coverage(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = TestCaseViewService(db)
-        coverage = await asyncio.to_thread(
-            service.get_locator_coverage, test_case_id
-        )
+        coverage = await asyncio.to_thread(service.get_locator_coverage, test_case_id)
         return create_response(data=coverage)
     except Exception as e:
         logger.error(f"获取定位覆盖率失败: {e}")
@@ -97,15 +86,11 @@ async def get_locator_coverage(
 
 @router.get("/{test_case_id}/view-statistics")
 async def get_view_statistics(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = TestCaseViewService(db)
-        statistics = await asyncio.to_thread(
-            service.get_view_statistics, test_case_id
-        )
+        statistics = await asyncio.to_thread(service.get_view_statistics, test_case_id)
         return create_response(data=statistics)
     except Exception as e:
         logger.error(f"获取视图统计失败: {e}")
@@ -116,10 +101,10 @@ class BatchViewConfigRequest(BaseModel):
     view_type: str
     visible: bool
 
-    @field_validator('view_type')
+    @field_validator("view_type")
     @classmethod
     def validate_view_type(cls, v: str) -> str:
-        if v not in ('business', 'technical'):
+        if v not in ("business", "technical"):
             raise ValueError('view_type must be "business" or "technical"')
         return v
 
@@ -129,13 +114,15 @@ async def batch_update_view_config(
     test_case_id: int,
     config: BatchViewConfigRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         service = TestCaseViewService(db)
         updated_count = await asyncio.to_thread(
             service.batch_update_view_config,
-            test_case_id, config.view_type, config.visible,
+            test_case_id,
+            config.view_type,
+            config.visible,
         )
         return create_response(data={"updated_count": updated_count})
     except Exception as e:
@@ -153,13 +140,15 @@ async def update_step_view_config(
     step_id: int,
     config: StepViewConfigRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         service = TestCaseViewService(db)
         success = await asyncio.to_thread(
             service.update_step_view_config,
-            step_id, config.is_business_view, config.is_technical_view,
+            step_id,
+            config.is_business_view,
+            config.is_technical_view,
         )
         return create_response(data={"success": success})
     except Exception as e:
@@ -174,11 +163,9 @@ async def add_step_locator(
     xpath: str | None = None,
     element_type: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_technical_view)
+    current_user: User = Depends(require_technical_view),
 ):
-    result = await asyncio.to_thread(
-        db.execute, select(TestStep).where(TestStep.id == step_id)
-    )
+    result = await asyncio.to_thread(db.execute, select(TestStep).where(TestStep.id == step_id))
     step = result.scalar_one_or_none()
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试步骤不存在")
@@ -210,7 +197,7 @@ async def add_step_locator(
                 "locator_id": existing_locator.id,
                 "message": "定位信息更新成功",
                 "css_selector": existing_locator.css_selector,
-                "xpath": existing_locator.xpath
+                "xpath": existing_locator.xpath,
             }
         else:
             new_locator = ElementLocator(
@@ -219,7 +206,7 @@ async def add_step_locator(
                 xpath=xpath,
                 element_type=element_type or "unknown",
                 ai_confidence=1.0,
-                source="manual"
+                source="manual",
             )
             db.add(new_locator)
             await asyncio.to_thread(db.flush)
@@ -230,7 +217,7 @@ async def add_step_locator(
                 "locator_id": new_locator.id,
                 "message": "定位信息添加成功",
                 "css_selector": new_locator.css_selector,
-                "xpath": new_locator.xpath
+                "xpath": new_locator.xpath,
             }
     except Exception as e:
         await asyncio.to_thread(db.rollback)
@@ -243,11 +230,11 @@ class TechnicalViewEditRequest(BaseModel):
     exec_script: str | None = None
     locators: dict | None = None
 
-    @field_validator('steps')
+    @field_validator("steps")
     @classmethod
     def validate_steps(cls, v: list | None) -> list | None:
         if v is not None and len(v) > 200:
-            raise ValueError(f'步骤数量不能超过200，当前: {len(v)}')
+            raise ValueError(f"步骤数量不能超过200，当前: {len(v)}")
         return v
 
 
@@ -256,14 +243,11 @@ async def update_technical_view(
     test_case_id: int,
     request: TechnicalViewEditRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_technical_view)
+    current_user: User = Depends(require_technical_view),
 ):
     result = await asyncio.to_thread(
         db.execute,
-        select(TestCase).where(
-            TestCase.id == test_case_id,
-            TestCase.is_deleted.is_(False)
-        ),
+        select(TestCase).where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)),
     )
     test_case = result.scalar_one_or_none()
     if not test_case:
@@ -274,32 +258,33 @@ async def update_technical_view(
             test_case.exec_script = request.exec_script
 
         if request.steps is not None:
-            existing_steps = test_case.steps_json if isinstance(test_case.steps_json, list) else json.loads(test_case.steps_json or "[]")
+            existing_steps = (
+                test_case.steps_json
+                if isinstance(test_case.steps_json, list)
+                else json.loads(test_case.steps_json or "[]")
+            )
             for updated_step in request.steps:
-                step_id = updated_step.get('step_number')
+                step_id = updated_step.get("step_number")
                 if step_id:
                     step_result = await asyncio.to_thread(
                         db.execute,
-                        select(TestStep).where(
-                            TestStep.test_case_id == test_case_id,
-                            TestStep.step_number == step_id
-                        ),
+                        select(TestStep).where(TestStep.test_case_id == test_case_id, TestStep.step_number == step_id),
                     )
                     db_step = step_result.scalar_one_or_none()
                     if db_step:
-                        if 'action_type' in updated_step:
-                            db_step.action_type = updated_step['action_type']
-                        if 'input_value' in updated_step:
-                            db_step.input_value = updated_step['input_value']
-                        if 'target_element' in updated_step:
-                            db_step.target_element = updated_step['target_element']
-                        if 'action' in updated_step:
-                            db_step.action = updated_step['action']
-                        if 'expected_result' in updated_step:
-                            db_step.expected_result = updated_step['expected_result']
+                        if "action_type" in updated_step:
+                            db_step.action_type = updated_step["action_type"]
+                        if "input_value" in updated_step:
+                            db_step.input_value = updated_step["input_value"]
+                        if "target_element" in updated_step:
+                            db_step.target_element = updated_step["target_element"]
+                        if "action" in updated_step:
+                            db_step.action = updated_step["action"]
+                        if "expected_result" in updated_step:
+                            db_step.expected_result = updated_step["expected_result"]
                     for idx, existing in enumerate(existing_steps):
-                        if isinstance(existing, dict) and existing.get('step_number') == step_id:
-                            existing_steps[idx].update({k: v for k, v in updated_step.items() if k != 'step_number'})
+                        if isinstance(existing, dict) and existing.get("step_number") == step_id:
+                            existing_steps[idx].update({k: v for k, v in updated_step.items() if k != "step_number"})
             test_case.steps_json = existing_steps
 
         if request.locators is not None:
@@ -307,8 +292,7 @@ async def update_technical_view(
                 step_result = await asyncio.to_thread(
                     db.execute,
                     select(TestStep).where(
-                        TestStep.test_case_id == test_case_id,
-                        TestStep.step_number == int(step_number)
+                        TestStep.test_case_id == test_case_id, TestStep.step_number == int(step_number)
                     ),
                 )
                 db_step = step_result.scalar_one_or_none()
@@ -319,21 +303,21 @@ async def update_technical_view(
                     )
                     existing_locator = loc_result.scalar_one_or_none()
                     if existing_locator:
-                        if 'css_selector' in locator_data:
-                            existing_locator.css_selector = locator_data['css_selector']
-                        if 'xpath' in locator_data:
-                            existing_locator.xpath = locator_data['xpath']
-                        if 'element_type' in locator_data:
-                            existing_locator.element_type = locator_data['element_type']
+                        if "css_selector" in locator_data:
+                            existing_locator.css_selector = locator_data["css_selector"]
+                        if "xpath" in locator_data:
+                            existing_locator.xpath = locator_data["xpath"]
+                        if "element_type" in locator_data:
+                            existing_locator.element_type = locator_data["element_type"]
                         existing_locator.updated_at = utcnow()
                     else:
                         new_locator = ElementLocator(
                             step_id=db_step.id,
-                            css_selector=locator_data.get('css_selector'),
-                            xpath=locator_data.get('xpath'),
-                            element_type=locator_data.get('element_type', 'unknown'),
+                            css_selector=locator_data.get("css_selector"),
+                            xpath=locator_data.get("xpath"),
+                            element_type=locator_data.get("element_type", "unknown"),
                             ai_confidence=1.0,
-                            source="manual"
+                            source="manual",
                         )
                         db.add(new_locator)
                     db_step.has_locator = 1
@@ -344,9 +328,7 @@ async def update_technical_view(
         logger.info(f"[技术视图编辑] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
         service = TestCaseViewService(db)
-        technical_view = await asyncio.to_thread(
-            service.get_technical_view, test_case_id
-        )
+        technical_view = await asyncio.to_thread(service.get_technical_view, test_case_id)
         return create_response(data=technical_view)
     except HTTPException:
         raise

@@ -25,10 +25,7 @@ class AITestCaseMixin:
         cached_result = self._get_from_cache(cache_key)
         if cached_result:
             return cached_result
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         prompt_template = (
             "你是一名专业的测试工程师，请根据以下需求内容分析并提取结构化测试点：\n\n"
             "需求内容：\n{REQ_CONTENT_PLACEHOLDER}\n\n"
@@ -51,7 +48,7 @@ class AITestCaseMixin:
             "  · 在弱网环境下，大文件上传中断后自动重传，文件完整性是否无损\n"
             "- 坏的测试点示例：\n"
             "  · 测试登录功能 — 太模糊，没有指向任何具体风险点\n"
-            "  · 验证页面在极端网络下正常展示 — 缺少具体条件，\"极端\"和\"正常\"不可衡量\n"
+            '  · 验证页面在极端网络下正常展示 — 缺少具体条件，"极端"和"正常"不可衡量\n'
             "  · 检查数据库是否收到正确数据 — 脱离用户视角，只关注实现细节\n"
             "  · 用100个窗口同时点击结算 — 场景失真，且没有明确的通过标准\n\n"
             "请严格以JSON格式输出：\n[\n  {\n"
@@ -66,7 +63,7 @@ class AITestCaseMixin:
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,  # 统一低温度，输出稳定
-            "max_tokens": 2000
+            "max_tokens": 2000,
         }
         for attempt in range(self.max_retries):
             try:
@@ -81,7 +78,7 @@ class AITestCaseMixin:
                     if isinstance(parsed, list):
                         test_points = parsed
                 except json.JSONDecodeError:
-                    json_match = re.search(r'\[\s*\{[\s\S]*\}\s*\]', resp_content)
+                    json_match = re.search(r"\[\s*\{[\s\S]*\}\s*\]", resp_content)
                     if json_match:
                         raw = json_match.group(0)
                         for fix_fn in (fix_common_json_issues, clean_json_string):
@@ -121,14 +118,11 @@ class AITestCaseMixin:
         cached_result = self._get_from_cache(cache_key)
         if cached_result:
             return cached_result
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-        module = test_point.get('module', '未知模块')
-        function = test_point.get('function', '')
-        point = test_point.get('point', '')
-        priority = test_point.get('priority', 2)
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
+        module = test_point.get("module", "未知模块")
+        function = test_point.get("function", "")
+        point = test_point.get("point", "")
+        priority = test_point.get("priority", 2)
         prompt = f"""你是一名专业的测试工程师，请根据以下测试点生成可执行的测试用例：
 
 模块：{module}
@@ -236,7 +230,7 @@ class AITestCaseMixin:
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,  # 统一低温度，输出稳定
-            "max_tokens": 1500
+            "max_tokens": 1500,
         }
         for attempt in range(self.max_retries):
             try:
@@ -273,7 +267,7 @@ class AITestCaseMixin:
         generated_case = parse_ai_json_response(content)
         if generated_case is not None:
             return self._validate_and_normalize_case(generated_case)
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             generated_case = parse_ai_json_response(json_match.group(0))
             if generated_case is not None:
@@ -282,15 +276,15 @@ class AITestCaseMixin:
         raise AIResponseParseError()
 
     def _validate_and_normalize_case(self, generated_case: dict[str, Any]) -> dict[str, Any]:
-        required_fields = ['title', 'precondition', 'steps']
+        required_fields = ["title", "precondition", "steps"]
         missing_fields = [f for f in required_fields if f not in generated_case]
         if missing_fields:
             logger.warning(f"AI返回的JSON缺少必要字段: {missing_fields}")
             raise AIResponseFormatError(f"AI响应缺少必要字段: {', '.join(missing_fields)}")
-        if 'expected_results' in generated_case and isinstance(generated_case.get('expected_results'), list):
+        if "expected_results" in generated_case and isinstance(generated_case.get("expected_results"), list):
             generated_case = normalize_new_format(generated_case)
             logger.info("检测到新格式(expected_results分离)，已标准化")
-        elif 'steps' in generated_case:
+        elif "steps" in generated_case:
             generated_case = normalize_old_format(generated_case)
             logger.info("检测到旧格式，已标准化为P0/P2/P3优先级")
         return generated_case

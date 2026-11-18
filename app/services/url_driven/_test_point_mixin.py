@@ -10,6 +10,7 @@
 设计要点：单文件聚焦测试点推导与元素归类，与 Prompt 构建/锚定校验/生成主
 流程解耦，便于随识别规则演进独立调整与单测。
 """
+
 from typing import Any
 
 from app.services.url_driven.site_explorer import PageSnapshot, SiteMap
@@ -57,9 +58,7 @@ class TestPointMixin:
         if page.forms:
             return self._make_test_point(_TEST_POINT_FORM, page, self._form_related_elements(page))
         if page.navigation:
-            return self._make_test_point(
-                _TEST_POINT_NAVIGATION, page, self._navigation_related_elements(page)
-            )
+            return self._make_test_point(_TEST_POINT_NAVIGATION, page, self._navigation_related_elements(page))
         return None
 
     def _fallback_login_test_points(self, site_map: SiteMap) -> list[dict[str, Any]]:
@@ -71,14 +70,10 @@ class TestPointMixin:
         login_page = next((p for p in site_map.pages if p.is_login_page), None)
         if login_page is None:
             return []
-        return [
-            self._make_test_point(_TEST_POINT_LOGIN, login_page, self._login_related_elements(login_page))
-        ]
+        return [self._make_test_point(_TEST_POINT_LOGIN, login_page, self._login_related_elements(login_page))]
 
     @staticmethod
-    def _make_test_point(
-        point_type: str, page: PageSnapshot, related_elements: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _make_test_point(point_type: str, page: PageSnapshot, related_elements: list[dict[str, Any]]) -> dict[str, Any]:
         """构造测试点字典，page_snapshot 字段供主流程回查页面元素做锚定校验。"""
         return {
             "test_point_type": point_type,
@@ -90,10 +85,7 @@ class TestPointMixin:
     @staticmethod
     def _login_related_elements(page: PageSnapshot) -> list[dict[str, Any]]:
         """登录页相关元素：textbox + button（用户名/密码/登录按钮）。"""
-        return [
-            element for element in page.elements
-            if element.get("role") in ("textbox", "button")
-        ]
+        return [element for element in page.elements if element.get("role") in ("textbox", "button")]
 
     @staticmethod
     def _search_elements(page: PageSnapshot) -> list[dict[str, Any]]:
@@ -126,5 +118,6 @@ class TestPointMixin:
         """导航相关元素：取前 5 个导航链接作为相关元素提示。"""
         return [
             {"role": "link", "name": nav.get("text", ""), "locator": ""}
-            for nav in page.navigation[:5] if isinstance(nav, dict)
+            for nav in page.navigation[:5]
+            if isinstance(nav, dict)
         ]

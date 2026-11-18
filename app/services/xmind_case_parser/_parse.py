@@ -9,7 +9,6 @@ from app.services.xmind_case_parser._classify import TopicNode
 
 
 class _ParseMixin:
-
     def parse(self, file_path: str) -> list[dict[str, Any]]:
         root_topics = self._load_all_root_topics(file_path)
         cases: list[dict[str, Any]] = []
@@ -33,6 +32,7 @@ class _ParseMixin:
 
     def _load_all_root_topics(self, file_path: str) -> list[ET.Element]:
         from app.services.xmind_parser import XmindParser
+
         xml_loader = XmindParser()
         content = xml_loader._extract_content_xml(file_path)
 

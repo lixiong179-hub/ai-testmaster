@@ -8,6 +8,7 @@
     - ApiResponse[CoverageStatsResponse]    覆盖率统计
     - ApiResponse[CoverageIngestResponse]   覆盖率写入结果
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -87,9 +88,7 @@ class SchedulePlanRequest(BaseModel):
     total_test_count: int = Field(0, ge=0, description="全量测试用例总数")
     base_ref: str | None = Field(None, description="git diff 基准版本（默认 HEAD~1）")
     target_ref: str | None = Field(None, description="git diff 目标版本（默认 HEAD）")
-    avg_test_duration_seconds: float | None = Field(
-        None, ge=0.0, description="单次测试用例平均执行时长（秒）"
-    )
+    avg_test_duration_seconds: float | None = Field(None, ge=0.0, description="单次测试用例平均执行时长（秒）")
 
 
 __all__ = [

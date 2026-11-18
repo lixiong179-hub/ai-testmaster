@@ -31,6 +31,7 @@ JWT令牌工具模块
     - app.core.config.settings: JWT密钥、算法、过期时间配置
     - app.core.exception.AuthenticationError: 认证异常
 """
+
 import uuid
 from datetime import datetime, timedelta
 
@@ -101,9 +102,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
     return _encode_token(data=data, token_type="refresh", expires_delta=expires_delta)
 
 
-def create_refresh_token_with_jti(
-    data: dict, expires_delta: timedelta | None = None
-) -> tuple[str, str]:
+def create_refresh_token_with_jti(data: dict, expires_delta: timedelta | None = None) -> tuple[str, str]:
     """创建带 jti 声明的刷新令牌，返回 (token, jti)。
 
     jti（JWT ID）作为刷新令牌的唯一标识，与 UserSession.refresh_jti 关联，
@@ -139,6 +138,7 @@ def blacklist_token(jti: str, expires_at: datetime) -> None:
         from loguru import logger
 
         logger.warning(f"写入 jti 黑名单失败（降级为 DB 兜底）: {e}")
+
 
 # 解码令牌
 def decode_token(token: str) -> dict:
@@ -228,6 +228,7 @@ def refresh_access_token(refresh_token: str) -> str:
     logger.info(f"用户 {sub} 刷新了访问令牌")
     return create_access_token({"sub": str(sub)})
 
+
 # 验证密码
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证明文密码与bcrypt哈希是否匹配
@@ -240,6 +241,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         bool: 匹配返回True，不匹配返回False
     """
     return pwd_context.verify(plain_password, hashed_password)
+
 
 # 获取密码哈希
 def get_password_hash(password: str) -> str:

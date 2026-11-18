@@ -19,6 +19,7 @@
     - 引擎内部为同步 API，仍用 asyncio.to_thread / run_async_coro_in_thread
       释放事件循环。
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -127,12 +128,8 @@ async def get_task_summary(
     try:
         stmt = select(
             func.count(TestResult.id).label("total"),
-            func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label(
-                "success"
-            ),
-            func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label(
-                "failed"
-            ),
+            func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label("success"),
+            func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label("failed"),
         ).where(TestResult.task_id == task_id)
         stats_result = await asyncio.to_thread(db.execute, stmt)
         stats = stats_result.first()

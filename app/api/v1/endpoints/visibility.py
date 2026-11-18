@@ -3,6 +3,7 @@
 
 与前端testExecution.ts中的visibility API对齐
 """
+
 """
 可见性管理端点模块
 
@@ -30,10 +31,8 @@ from pydantic import BaseModel, Field
 from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.visibility_config_service import (
-    VisibilityConfig,
-    get_visibility_config_service
-)
+from app.services.visibility_config_service import VisibilityConfig, get_visibility_config_service
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -45,6 +44,7 @@ router = APIRouter(prefix="/visibility", tags=["可见模式配置"])
 
 class VisibilityConfigRequest(BaseModel):
     """可见模式配置请求"""
+
     level: str = Field(..., description="配置级别: global, task, case")
     id: int | None = Field(None, description="任务ID或用例ID")
     headless: bool = Field(True, description="是否无头模式")
@@ -65,7 +65,7 @@ async def get_visibility_config(
     level: str = Query(..., description="配置级别: global, task, case"),
     id: int | None = Query(None, description="任务ID或用例ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """获取可见模式配置"""
     service = get_visibility_config_service()
@@ -74,6 +74,7 @@ async def get_visibility_config(
         config = service.get_global_config()
     elif level == "task":
         from app.models.test_task import TestTask
+
         task = None
         if id is not None:
             result = await _execute(db, select(TestTask).where(TestTask.id == id))
@@ -81,28 +82,21 @@ async def get_visibility_config(
         config = service.get_task_config(task) if task else service.get_global_config()
     elif level == "case":
         from app.models.test_case import TestCase
+
         case = None
         if id is not None:
-            result = await _execute(db,
-                select(TestCase).where(TestCase.id == id, TestCase.is_deleted.is_(False))
-            )
+            result = await _execute(db, select(TestCase).where(TestCase.id == id, TestCase.is_deleted.is_(False)))
             case = result.scalar_one_or_none()
         config = service.get_case_config(case, None) if case else service.get_global_config()
     else:
         config = service.get_global_config()
 
-    return {
-        "code": 200,
-        "message": "success",
-        "data": config.to_dict()
-    }
+    return {"code": 200, "message": "success", "data": config.to_dict()}
 
 
 @router.put("/config")
 async def update_visibility_config(
-    request: VisibilityConfigRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: VisibilityConfigRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """更新可见模式配置"""
     service = get_visibility_config_service()
@@ -111,7 +105,9 @@ async def update_visibility_config(
     config_dict = {
         "headless": request.headless,
         "record_video": request.record_video,
-        "video_resolution": tuple(request.video_resolution) if isinstance(request.video_resolution, list) else request.video_resolution,
+        "video_resolution": tuple(request.video_resolution)
+        if isinstance(request.video_resolution, list)
+        else request.video_resolution,
         "video_fps": request.video_fps,
         "take_screenshot": request.take_screenshot,
         "screenshot_on_failure": request.screenshot_on_failure,
@@ -119,7 +115,7 @@ async def update_visibility_config(
         "execution_speed": request.execution_speed,
         "action_delay_ms": request.action_delay_ms,
         "highlight_elements": request.highlight_elements,
-        "show_ai_analysis": request.show_ai_analysis
+        "show_ai_analysis": request.show_ai_analysis,
     }
 
     new_config = VisibilityConfig(**config_dict)
@@ -127,41 +123,28 @@ async def update_visibility_config(
     # 验证配置
     is_valid, error_msg = service.validate_config(new_config)
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     # 根据级别更新配置
     if request.level == "global":
         service.set_global_config(new_config)
     elif request.level == "task" and request.id:
         from app.models.test_task import TestTask
+
         result = await _execute(db, select(TestTask).where(TestTask.id == request.id))
         task = result.scalar_one_or_none()
         if task:
             service.update_task_config(task, new_config)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     elif request.level == "case" and request.id:
         from app.models.test_case import TestCase
-        result = await _execute(db,
-            select(TestCase).where(TestCase.id == request.id, TestCase.is_deleted.is_(False))
-        )
+
+        result = await _execute(db, select(TestCase).where(TestCase.id == request.id, TestCase.is_deleted.is_(False)))
         case = result.scalar_one_or_none()
         if case:
             service.update_case_config(case, new_config)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用例不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用例不存在")
 
-    return {
-        "code": 200,
-        "message": "配置已保存",
-        "data": new_config.to_dict()
-    }
+    return {"code": 200, "message": "配置已保存", "data": new_config.to_dict()}

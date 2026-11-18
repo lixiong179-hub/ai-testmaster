@@ -11,6 +11,7 @@ Agent 类型：visual_validation
     - update_baseline     : 更新基线截图
     - final_answer        : 提交视觉校验结论
 """
+
 from __future__ import annotations
 
 from typing import Any

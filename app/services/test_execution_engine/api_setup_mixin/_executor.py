@@ -9,16 +9,13 @@ from app.services.test_execution_engine.api_setup_mixin._helpers import _ApiSetu
 
 
 class _ExecutorMixin(_ApiSetupHelpersMixin):
-
     _api_extracted_vars: dict[str, Any]
 
     def _init_api_setup_state(self) -> None:
         self._api_extracted_vars: dict[str, Any] = {}
 
-    async def _execute_setup_api_calls(
-        self, case: TestCase
-    ) -> tuple[bool, str]:
-        setup_api_raw = getattr(case, 'setup_api_calls', None)
+    async def _execute_setup_api_calls(self, case: TestCase) -> tuple[bool, str]:
+        setup_api_raw = getattr(case, "setup_api_calls", None)
         if not setup_api_raw:
             return False, "无API前置准备"
 
@@ -51,9 +48,7 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
             verify=False,
         ) as client:
             for i, api_call in enumerate(api_calls):
-                success = await self._execute_single_api_call(
-                    client, api_call, i + 1
-                )
+                success = await self._execute_single_api_call(client, api_call, i + 1)
                 if not success:
                     return False, f"API调用{i + 1}失败"
 
@@ -107,9 +102,7 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
             if extract:
                 self._extract_api_vars(response, extract)
 
-            logger.info(
-                f"API调用{call_index}成功: {method} {url} -> {response.status_code}"
-            )
+            logger.info(f"API调用{call_index}成功: {method} {url} -> {response.status_code}")
             return True
 
         except httpx.TimeoutException:

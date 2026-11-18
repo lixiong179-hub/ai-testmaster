@@ -30,6 +30,7 @@ UI原型项目CRUD操作模块
     - iteration_id=正整数：按迭代ID精确匹配
     - 不传 iteration_id：不过滤迭代
 """
+
 from typing import Any
 from sqlalchemy.orm import Session
 from app.models.ui_prototype import UIPrototypeProject
@@ -116,9 +117,7 @@ def get_ui_prototype_projects_by_project(
             # 兼容旧调用：<=0 的值统一视为"未关联迭代"，查询 IS NULL
             query = query.filter(UIPrototypeProject.iteration_id.is_(None))
         else:
-            query = query.filter(
-                UIPrototypeProject.iteration_id == iteration_id
-            )
+            query = query.filter(UIPrototypeProject.iteration_id == iteration_id)
     return query.offset(skip).limit(limit).all()
 
 
@@ -155,15 +154,11 @@ def get_ui_prototype_projects_count(
             # 兼容旧调用：<=0 的值统一视为"未关联迭代"，查询 IS NULL
             query = query.filter(UIPrototypeProject.iteration_id.is_(None))
         else:
-            query = query.filter(
-                UIPrototypeProject.iteration_id == iteration_id
-            )
+            query = query.filter(UIPrototypeProject.iteration_id == iteration_id)
     return query.count()
 
 
-def update_prototype_project_stats(
-    db: Session, prototype_project_id: int
-) -> UIPrototypeProject | None:
+def update_prototype_project_stats(db: Session, prototype_project_id: int) -> UIPrototypeProject | None:
     """
     更新原型项目统计信息
 
@@ -190,25 +185,18 @@ def update_prototype_project_stats(
     from sqlalchemy import case, func
     from app.models.ui_prototype import UIPrototypeScreen
 
-    project = (
-        db.query(UIPrototypeProject)
-        .filter(UIPrototypeProject.id == prototype_project_id)
-        .first()
-    )
+    project = db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
     if not project:
         return None
 
-    stats = db.query(
-        func.count(UIPrototypeScreen.id).label('total'),
-        func.sum(
-            case(
-                (UIPrototypeScreen.parse_status == 'completed', 1),
-                else_=0
-            )
-        ).label('parsed')
-    ).filter(
-        UIPrototypeScreen.prototype_project_id == prototype_project_id
-    ).first()
+    stats = (
+        db.query(
+            func.count(UIPrototypeScreen.id).label("total"),
+            func.sum(case((UIPrototypeScreen.parse_status == "completed", 1), else_=0)).label("parsed"),
+        )
+        .filter(UIPrototypeScreen.prototype_project_id == prototype_project_id)
+        .first()
+    )
 
     project.screen_count = stats.total or 0
     project.parsed_count = stats.parsed or 0
@@ -241,11 +229,7 @@ def update_prototype_project_merged_flow(
     Returns:
         Optional[UIPrototypeProject]: 更新后的原型项目对象，不存在则返回None
     """
-    project = (
-        db.query(UIPrototypeProject)
-        .filter(UIPrototypeProject.id == prototype_project_id)
-        .first()
-    )
+    project = db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
     if not project:
         return None
     project.merged_flow = merged_flow

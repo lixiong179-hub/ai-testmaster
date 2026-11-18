@@ -16,6 +16,7 @@
     # 测试隔离时卸载
     uninstall_tenant_query_filter()
 """
+
 from loguru import logger
 from sqlalchemy import event
 from sqlalchemy.orm import Session, with_loader_criteria
@@ -37,8 +38,10 @@ def _make_tenant_criteria(tenant_id: int):
     Returns:
         callable: 接收实体类、返回 SQL 条件表达式的函数
     """
+
     def criteria(cls):
         return cls.tenant_id == tenant_id
+
     return criteria
 
 
@@ -74,10 +77,19 @@ def _on_do_orm_execute(execute_state) -> None:
         TestTask,
         User,
     )
+
     for model in (
-        User, Project, ProjectFile,
-        TestCase, TestTask, TestResult, TestReport,
-        Iteration, TestPoint, TestCapability, Requirement,
+        User,
+        Project,
+        ProjectFile,
+        TestCase,
+        TestTask,
+        TestResult,
+        TestReport,
+        Iteration,
+        TestPoint,
+        TestCapability,
+        Requirement,
     ):
         execute_state.statement = execute_state.statement.options(
             with_loader_criteria(

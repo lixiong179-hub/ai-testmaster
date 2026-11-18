@@ -23,6 +23,7 @@ AI 业务函数统一入口模块
     - app.utils.ai_client_formatter : 格式归一化
     - app.utils.ai_client_prompt : 提示词构建
 """
+
 from app.ai.exceptions import (
     AIServiceError,
     AIAuthenticationError,
@@ -81,6 +82,7 @@ class AIClient(AIStreamMixin, AITestCaseMixin, AIClientBase):
         - AITestCaseMixin: 测试用例生成业务逻辑
         - AIClientBase: 底层通信、缓存、异常处理
     """
+
     pass
 
 

@@ -3,6 +3,7 @@
 将 DB 操作集中到独立子 Mixin，便于事务边界与 lifecycle 切换的管理。
 本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db（AsyncSession）。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -29,9 +30,7 @@ class CaseMigrationPersistenceMixin:
 
     async def _get_source_case(self, case_id: int) -> TestCase | None:
         try:
-            stmt = select(TestCase).where(
-                TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            stmt = select(TestCase).where(TestCase.id == case_id, TestCase.is_deleted.is_(False))
             return (await self.db.execute(stmt)).scalar_one_or_none()
         except Exception as e:
             logger.error(f"查询源用例失败: {e}")
@@ -57,9 +56,7 @@ class CaseMigrationPersistenceMixin:
         try:
             new_case = TestCase(
                 project_id=target_project_id,
-                case_no=await CaseNumberService.generate_async(
-                    target_project_id, self.db
-                ),
+                case_no=await CaseNumberService.generate_async(target_project_id, self.db),
                 module=source_case.module,
                 title=source_case.title,
                 precondition=source_case.precondition,
@@ -108,9 +105,7 @@ class CaseMigrationPersistenceMixin:
         if not adapted_cases:
             logger.error(f"AI返回adapted_cases为空，migration_type={migration_type}")
             return []
-        case_nos = await CaseNumberService.generate_batch_async(
-            target_project_id, len(adapted_cases), self.db
-        )
+        case_nos = await CaseNumberService.generate_batch_async(target_project_id, len(adapted_cases), self.db)
         created: list[TestCase] = []
         enable_lifecycle_transition()
         try:

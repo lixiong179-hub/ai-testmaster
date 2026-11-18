@@ -19,15 +19,9 @@ class BrowserControllerV2(NavigationMixin, ActionMixin, _BrowserControllerV2Base
 
 
 async def create_browser_controller_v2(
-    browser_type: str = "chromium",
-    headless: bool = False,
-    **kwargs
+    browser_type: str = "chromium", headless: bool = False, **kwargs
 ) -> BrowserControllerV2:
-    config = BrowserConfig(
-        browser_type=BrowserType(browser_type),
-        headless=headless,
-        **kwargs
-    )
+    config = BrowserConfig(browser_type=BrowserType(browser_type), headless=headless, **kwargs)
     controller = BrowserControllerV2(config)
     await controller.initialize()
     return controller

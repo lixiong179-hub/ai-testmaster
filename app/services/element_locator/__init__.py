@@ -18,6 +18,7 @@ Mixin组合:
     2. XPath（灵活、兼容性好）
     3. AI视觉识别（兜底、通用性强）
 """
+
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -64,7 +65,7 @@ class ElementLocatorService(
         browser: BrowserController,
         vision_model: UnifiedVisionModel,
         confidence_threshold: float | None = None,
-        recognizer: ElementRecognizer | None = None
+        recognizer: ElementRecognizer | None = None,
     ):
         self.db = db
         self.browser = browser
@@ -73,7 +74,7 @@ class ElementLocatorService(
         self.recognizer = recognizer or self._create_default_recognizer()
 
     def _create_default_recognizer(self) -> ElementRecognizer:
-        if getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False):
+        if getattr(settings, "PLAYWRIGHT_MCP_ENABLED", False):
             return MCPRecognizer()
         return VisionRecognizer(self.vision_model, self.confidence_threshold)
 
@@ -84,20 +85,22 @@ class ElementLocatorService(
         browser: BrowserController,
         vision_model: UnifiedVisionModel,
         confidence_threshold: float | None = None,
-        use_mcp: bool | None = None
+        use_mcp: bool | None = None,
     ) -> "ElementLocatorService":
         if use_mcp is None:
-            use_mcp = getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
-        recognizer = MCPRecognizer() if use_mcp else VisionRecognizer(
-            vision_model, confidence_threshold or cls.MIN_CONFIDENCE_THRESHOLD
+            use_mcp = getattr(settings, "PLAYWRIGHT_MCP_ENABLED", False)
+        recognizer = (
+            MCPRecognizer()
+            if use_mcp
+            else VisionRecognizer(vision_model, confidence_threshold or cls.MIN_CONFIDENCE_THRESHOLD)
         )
         return cls(db, browser, vision_model, confidence_threshold, recognizer=recognizer)
 
 
 __all__ = [
-    'ElementLocatorService',
-    'LocatorQueryMixin',
-    'LocatorRecordMixin',
-    'SelectorGenerationMixin',
-    'SmartLocateMixin',
+    "ElementLocatorService",
+    "LocatorQueryMixin",
+    "LocatorRecordMixin",
+    "SelectorGenerationMixin",
+    "SmartLocateMixin",
 ]

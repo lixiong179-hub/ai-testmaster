@@ -8,7 +8,6 @@ from app.utils.adb_controller._core import (
 
 
 class _DeviceMixin:
-
     async def list_devices(self) -> list[DeviceInfo]:
         _, stdout, _ = await self._execute_command("devices", "-l", check=True)
         devices = []
@@ -52,9 +51,7 @@ class _DeviceMixin:
     async def get_screen_size(self) -> tuple[int, int]:
         if self._screen_size:
             return self._screen_size
-        _, stdout, _ = await self._execute_command(
-            "shell", "wm", "size", check=True
-        )
+        _, stdout, _ = await self._execute_command("shell", "wm", "size", check=True)
         match = re.search(r"(\d+)x(\d+)", stdout)
         if match:
             width, height = int(match.group(1)), int(match.group(2))
@@ -65,14 +62,9 @@ class _DeviceMixin:
     async def take_screenshot(self) -> bytes:
         cmd = self._build_command("exec-out", "screencap", "-p")
         process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(),
-            timeout=self.default_timeout
-        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.default_timeout)
         if process.returncode != 0:
             raise AdbError(f"Screenshot failed: {stderr.decode('utf-8', errors='replace')}")
         if not stdout:
@@ -80,16 +72,12 @@ class _DeviceMixin:
         return stdout
 
     async def get_current_activity(self) -> str | None:
-        _, stdout, _ = await self._execute_command(
-            "shell", "dumpsys", "activity", "activities", check=False
-        )
+        _, stdout, _ = await self._execute_command("shell", "dumpsys", "activity", "activities", check=False)
         match = re.search(r"mResumedActivity.*?(\S+/\S+)", stdout)
         if match:
             return match.group(1)
         return None
 
     async def is_screen_on(self) -> bool:
-        _, stdout, _ = await self._execute_command(
-            "shell", "dumpsys", "power", check=False
-        )
+        _, stdout, _ = await self._execute_command("shell", "dumpsys", "power", check=False)
         return "mWakefulness=Awake" in stdout or "Display Power: state=ON" in stdout

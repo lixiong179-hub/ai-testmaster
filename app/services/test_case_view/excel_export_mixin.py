@@ -1,4 +1,5 @@
 """Excel导出Mixin - 标准格式和功能用例格式的Excel导出。"""
+
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -14,21 +15,24 @@ class ExcelExportMixin:
             from openpyxl import Workbook
             from openpyxl.styles import Font, PatternFill, Alignment
 
-            test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
+            test_case = (
+                self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
+            )
             if not test_case:
                 logger.warning(f"测试用例不存在: {test_case_id}")
                 return False
 
-            steps = self.db.query(TestStep).filter(
-                TestStep.test_case_id == test_case_id
-            ).order_by(TestStep.step_number).all()
+            steps = (
+                self.db.query(TestStep)
+                .filter(TestStep.test_case_id == test_case_id)
+                .order_by(TestStep.step_number)
+                .all()
+            )
 
             step_ids = [s.id for s in steps]
             locators = {}
             if step_ids:
-                locator_list = self.db.query(ElementLocator).filter(
-                    ElementLocator.step_id.in_(step_ids)
-                ).all()
+                locator_list = self.db.query(ElementLocator).filter(ElementLocator.step_id.in_(step_ids)).all()
                 locators = {loc.step_id: loc for loc in locator_list}
 
             wb = Workbook()
@@ -62,8 +66,16 @@ class ExcelExportMixin:
             # ====== Sheet 2: 测试步骤 ======
             ws_steps = wb.create_sheet(title="测试步骤")
             step_headers = [
-                "步骤编号", "操作步骤", "预期结果", "业务视图", "技术视图",
-                "已定位", "定位状态", "CSS选择器", "XPath", "元素类型",
+                "步骤编号",
+                "操作步骤",
+                "预期结果",
+                "业务视图",
+                "技术视图",
+                "已定位",
+                "定位状态",
+                "CSS选择器",
+                "XPath",
+                "元素类型",
             ]
             for col_idx, header in enumerate(step_headers, 1):
                 cell = ws_steps.cell(row=1, column=col_idx, value=header)
@@ -109,10 +121,9 @@ class ExcelExportMixin:
                 logger.warning("未提供测试用例ID列表")
                 return False
 
-            test_cases = self.db.query(TestCase).filter(
-                TestCase.id.in_(test_case_ids),
-                TestCase.is_deleted.is_(False)
-            ).all()
+            test_cases = (
+                self.db.query(TestCase).filter(TestCase.id.in_(test_case_ids), TestCase.is_deleted.is_(False)).all()
+            )
 
             if not test_cases:
                 logger.warning(f"未找到测试用例: {test_case_ids}")
@@ -168,9 +179,12 @@ class ExcelExportMixin:
 
             # 批量查询所有步骤，避免 N+1
             all_case_ids = [tc.id for tc in test_cases]
-            all_steps = self.db.query(TestStep).filter(
-                TestStep.test_case_id.in_(all_case_ids)
-            ).order_by(TestStep.test_case_id, TestStep.step_number).all()
+            all_steps = (
+                self.db.query(TestStep)
+                .filter(TestStep.test_case_id.in_(all_case_ids))
+                .order_by(TestStep.test_case_id, TestStep.step_number)
+                .all()
+            )
             steps_by_case: dict = {}
             for s in all_steps:
                 steps_by_case.setdefault(s.test_case_id, []).append(s)
@@ -178,8 +192,10 @@ class ExcelExportMixin:
             for module_name, cases in modules.items():
                 # 写模块分组标题行
                 ws.merge_cells(
-                    start_row=current_row, start_column=1,
-                    end_row=current_row, end_column=len(columns),
+                    start_row=current_row,
+                    start_column=1,
+                    end_row=current_row,
+                    end_column=len(columns),
                 )
                 module_cell = ws.cell(row=current_row, column=1, value=module_name)
                 module_cell.font = module_font

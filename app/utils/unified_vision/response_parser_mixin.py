@@ -17,6 +17,7 @@
 依赖：
     - app.utils.unified_vision.model_types: ElementInfo数据类
 """
+
 import json
 import re
 from typing import Any
@@ -98,7 +99,7 @@ class ResponseParserMixin:
             Optional[ElementInfo]: 解析成功的元素信息，失败返回None
         """
         try:
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if not json_match:
                 return None
             data = parse_ai_json_object(json_match.group())
@@ -134,7 +135,7 @@ class ResponseParserMixin:
                 解析失败时返回 {"success": False, "reason": "错误信息"}
         """
         try:
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
                 result = parse_ai_json_object(json_match.group())
                 if result is not None:

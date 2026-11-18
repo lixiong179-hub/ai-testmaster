@@ -6,6 +6,7 @@
 同源限制基于 scheme+host，避免爬虫越界到第三方站点（如统计、CDN 外链），
 黑名单过滤用于规避登出/删除等破坏性路径，防止探索过程误操作用户数据。
 """
+
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 

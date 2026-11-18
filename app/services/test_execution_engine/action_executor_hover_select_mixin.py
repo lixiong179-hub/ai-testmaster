@@ -1,5 +1,5 @@
-"""悬停选择动作执行Mixin - 处理鼠标悬停、下拉选择和滚动操作。
-"""
+"""悬停选择动作执行Mixin - 处理鼠标悬停、下拉选择和滚动操作。"""
+
 import asyncio
 from typing import Any
 from loguru import logger
@@ -8,32 +8,27 @@ from app.services.test_execution_engine.models import StepExecutionError
 
 
 class ActionExecutorHoverSelectMixin:
-
     async def _execute_hover(
-        self,
-        action_info: dict[str, Any],
-        step_id: int | None,
-        step_test_data: dict[str, str] | None = None
+        self, action_info: dict[str, Any], step_id: int | None, step_test_data: dict[str, str] | None = None
     ) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
         if self.enable_ai_recognition or self.locator_service:
             try:
-                element_info = await self.smart_locate_with_ai_fallback(
-                    text, step_test_data
-                )
+                element_info = await self.smart_locate_with_ai_fallback(text, step_test_data)
                 if element_info:
-                    css_selector = element_info.get('css_selector')
+                    css_selector = element_info.get("css_selector")
                     if css_selector:
                         try:
-                            safe_selector = css_selector.replace(
-                                "\\", "\\\\"
-                            ).replace("'", "\\'")
-                            await self.browser.execute_javascript("""
+                            safe_selector = css_selector.replace("\\", "\\\\").replace("'", "\\'")
+                            await self.browser.execute_javascript(
+                                """
                                 var el = document.querySelector(arguments[0]);
                                 if (el) { el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true})); }
-                            """, safe_selector)
+                            """,
+                                safe_selector,
+                            )
                             logger.info(f"使用CSS选择器悬停: {css_selector}")
                             return
                         except Exception as e:
@@ -41,9 +36,7 @@ class ActionExecutorHoverSelectMixin:
                     x = element_info.get("x", 0) + element_info.get("width", 0) // 2
                     y = element_info.get("y", 0) + element_info.get("height", 0) // 2
                     if x < 0 or y < 0:
-                        raise StepExecutionError(
-                            f"AI识别坐标无效: ({x}, {y})，元素: {text}"
-                        )
+                        raise StepExecutionError(f"AI识别坐标无效: ({x}, {y})，元素: {text}")
                     await self.browser.hover(x, y)
                     logger.info(f"悬停元素(坐标方式): ({x}, {y})")
                     return
@@ -52,13 +45,14 @@ class ActionExecutorHoverSelectMixin:
         selector = self._get_element_selector(text)
         if selector:
             try:
-                safe_selector = selector.replace(
-                    "\\", "\\\\"
-                ).replace("'", "\\'")
-                await self.browser.execute_javascript("""
+                safe_selector = selector.replace("\\", "\\\\").replace("'", "\\'")
+                await self.browser.execute_javascript(
+                    """
                     var el = document.querySelector(arguments[0]);
                     if (el) { el.dispatchEvent(new MouseEvent('mouseover', {bubbles: true})); }
-                """, safe_selector)
+                """,
+                    safe_selector,
+                )
                 logger.info(f"使用预定义选择器悬停成功: {selector}")
                 return
             except Exception as e:
@@ -67,10 +61,7 @@ class ActionExecutorHoverSelectMixin:
         raise StepExecutionError(f"无法定位悬停元素: {text}")
 
     async def _execute_select(
-        self,
-        action_info: dict[str, Any],
-        step_id: int | None,
-        step_test_data: dict[str, str] | None = None
+        self, action_info: dict[str, Any], step_id: int | None, step_test_data: dict[str, str] | None = None
     ) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
@@ -78,20 +69,17 @@ class ActionExecutorHoverSelectMixin:
         select_value = action_info.get("input_value", "") or self._extract_input_text(text)
         if self.enable_ai_recognition or self.locator_service:
             try:
-                element_info = await self.smart_locate_with_ai_fallback(
-                    text, step_test_data
-                )
+                element_info = await self.smart_locate_with_ai_fallback(text, step_test_data)
                 if element_info:
-                    css_selector = element_info.get('css_selector')
+                    css_selector = element_info.get("css_selector")
                     if css_selector:
                         try:
                             await self.browser.click_element(css_selector)
                             await asyncio.sleep(0.5)
                             if select_value:
-                                safe_css = css_selector.replace(
-                                    "\\", "\\\\"
-                                ).replace("'", "\\'")
-                                await self.browser.execute_javascript("""
+                                safe_css = css_selector.replace("\\", "\\\\").replace("'", "\\'")
+                                await self.browser.execute_javascript(
+                                    """
                                     var select = document.querySelector(arguments[0]);
                                     if (select && select.tagName === 'SELECT') {
                                         var options = select.options;
@@ -103,7 +91,10 @@ class ActionExecutorHoverSelectMixin:
                                             }
                                         }
                                     }
-                                """, safe_css, select_value)
+                                """,
+                                    safe_css,
+                                    select_value,
+                                )
                             logger.info(f"使用CSS选择器选择: {css_selector} -> {select_value}")
                             return
                         except Exception as e:
@@ -111,13 +102,12 @@ class ActionExecutorHoverSelectMixin:
                     x = element_info.get("x", 0) + element_info.get("width", 0) // 2
                     y = element_info.get("y", 0) + element_info.get("height", 0) // 2
                     if x < 0 or y < 0:
-                        raise StepExecutionError(
-                            f"AI识别坐标无效: ({x}, {y})，元素: {text}"
-                        )
+                        raise StepExecutionError(f"AI识别坐标无效: ({x}, {y})，元素: {text}")
                     await self.browser.click(x, y)
                     await asyncio.sleep(0.5)
                     if select_value:
-                        await self.browser.execute_javascript("""
+                        await self.browser.execute_javascript(
+                            """
                             var el = document.elementFromPoint(arguments[0], arguments[1]);
                             if (el && el.tagName === 'SELECT') {
                                 var options = el.options;
@@ -141,11 +131,12 @@ class ActionExecutorHoverSelectMixin:
                                     }
                                 }
                             }
-                        """, x, y, select_value)
-                    logger.info(
-                        f"点击选择元素(坐标方式): ({x}, {y})"
-                        + (f" -> {select_value}" if select_value else "")
-                    )
+                        """,
+                            x,
+                            y,
+                            select_value,
+                        )
+                    logger.info(f"点击选择元素(坐标方式): ({x}, {y})" + (f" -> {select_value}" if select_value else ""))
                     return
             except Exception as e:
                 logger.warning(f"智能定位选择失败: {e}")

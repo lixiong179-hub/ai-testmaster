@@ -55,6 +55,7 @@ async def resume_pipeline(
     current_user: User = Depends(get_current_user),
 ):
     """恢复暂停的 Pipeline。"""
+
     def _resume(sync_db):
         try:
             from app.services import pipeline_service
@@ -89,6 +90,7 @@ async def resume_pipeline(
                 ctx.set_confirmation_payload(body.confirmation_payload)
 
             from app.pipelines.scenarios import get_scenario_by_version
+
             scenario_config = get_scenario_by_version(run.pipeline_version)
             if not scenario_config:
                 raise HTTPException(status_code=500, detail="无法找到对应的 Pipeline 场景配置")

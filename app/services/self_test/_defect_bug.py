@@ -1,4 +1,5 @@
 """Defect severity assessment and automatic Bug creation."""
+
 import json
 from typing import Any, Optional
 
@@ -12,16 +13,27 @@ from app.models.project import Project
 
 # P0 触发关键词：安全断言失败 / 系统崩溃
 _P0_SECURITY_ASSERTIONS = frozenset({"no_sensitive_data", "no_xss"})
-_P0_CRASH_KEYWORDS = frozenset({
-    "页面白屏", "500错误", "internal server error",
-    "白屏", "blank page", "crash",
-})
+_P0_CRASH_KEYWORDS = frozenset(
+    {
+        "页面白屏",
+        "500错误",
+        "internal server error",
+        "白屏",
+        "blank page",
+        "crash",
+    }
+)
 
 # P1 触发关键词：核心功能不可用 / 5xx / 数据不一致 / 权限绕过 / 内存泄漏
-_P1_ELEMENT_FAILURES = frozenset({
-    "元素未找到", "定位失败", "no such element",
-    "element not found", "stale element",
-})
+_P1_ELEMENT_FAILURES = frozenset(
+    {
+        "元素未找到",
+        "定位失败",
+        "no such element",
+        "element not found",
+        "stale element",
+    }
+)
 _P1_NETWORK_5XX = frozenset({"5xx", "500", "502", "503", "504"})
 _P1_DATA_KEYWORDS = frozenset({"数据不一致", "权限绕过", "permission bypass"})
 _P1_MEMORY_LEAK = frozenset({"memory_leak_suspect"})
@@ -107,9 +119,7 @@ def _assess_defect_severity(
         return (2, None)
 
     # --- P1: 核心功能不可用（元素未找到导致流程中断） ---
-    if failure_lower in ("element_not_found", "locator_failure") or any(
-        kw in msg_lower for kw in _P1_ELEMENT_FAILURES
-    ):
+    if failure_lower in ("element_not_found", "locator_failure") or any(kw in msg_lower for kw in _P1_ELEMENT_FAILURES):
         return (2, None)
 
     # --- P2: 加载超时 ---
@@ -125,8 +135,7 @@ def _assess_defect_severity(
         return (3, _UX_CATEGORY_MAP.get(failure_lower))
 
     # --- P2: 非核心功能异常 / 体验性问题 ---
-    if failure_lower in ("not_visible", "visible", "text_contains",
-                         "text_equals", "text_matches"):
+    if failure_lower in ("not_visible", "visible", "text_contains", "text_equals", "text_matches"):
         return (3, "visual_consistency")
 
     # --- P3: 控制台错误 ---
@@ -157,9 +166,7 @@ async def _generate_bug_no(db: AsyncSession, project_id: int) -> str:
     prefix = f"BUG-{project_id}-{utcnow().strftime('%Y%m%d')}-"
     count = (
         await db.execute(
-            select(func.count())
-            .select_from(Bug)
-            .where(Bug.project_id == project_id, Bug.bug_no.like(f"{prefix}%"))
+            select(func.count()).select_from(Bug).where(Bug.project_id == project_id, Bug.bug_no.like(f"{prefix}%"))
         )
     ).scalar()
     return f"{prefix}{count + 1:04d}"

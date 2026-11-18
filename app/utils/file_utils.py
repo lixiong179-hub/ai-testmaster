@@ -33,6 +33,7 @@
     - socket: DNS解析（SSRF防护）
     - requests: URL可达性验证
 """
+
 import os
 import shutil
 import time
@@ -44,72 +45,86 @@ from urllib.parse import urlparse
 
 # 支持的文件格式白名单 — 扩展名到MIME类型的映射
 SUPPORTED_FILE_TYPES = {
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'doc': 'application/msword',
-    'pdf': 'application/pdf',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'xls': 'application/vnd.ms-excel',
-    'csv': 'text/csv',
-    'txt': 'text/plain',
-    'md': 'text/markdown',
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'figma': 'application/json',
-    'url': 'text/plain',
-    'yaml': 'text/yaml',
-    'yml': 'text/yaml',
-    'json': 'application/json',
-    'zip': 'application/zip',
-    'rar': 'application/vnd.rar',
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "doc": "application/msword",
+    "pdf": "application/pdf",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "xls": "application/vnd.ms-excel",
+    "csv": "text/csv",
+    "txt": "text/plain",
+    "md": "text/markdown",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "figma": "application/json",
+    "url": "text/plain",
+    "yaml": "text/yaml",
+    "yml": "text/yaml",
+    "json": "application/json",
+    "zip": "application/zip",
+    "rar": "application/vnd.rar",
 }
 
 # 压缩包扩展名集合 — 需要特殊MIME匹配逻辑
-ARCHIVE_EXTENSIONS = {'zip', 'rar'}
+ARCHIVE_EXTENSIONS = {"zip", "rar"}
 
 # 压缩包MIME变体 — 不同系统/浏览器对同一压缩格式的MIME声明可能不同
 ARCHIVE_MIME_VARIANTS = {
-    'zip': {'application/zip', 'application/x-zip-compressed', 'application/x-zip'},
-    'rar': {'application/vnd.rar', 'application/x-rar-compressed', 'application/x-rar'},
+    "zip": {"application/zip", "application/x-zip-compressed", "application/x-zip"},
+    "rar": {"application/vnd.rar", "application/x-rar-compressed", "application/x-rar"},
 }
 
 # 非压缩包MIME变体 — python-magic版本差异 或 浏览器上传差异导致返回不同MIME
 NON_ARCHIVE_MIME_VARIANTS = {
-    'csv': {'text/csv', 'application/csv', 'text/comma-separated-values'},
-    'md': {'text/markdown', 'text/x-markdown', 'text/plain'},
-    'yaml': {'text/yaml', 'application/x-yaml', 'text/vnd.yaml'},
-    'yml': {'text/yaml', 'application/x-yaml', 'text/vnd.yaml'},
-    'json': {'application/json', 'text/json'},
-    'jpg': {'image/jpeg', 'image/pjpeg'},
-    'jpeg': {'image/jpeg', 'image/pjpeg'},
+    "csv": {"text/csv", "application/csv", "text/comma-separated-values"},
+    "md": {"text/markdown", "text/x-markdown", "text/plain"},
+    "yaml": {"text/yaml", "application/x-yaml", "text/vnd.yaml"},
+    "yml": {"text/yaml", "application/x-yaml", "text/vnd.yaml"},
+    "json": {"application/json", "text/json"},
+    "jpg": {"image/jpeg", "image/pjpeg"},
+    "jpeg": {"image/jpeg", "image/pjpeg"},
 }
 
 # 危险MIME类型黑名单 — 可执行文件、脚本等，禁止上传
 DANGEROUS_MIMES = {
-    'application/x-executable', 'application/x-msdos-program',
-    'application/x-shellscript', 'application/x-python-code',
-    'application/javascript', 'text/x-php',
-    'application/x-bat', 'application/x-msdownload',
+    "application/x-executable",
+    "application/x-msdos-program",
+    "application/x-shellscript",
+    "application/x-python-code",
+    "application/javascript",
+    "text/x-php",
+    "application/x-bat",
+    "application/x-msdownload",
 }
 
 # 资源类型关键词映射 — 文件名中包含这些关键词时自动归类到对应资源类型
 RESOURCE_TYPE_KEYWORDS = {
-    'api_doc': ['api', '接口', 'swagger', 'openapi'],
-    'requirement': ['需求', 'requirement', 'spec', '规格', 'prd', 'brd'],
-    'ui_mockup': ['ui', '原型', 'mockup', '设计', 'design', 'figma', 'axure', '图'],
-    'test_data': ['测试数据', 'testdata', '用例'],
+    "api_doc": ["api", "接口", "swagger", "openapi"],
+    "requirement": ["需求", "requirement", "spec", "规格", "prd", "brd"],
+    "ui_mockup": ["ui", "原型", "mockup", "设计", "design", "figma", "axure", "图"],
+    "test_data": ["测试数据", "testdata", "用例"],
 }
 
 # 扩展名到资源类型的默认映射 — 当文件名无关键词匹配时的回退策略
 EXTENSION_RESOURCE_MAP = {
-    'docx': 'requirement', 'doc': 'requirement', 'pdf': 'requirement',
-    'txt': 'requirement', 'md': 'requirement',
-    'png': 'ui_mockup', 'jpg': 'ui_mockup', 'jpeg': 'ui_mockup',
-    'gif': 'ui_mockup', 'webp': 'ui_mockup',
-    'yaml': 'api_doc', 'yml': 'api_doc', 'json': 'api_doc',
-    'xlsx': 'test_data', 'xls': 'test_data', 'csv': 'test_data',
+    "docx": "requirement",
+    "doc": "requirement",
+    "pdf": "requirement",
+    "txt": "requirement",
+    "md": "requirement",
+    "png": "ui_mockup",
+    "jpg": "ui_mockup",
+    "jpeg": "ui_mockup",
+    "gif": "ui_mockup",
+    "webp": "ui_mockup",
+    "yaml": "api_doc",
+    "yml": "api_doc",
+    "json": "api_doc",
+    "xlsx": "test_data",
+    "xls": "test_data",
+    "csv": "test_data",
 }
 
 
@@ -123,9 +138,9 @@ def validate_file_format(file_name: str) -> str | None:
     Returns:
         Optional[str]: 支持的文件类型，否则返回None
     """
-    if not file_name or '.' not in file_name:
+    if not file_name or "." not in file_name:
         return None
-    ext = file_name.rsplit('.', 1)[-1].lower()
+    ext = file_name.rsplit(".", 1)[-1].lower()
     if ext in SUPPORTED_FILE_TYPES:
         return ext
     return None
@@ -172,7 +187,7 @@ def validate_file_mime(file_ext: str, detected_mime: str) -> str | None:
         return "无法检测文件MIME类型"
 
     # 剥离 charset 等参数后缀，仅保留纯 MIME 类型进行匹配
-    mime_clean = detected_mime.split(';', 1)[0].strip().lower()
+    mime_clean = detected_mime.split(";", 1)[0].strip().lower()
 
     if mime_clean in DANGEROUS_MIMES:
         return "检测到危险文件类型，禁止上传"
@@ -298,11 +313,7 @@ def parse_file(file_path: str, file_type: str) -> dict[str, Any]:
     """
     # 这里实现不同文件类型的解析逻辑
     # 目前返回基础信息，实际项目中可以根据需要扩展
-    return {
-        'file_path': file_path,
-        'file_type': file_type,
-        'file_size': get_file_size(file_path)
-    }
+    return {"file_path": file_path, "file_type": file_type, "file_size": get_file_size(file_path)}
 
 
 def parse_url(url: str) -> dict[str, Any]:
@@ -317,7 +328,4 @@ def parse_url(url: str) -> dict[str, Any]:
     """
     # 这里实现URL解析逻辑
     # 目前返回基础信息，实际项目中可以根据需要扩展
-    return {
-        'url': url,
-        'is_accessible': validate_url(url)
-    }
+    return {"url": url, "is_accessible": validate_url(url)}

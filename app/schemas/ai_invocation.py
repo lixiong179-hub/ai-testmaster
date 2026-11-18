@@ -7,6 +7,7 @@ AI 调用审计查询 Schema 模块
     - AIInvocationListQuery: 调用记录查询参数
     - AIInvocationListItem: 调用记录列表项
 """
+
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field
@@ -21,6 +22,7 @@ class AIInvocationStatsQuery(BaseModel):
         end_date: 截止日期（含），默认今天
         group_by: 聚合维度：model/strategy/date
     """
+
     project_id: int = Field(..., gt=0, description="项目ID")
     start_date: date | None = Field(None, description="起始日期（含）")
     end_date: date | None = Field(None, description="截止日期（含）")
@@ -37,6 +39,7 @@ class AIInvocationStatsResponse(BaseModel):
         total_completion_tokens: 总输出 Token 数
         total_cost_usd: 总成本（美元）
     """
+
     group_key: str
     total_calls: int
     total_prompt_tokens: int
@@ -53,6 +56,7 @@ class AIInvocationListQuery(BaseModel):
         page: 页码，从1开始
         page_size: 每页条数
     """
+
     batch_id: int | None = Field(None, description="生成批次ID")
     project_id: int | None = Field(None, gt=0, description="项目ID")
     page: int = Field(1, ge=1, description="页码")
@@ -85,6 +89,7 @@ class AIInvocationListItem(BaseModel):
         prompt_hash: Prompt内容哈希
         error_code: 错误码枚举值
     """
+
     id: int
     run_id: int | None = None
     step_name: str | None = None

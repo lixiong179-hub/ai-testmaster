@@ -1,10 +1,11 @@
-﻿"""执行链路端点包。
+"""执行链路端点包。
 
 路由处理函数已内联在本模块（原 `_execution.py` / `_analysis.py` 已合并），
 权限校验与失败分析逻辑下沉至 `app.services.execution_core`。
 
 公开符号（`_perform_failure_analysis` 等）通过本模块 re-export，保持 import 路径不变。
 """
+
 import asyncio
 from typing import Optional
 
@@ -61,26 +62,27 @@ _TASK_STATUS_TEXT = {
 
 
 @router.get("/devices")
-async def list_connected_devices(
-    current_user: User = Depends(get_current_user)
-):
+async def list_connected_devices(current_user: User = Depends(get_current_user)):
     try:
         from app.utils.adb_controller import AdbController, AdbError
+
         logger.info("开始获取ADB设备列表...")
         adb = AdbController()
         logger.info("AdbController实例已创建")
         devices = await adb.list_devices()
         logger.info(f"获取到{len(devices)}个设备: {[d.udid for d in devices]}")
-        return create_response(data=[
-            {
-                "udid": d.udid,
-                "state": d.state,
-                "model": d.model,
-                "android_version": d.android_version,
-                "screen_size": list(d.screen_size) if d.screen_size else None
-            }
-            for d in devices
-        ])
+        return create_response(
+            data=[
+                {
+                    "udid": d.udid,
+                    "state": d.state,
+                    "model": d.model,
+                    "android_version": d.android_version,
+                    "screen_size": list(d.screen_size) if d.screen_size else None,
+                }
+                for d in devices
+            ]
+        )
     except AdbError as e:
         logger.warning(f"ADB不可用: {e}")
         return create_response(data=[], msg="ADB环境不可用，请确认已安装ADB并配置环境变量")
@@ -89,10 +91,7 @@ async def list_connected_devices(
         return create_response(data=[], msg="未找到ADB命令，请确认已安装Android SDK并配置环境变量")
     except Exception as e:
         logger.error(f"获取设备列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取设备列表失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取设备列表失败")
 
 
 @router.post("/{task_id}/start")
@@ -100,18 +99,13 @@ async def start_test_execution(
     task_id: int,
     config: dict | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        task_result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        task_result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = task_result.scalars().first()
         if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
         project_result = await asyncio.to_thread(
             db.execute,
@@ -122,16 +116,12 @@ async def start_test_execution(
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         # 0=等待执行、3=执行失败、5=已暂停 均允许（重新）开始执行
         if task.status not in [0, 3, 5]:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
             )
 
         task.status = 1
@@ -164,10 +154,13 @@ async def start_test_execution(
                 execution_mode = "smart"
             use_mcp = config.get("use_mcp", None)
 
-        logger.info(f"执行配置: headless={headless}, recordVideo={record_video}, targetEnv={target_env}, skipInit={skip_init}, useMcp={use_mcp}")
+        logger.info(
+            f"执行配置: headless={headless}, recordVideo={record_video}, targetEnv={target_env}, skipInit={skip_init}, useMcp={use_mcp}"
+        )
 
         # 性能优化：引擎为 sync API，跑在独立线程释放事件循环；会话复用请求级 Session
         from app.utils.async_sync_bridge import run_async_coro_in_thread
+
         executor = TestExecutionEngineV2(db)
         try:
             await run_async_coro_in_thread(
@@ -179,7 +172,7 @@ async def start_test_execution(
                     skip_init=skip_init,
                     execution_mode=execution_mode,
                     mobile_device_id=mobile_device_id,
-                    use_mcp=use_mcp
+                    use_mcp=use_mcp,
                 )
             )
         except Exception as e:
@@ -218,38 +211,33 @@ async def start_test_execution(
         ).first()
         final_status = int(final_row.status) if final_row else TaskStatus.RUNNING
 
-        return create_response(data={
-            "task_id": task_id,
-            "status": _TASK_STATUS_TEXT.get(final_status, "unknown"),
-            "task_status": final_status,
-            "progress": int(final_row.progress or 0) if final_row else 0,
-            "success_count": int(final_row.success_count or 0) if final_row else 0,
-            "fail_count": int(final_row.fail_count or 0) if final_row else 0,
-            "total_count": int(final_row.total_count or 0) if final_row else 0,
-            "error_message": final_row.error_message if final_row else None,
-            "config": config or {}
-        })
+        return create_response(
+            data={
+                "task_id": task_id,
+                "status": _TASK_STATUS_TEXT.get(final_status, "unknown"),
+                "task_status": final_status,
+                "progress": int(final_row.progress or 0) if final_row else 0,
+                "success_count": int(final_row.success_count or 0) if final_row else 0,
+                "fail_count": int(final_row.fail_count or 0) if final_row else 0,
+                "total_count": int(final_row.total_count or 0) if final_row else 0,
+                "error_message": final_row.error_message if final_row else None,
+                "config": config or {},
+            }
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"开始执行失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="开始执行失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="开始执行失败")
 
 
 @router.post("/{task_id}/pause")
 async def pause_test_execution(
-    task_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        task_result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -282,14 +270,10 @@ async def pause_test_execution(
 
 @router.post("/{task_id}/resume")
 async def resume_test_execution(
-    task_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        task_result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -321,14 +305,10 @@ async def resume_test_execution(
 
 @router.post("/{task_id}/stop")
 async def stop_test_execution(
-    task_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        task_result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
@@ -362,9 +342,7 @@ async def stop_test_execution(
 
 @router.get("/replay/{execution_id}")
 async def get_replay_session(
-    execution_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    execution_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         service = get_execution_replay_service()
@@ -382,7 +360,7 @@ async def set_replay_speed(
     execution_id: str,
     data: SpeedReplayRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         speed = data.speed
@@ -396,9 +374,7 @@ async def set_replay_speed(
 
 @router.post("/results/{result_id}/analyze-failure")
 async def analyze_failure(
-    result_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    result_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """失败原因分析。
 
@@ -409,11 +385,7 @@ async def analyze_failure(
     """
     try:
         # 1. 查询 TestResult
-        result = (
-            await execute_async(
-                db, select(TestResult).where(TestResult.id == result_id)
-            )
-        ).scalar_one_or_none()
+        result = (await execute_async(db, select(TestResult).where(TestResult.id == result_id))).scalar_one_or_none()
         if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="执行结果不存在")
 
@@ -438,11 +410,11 @@ async def analyze_failure(
             (
                 await execute_async(
                     db,
-                    select(TestStep)
-                    .where(TestStep.test_case_id == test_case.id)
-                    .order_by(TestStep.step_number),
+                    select(TestStep).where(TestStep.test_case_id == test_case.id).order_by(TestStep.step_number),
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
         # 4. 纯计算失败原因分析
@@ -462,9 +434,7 @@ async def analyze_failure(
         )
 
         # 7. R3-3：视觉校验（默认关；全局关闭时零查询、零会话）
-        if await asyncio.to_thread(
-            is_visual_validation_enabled_sync, db, test_case.project_id
-        ):
+        if await asyncio.to_thread(is_visual_validation_enabled_sync, db, test_case.project_id):
             spawn_visual_validation_agent(
                 project_id=test_case.project_id,
                 created_by=current_user.id if current_user else None,
@@ -485,14 +455,12 @@ async def create_quick_verify_task(
     case_id: int = Body(..., embed=True),
     step_indices: list[int] = Body(default=[], embed=True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         test_case_result = await asyncio.to_thread(
             db.execute,
-            select(TestCase).where(
-                TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            ),
+            select(TestCase).where(TestCase.id == case_id, TestCase.is_deleted.is_(False)),
         )
         test_case = test_case_result.scalars().first()
         if not test_case:
@@ -501,26 +469,28 @@ async def create_quick_verify_task(
         if not step_indices:
             steps_result = await asyncio.to_thread(
                 db.execute,
-                select(TestStep)
-                .where(TestStep.test_case_id == case_id)
-                .order_by(TestStep.step_number),
+                select(TestStep).where(TestStep.test_case_id == case_id).order_by(TestStep.step_number),
             )
             steps = steps_result.scalars().all()
             step_indices = [s.step_number for s in steps]
 
         task_data = {
             "name": f"快速验证 - {test_case.title}",
-            "case_id": case_id, "case_ids": [case_id],
-            "task_type": "quick_verify", "step_indices": step_indices,
+            "case_id": case_id,
+            "case_ids": [case_id],
+            "task_type": "quick_verify",
+            "step_indices": step_indices,
             "created_by": current_user.username if current_user else "system",
-            "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}"
+            "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}",
         }
 
         if test_case.correction_status:
             test_case.correction_status = "verifying"
             await asyncio.to_thread(db.commit)
 
-        logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
+        logger.info(
+            f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}"
+        )
         return create_response(data=task_data, message="快速验证任务已创建")
     except HTTPException:
         raise

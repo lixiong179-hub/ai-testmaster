@@ -32,14 +32,11 @@ class UISpecOcrMixin:
         """
         if self._text_model is None:
             from app.utils.ai_client_core import get_ai_client
-            text_api_key = getattr(settings, 'TEXT_MODEL_API_KEY', '') or settings.DEEPSEEK_API_KEY
-            text_base_url = getattr(settings, 'TEXT_MODEL_API_URL', '') or settings.AI_BASE_URL
-            text_model_name = getattr(settings, 'TEXT_MODEL_NAME', '') or settings.DEEPSEEK_MODEL
-            self._text_model = get_ai_client(
-                api_key=text_api_key,
-                base_url=text_base_url,
-                model_name=text_model_name
-            )
+
+            text_api_key = getattr(settings, "TEXT_MODEL_API_KEY", "") or settings.DEEPSEEK_API_KEY
+            text_base_url = getattr(settings, "TEXT_MODEL_API_URL", "") or settings.AI_BASE_URL
+            text_model_name = getattr(settings, "TEXT_MODEL_NAME", "") or settings.DEEPSEEK_MODEL
+            self._text_model = get_ai_client(api_key=text_api_key, base_url=text_base_url, model_name=text_model_name)
             logger.info(f"初始化文本模型: {text_model_name}, base_url: {text_base_url}")
         return self._text_model
 
@@ -84,8 +81,8 @@ class UISpecOcrMixin:
             if blocks:
                 lines = []
                 for block in blocks:
-                    text = block.get('text', '')
-                    y_pos = block.get('y', 0)
+                    text = block.get("text", "")
+                    y_pos = block.get("y", 0)
                     lines.append(f"[位置:{y_pos}] {text}")
                 result = "\n".join(lines)
                 logger.debug(f"  返回结果: {result[:150]}")
@@ -95,14 +92,11 @@ class UISpecOcrMixin:
         except Exception as e:
             logger.error(f"提取位置信息失败: {e}")
             import traceback
+
             logger.error(f"  堆栈: {traceback.format_exc()}")
             return None
 
-    def _structure_text_with_llm(
-        self,
-        ocr_text: str,
-        screen_name_hint: str | None = None
-    ) -> dict[str, Any] | None:
+    def _structure_text_with_llm(self, ocr_text: str, screen_name_hint: str | None = None) -> dict[str, Any] | None:
         """
         使用 DeepSeek 文本模型将 OCR 提取的文字结构化为 UI 规格。
         在 text 模式下调用，避免使用视觉模型以降低成本。
@@ -115,7 +109,8 @@ class UISpecOcrMixin:
             结构化的 UI 规格字典，失败返回 None
         """
         from app.services.prompt_builder import TEXT_STRUCTURE_PROMPT
-        prompt = TEXT_STRUCTURE_PROMPT.replace('{ocr_text}', ocr_text)
+
+        prompt = TEXT_STRUCTURE_PROMPT.replace("{ocr_text}", ocr_text)
         if screen_name_hint:
             prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt
 
@@ -129,7 +124,7 @@ class UISpecOcrMixin:
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.7,
                     max_tokens=2048,
-                    timeout=60.0
+                    timeout=60.0,
                 )
                 result_text = response.choices[0].message.content
                 result = self._parse_json_response(result_text)

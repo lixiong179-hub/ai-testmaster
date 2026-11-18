@@ -10,6 +10,7 @@
 - 单页超时/加载失败/登录失败均降级跳过，记录 skipped_count，不阻断整体探索；
 - SiteMap 经 Redis 缓存，TTL 由 URL_QUICK_TEST_CACHE_TTL 控制，命中直接返回。
 """
+
 import json
 from collections import deque
 from dataclasses import asdict, dataclass
@@ -33,6 +34,7 @@ class PageSnapshot:
     elements 来源于真实 Accessibility Tree，禁编造；locator 为 Playwright
     定位字符串，css_selector 留空（a11y tree 不含 DOM 选择器）。
     """
+
     url: str
     title: str
     elements: list[dict[str, Any]]
@@ -46,6 +48,7 @@ class PageSnapshot:
 @dataclass
 class SiteMap:
     """站点探索产物，含入口 URL、页面快照列表与探索统计。"""
+
     entry_url: str
     pages: list[PageSnapshot]
     max_depth_reached: int
@@ -143,9 +146,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
                                 bfs_seed = relanded
                                 should_bfs = True
                 if should_bfs:
-                    bfs_pages, bfs_skipped, bfs_depth = await self._bfs_crawl(
-                        controller, bfs_seed, url
-                    )
+                    bfs_pages, bfs_skipped, bfs_depth = await self._bfs_crawl(controller, bfs_seed, url)
                     pages.extend(bfs_pages)
                     skipped_count += bfs_skipped
                     max_depth_reached = bfs_depth
@@ -173,9 +174,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
         """
         max_depth = settings.URL_QUICK_TEST_MAX_DEPTH
         visited = {entry_snapshot.url}
-        queue: deque = deque(
-            (link_url, 1) for link_url in self._discover_links(entry_snapshot, base_url)
-        )
+        queue: deque = deque((link_url, 1) for link_url in self._discover_links(entry_snapshot, base_url))
         pages: list[PageSnapshot] = []
         skipped = 0
         max_depth_reached = 0
@@ -207,9 +206,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
             logger.warning(f"采集当前页快照失败: {e}")
             return None
 
-    async def _navigate_and_capture(
-        self, controller: BrowserControllerV2, url: str
-    ) -> PageSnapshot | None:
+    async def _navigate_and_capture(self, controller: BrowserControllerV2, url: str) -> PageSnapshot | None:
         """导航到指定 URL 并采集快照，导航超时或失败返回 None。"""
         page = controller.active_page
         if page is None:
@@ -275,6 +272,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
         if self._redis_client is None:
             try:
                 import redis
+
                 self._redis_client = redis.from_url(
                     settings.REDIS_URL,
                     decode_responses=True,

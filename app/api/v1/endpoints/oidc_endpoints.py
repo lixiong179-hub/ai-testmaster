@@ -12,6 +12,7 @@
     - /callback 校验 state + code，完成登录后返回 JSON（含 access_token）
     - 所有端点无需 CSRF 校验（已通过 state 实现 CSRF 防护）
 """
+
 from __future__ import annotations
 
 
@@ -88,9 +89,7 @@ async def get_oidc_metadata(
 )
 async def oidc_login(
     provider: str | None = Query(None, description="IdP 标识；不传使用 OIDC_DEFAULT_PROVIDER"),
-    redirect_to: str | None = Query(
-        None, description="登录成功后前端跳转目标路径（如 /dashboard），存入 state 上下文"
-    ),
+    redirect_to: str | None = Query(None, description="登录成功后前端跳转目标路径（如 /dashboard），存入 state 上下文"),
 ) -> RedirectResponse:
     """跳转到 IdP 授权页（302 重定向）。"""
     service = _oidc_service_or_503()
@@ -116,17 +115,13 @@ async def oidc_callback(
     state: str | None = Query(None, description="授权请求时发送的 state，用于 CSRF 防护"),
     error: str | None = Query(None, description="IdP 返回的错误码（如 access_denied）"),
     error_description: str | None = Query(None, description="IdP 返回的错误描述"),
-    provider: str | None = Query(
-        None, description="IdP 标识；若 IdP 未在 state 中回传 provider，需调用方显式传入"
-    ),
+    provider: str | None = Query(None, description="IdP 标识；若 IdP 未在 state 中回传 provider，需调用方显式传入"),
     db: Session = Depends(get_db),
 ) -> dict:
     """处理 OIDC 回调。"""
     # IdP 返回错误（用户拒绝授权等）
     if error:
-        logger.warning(
-            f"OIDC 回调收到 IdP 错误: error={error} description={error_description}"
-        )
+        logger.warning(f"OIDC 回调收到 IdP 错误: error={error} description={error_description}")
         return create_response(
             data={"error": error, "error_description": error_description or ""},
             msg=f"IdP 拒绝授权: {error}",
@@ -151,9 +146,7 @@ async def oidc_callback(
             code=code,
             state=state,
         )
-        logger.info(
-            f"OIDC 回调成功: provider={actual_provider} user_id={result['user']['id']}"
-        )
+        logger.info(f"OIDC 回调成功: provider={actual_provider} user_id={result['user']['id']}")
         return create_response(data=result, msg="OIDC 登录成功")
     except OIDCStateError as e:
         logger.warning(f"OIDC state 校验失败: {e.msg}")

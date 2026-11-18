@@ -12,6 +12,7 @@
     - 自愈结果归一化：兼容 `HealResult` 与选择器字符串两种契约
     - 审计写入：`self_healing_audits` 仅追加落库
 """
+
 import asyncio
 from typing import Any
 from loguru import logger
@@ -22,7 +23,6 @@ from app.services.test_execution_engine.models import ActionType
 
 
 class SelfHealingPolicyMixin:
-
     async def _retry_after_locator_failure(
         self,
         action_type: ActionType,
@@ -34,23 +34,17 @@ class SelfHealingPolicyMixin:
         """load_delay 策略：等待后重执行一次，成功返回 True。"""
         from app.core.config import settings
 
-        wait_seconds = float(
-            getattr(settings, "AI_SELF_HEALING_RETRY_WAIT_SECONDS", 0) or 0
-        )
+        wait_seconds = float(getattr(settings, "AI_SELF_HEALING_RETRY_WAIT_SECONDS", 0) or 0)
         if wait_seconds > 0:
             await asyncio.sleep(wait_seconds)
         try:
-            await self._execute_action_directly(
-                action_type, action_info, locator_record, step_test_data
-            )
+            await self._execute_action_directly(action_type, action_info, locator_record, step_test_data)
         except Exception as retry_error:
             logger.info(f"定位重试失败，准备降级 AI 自愈 | 错误: {retry_error}")
             return False
 
         if locator_record and old_selector:
-            ElementLocator.atomic_record_success(
-                self.db, locator_record.id, locator_record.version
-            )
+            ElementLocator.atomic_record_success(self.db, locator_record.id, locator_record.version)
         return True
 
     async def _capture_dom_snapshot(self) -> str:
@@ -58,17 +52,13 @@ class SelfHealingPolicyMixin:
         if not self.browser:
             return ""
         try:
-            snapshot = await self.browser.execute_javascript(
-                "document.documentElement.outerHTML"
-            )
+            snapshot = await self.browser.execute_javascript("document.documentElement.outerHTML")
         except Exception:
             logger.debug("DOM 快照采集失败，降级为仅按错误信息分类", exc_info=True)
             return ""
         return snapshot if isinstance(snapshot, str) else ""
 
-    def _is_self_healing_enabled(
-        self, step, locator_record: ElementLocator | None
-    ) -> bool:
+    def _is_self_healing_enabled(self, step, locator_record: ElementLocator | None) -> bool:
         """灰度闸门：全局开关 AND 项目级 `self_healing_config.enabled`。
 
         项目无法解析（引擎未注入 db 或步骤缺少用例关联）时按全局开关执行，
@@ -92,9 +82,7 @@ class SelfHealingPolicyMixin:
             logger.warning("读取项目级自愈配置失败，回退全局开关", exc_info=True)
             return True
 
-    def _resolve_project_id(
-        self, step, locator_record: ElementLocator | None
-    ) -> int | None:
+    def _resolve_project_id(self, step, locator_record: ElementLocator | None) -> int | None:
         """从步骤（或定位器）反查所属项目 ID，失败返回 None。"""
         if self.db is None:
             return None
@@ -105,20 +93,12 @@ class SelfHealingPolicyMixin:
 
                 step_id = getattr(locator_record, "step_id", None)
                 if step_id is not None:
-                    case_id = (
-                        self.db.query(TestStep.test_case_id)
-                        .filter(TestStep.id == step_id)
-                        .scalar()
-                    )
+                    case_id = self.db.query(TestStep.test_case_id).filter(TestStep.id == step_id).scalar()
             if case_id is None:
                 return None
             from app.models.test_case import TestCase
 
-            return (
-                self.db.query(TestCase.project_id)
-                .filter(TestCase.id == case_id)
-                .scalar()
-            )
+            return self.db.query(TestCase.project_id).filter(TestCase.id == case_id).scalar()
         except Exception:
             logger.debug("解析步骤所属项目失败，回退全局开关", exc_info=True)
             return None

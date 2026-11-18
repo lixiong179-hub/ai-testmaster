@@ -1,6 +1,7 @@
 """
 运行时特性开关 Schema - FeatureFlag 的请求与响应模型
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class FeatureFlagCreate(BaseModel):
     """创建特性开关请求"""
+
     key: str = Field(..., min_length=1, max_length=80, description="特性开关唯一标识")
     name: str = Field(..., min_length=1, max_length=200, description="特性开关显示名称")
     description: str | None = Field(None, max_length=500, description="特性开关描述")
@@ -19,6 +21,7 @@ class FeatureFlagCreate(BaseModel):
 
 class FeatureFlagUpdate(BaseModel):
     """更新特性开关请求（所有字段可选）"""
+
     name: str | None = Field(None, min_length=1, max_length=200, description="特性开关显示名称")
     description: str | None = Field(None, max_length=500, description="特性开关描述")
     enabled: bool | None = Field(None, description="是否启用")
@@ -29,6 +32,7 @@ class FeatureFlagUpdate(BaseModel):
 
 class FeatureFlagResponse(BaseModel):
     """特性开关响应"""
+
     key: str
     name: str
     description: str | None = None

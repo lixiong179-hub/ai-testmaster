@@ -10,6 +10,7 @@ Fallback AI Client 实现
     - app.ai.client : AIClient Protocol, AIResponse, TokenUsage
     - app.utils.ai_client_core : AIServiceError
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -78,35 +79,40 @@ class FallbackAIClient:
         # 已切换 → 直接用备用
         if self.switched:
             return self._call_fallback(
-                prompt, system=system, schema=schema,
-                temperature=temperature, max_tokens=max_tokens,
+                prompt,
+                system=system,
+                schema=schema,
+                temperature=temperature,
+                max_tokens=max_tokens,
                 metadata=metadata,
             )
 
         # 尝试主模型
         try:
             response = self.primary.complete(
-                prompt, system=system, schema=schema,
-                temperature=temperature, max_tokens=max_tokens,
+                prompt,
+                system=system,
+                schema=schema,
+                temperature=temperature,
+                max_tokens=max_tokens,
                 metadata=metadata,
             )
             self.failure_count = 0  # 成功则重置
             return response
         except Exception as e:
             self.failure_count += 1
-            logger.warning(
-                f"Primary model failed ({self.failure_count}/{self.max_failures}): {e}"
-            )
+            logger.warning(f"Primary model failed ({self.failure_count}/{self.max_failures}): {e}")
 
             if self.failure_count >= self.max_failures:
-                logger.warning(
-                    f"Primary model failed {self.max_failures} times, switching to fallback"
-                )
+                logger.warning(f"Primary model failed {self.max_failures} times, switching to fallback")
                 self.switched = True
                 _record_fallback_metric()
                 return self._call_fallback(
-                    prompt, system=system, schema=schema,
-                    temperature=temperature, max_tokens=max_tokens,
+                    prompt,
+                    system=system,
+                    schema=schema,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
                     metadata=metadata,
                 )
 
@@ -125,8 +131,11 @@ class FallbackAIClient:
     ) -> AIResponse:
         """调用备用模型并标记 degraded"""
         response = self.fallback.complete(
-            prompt, system=system, schema=schema,
-            temperature=temperature, max_tokens=max_tokens,
+            prompt,
+            system=system,
+            schema=schema,
+            temperature=temperature,
+            max_tokens=max_tokens,
             metadata=metadata,
         )
         response.degraded = True
@@ -142,6 +151,7 @@ def _record_fallback_metric() -> None:
     """记录 F12 Fallback 模型调用指标（失败不阻塞业务）。"""
     try:
         from app.services.metrics_service import record_metric
+
         record_metric("fallback_model_used", detail={"trigger": "primary_model_failure"})
     except Exception as e:
         logger.debug(f"记录fallback指标失败(不影响业务): {e}")

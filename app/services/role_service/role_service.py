@@ -1,4 +1,3 @@
-﻿
 """角色服务 - 处理角色CRUD与权限分配。
 
 职责:
@@ -14,6 +13,7 @@
     与UserService保持一致的静态方法设计，数据库会话
     由调用方管理，确保事务边界清晰。
 """
+
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession

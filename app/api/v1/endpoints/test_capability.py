@@ -20,6 +20,7 @@ from app.schemas.test_capability import (
 )
 from app.services.test_capability_service import delete_capability
 
+
 # [B-08 校正 2026-11-12] 前端**已接线**：`src/api/testCapability.ts`（5 个方法，URL 与后端一致），
 # 调用方为项目详情页 `TestCapabilityTab.vue`；原 R4-6「命中 0」结论系审计脚本未解析
 # `APIRouter(prefix=...)` 导致的误判，已修复脚本并重新生成报告。
@@ -47,18 +48,13 @@ async def list_capabilities(
     if status is not None:
         conditions.append(TestCapability.status == status)
 
-    result = await _execute(db,
-        select(TestCapability).where(*conditions).order_by(TestCapability.key)
-    )
+    result = await _execute(db, select(TestCapability).where(*conditions).order_by(TestCapability.key))
     capabilities: list[TestCapability] = list(result.scalars().all())
 
     total = len(capabilities)
     skip = (page - 1) * page_size
-    page_capabilities = capabilities[skip:skip + page_size]
-    items = [
-        TestCapabilityResponse.model_validate(c).model_dump(mode="json")
-        for c in page_capabilities
-    ]
+    page_capabilities = capabilities[skip : skip + page_size]
+    items = [TestCapabilityResponse.model_validate(c).model_dump(mode="json") for c in page_capabilities]
     return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size})
 
 
@@ -95,9 +91,7 @@ async def get_capability_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await _execute(db,
-        select(TestCapability).where(TestCapability.id == capability_id)
-    )
+    result = await _execute(db, select(TestCapability).where(TestCapability.id == capability_id))
     capability = result.scalars().first()
     if capability is None:
         raise HTTPException(
@@ -114,9 +108,7 @@ async def update_capability_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await _execute(db,
-        select(TestCapability).where(TestCapability.id == capability_id)
-    )
+    result = await _execute(db, select(TestCapability).where(TestCapability.id == capability_id))
     capability = result.scalars().first()
     if capability is None:
         raise HTTPException(
@@ -154,10 +146,14 @@ async def delete_capability_endpoint(
     (delete_capability → transition_capability → _write_capability_audit_log →
     audit_service.log_action)，保证 sync 操作与请求级会话共享事务。
     """
+
     def _delete(sync_db):
         return delete_capability(
-            sync_db, capability_id=capability_id, actor_id=current_user.id,
+            sync_db,
+            capability_id=capability_id,
+            actor_id=current_user.id,
         )
+
     capability = await asyncio.to_thread(_delete, db)
     if capability is None:
         raise HTTPException(

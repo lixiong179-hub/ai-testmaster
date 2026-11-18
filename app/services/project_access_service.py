@@ -22,6 +22,7 @@
     - sync 端点：ProjectAccessService.check_project_access(db, project_id, user, "member")
     - async 端点：await ProjectAccessService.check_project_access_async(db, project_id, user, "member")
 """
+
 from __future__ import annotations
 
 
@@ -133,9 +134,7 @@ class ProjectAccessService:
         return member
 
     @staticmethod
-    def get_user_role(
-        db: Session, project_id: int, user_id: int
-    ) -> str | None:
+    def get_user_role(db: Session, project_id: int, user_id: int) -> str | None:
         """查询用户在项目中的角色（sync 模式）。
 
         Returns:
@@ -150,9 +149,7 @@ class ProjectAccessService:
         return member.role if member else None
 
     @staticmethod
-    async def get_user_role_async(
-        db: AsyncSession, project_id: int, user_id: int
-    ) -> str | None:
+    async def get_user_role_async(db: AsyncSession, project_id: int, user_id: int) -> str | None:
         """查询用户在项目中的角色（async 模式）。
 
         Returns:
@@ -168,9 +165,7 @@ class ProjectAccessService:
         return member.role if member else None
 
     @staticmethod
-    def add_member(
-        db: Session, project_id: int, user_id: int, role: str = "member"
-    ) -> ProjectMember:
+    def add_member(db: Session, project_id: int, user_id: int, role: str = "member") -> ProjectMember:
         """添加项目成员（sync 模式）。
 
         Args:
@@ -204,7 +199,9 @@ class ProjectAccessService:
             )
 
         member = ProjectMember(
-            project_id=project_id, user_id=user_id, role=role,
+            project_id=project_id,
+            user_id=user_id,
+            role=role,
         )
         db.add(member)
         db.flush()
@@ -221,7 +218,9 @@ def _has_sufficient_role(user_role: str, required_role: str) -> bool:
 def _build_superuser_member(project_id: int, user_id: int | None) -> ProjectMember:
     """为超级管理员构造虚拟 owner 成员记录（不落库）。"""
     return ProjectMember(
-        project_id=project_id, user_id=user_id or 0, role="owner",
+        project_id=project_id,
+        user_id=user_id or 0,
+        role="owner",
     )
 
 

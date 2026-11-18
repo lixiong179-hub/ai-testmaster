@@ -19,6 +19,7 @@ HTML报告包含测试摘要、结果分布饼图、用例详情表格和环境�
 依赖：
     - loguru.logger: 日志记录（通过延迟导入避免循环依赖）
 """
+
 from datetime import datetime
 from typing import Any
 from io import BytesIO
@@ -42,8 +43,7 @@ class ReportUtils:
 
     # 1x1透明PNG的base64编码 — 当matplotlib未安装时作为图表的安全占位符
     _TRANSPARENT_PNG_BASE64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
-        "/x8AAwMB/6X+0bQAAAAASUVORK5CYII="
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6X+0bQAAAAASUVORK5CYII="
     )
 
     @staticmethod
@@ -145,21 +145,21 @@ class ReportUtils:
         """
 
         # 准备数据
-        statistics = report_data.get('statistics', {})
-        test_cases = report_data.get('test_cases', [])
-        environment = report_data.get('environment', {})
+        statistics = report_data.get("statistics", {})
+        test_cases = report_data.get("test_cases", [])
+        environment = report_data.get("environment", {})
 
         # 生成测试用例行
         test_cases_rows = []
         for case in test_cases:
             status_class = f"status-{case['status']}"
-            error_message = case.get('error_message', '')
+            error_message = case.get("error_message", "")
             error_html = f"<div class='error-message'>{error_message}</div>" if error_message else "-"
             row = f"""
             <tr>
-                <td>{case['case_id']}</td>
-                <td>{case['case_name']}</td>
-                <td class="{status_class}">{case['status']}</td>
+                <td>{case["case_id"]}</td>
+                <td>{case["case_name"]}</td>
+                <td class="{status_class}">{case["status"]}</td>
                 <td>{error_html}</td>
             </tr>
             """
@@ -167,24 +167,24 @@ class ReportUtils:
 
         # 生成图表
         chart_base64 = ReportUtils._generate_pie_chart(
-            [statistics.get('passed', 0), statistics.get('failed', 0), statistics.get('skipped', 0)],
-            ['通过', '失败', '跳过']
+            [statistics.get("passed", 0), statistics.get("failed", 0), statistics.get("skipped", 0)],
+            ["通过", "失败", "跳过"],
         )
 
         # 填充模板
         replacements = {
-            '{report_name}': report_name,
-            '{total}': str(statistics.get('total', 0)),
-            '{passed}': str(statistics.get('passed', 0)),
-            '{failed}': str(statistics.get('failed', 0)),
-            '{blocked}': str(statistics.get('blocked', 0)),
-            '{pass_rate}': str(statistics.get('pass_rate', 0)),
-            '{summary}': report_data.get('summary', ''),
-            '{chart_base64}': chart_base64,
-            '{test_cases_rows}': ''.join(test_cases_rows),
-            '{generate_time}': environment.get('generate_time', datetime.now().isoformat()),
-            '{platform}': environment.get('platform', 'AI TestMaster'),
-            '{version}': environment.get('version', '1.0.0'),
+            "{report_name}": report_name,
+            "{total}": str(statistics.get("total", 0)),
+            "{passed}": str(statistics.get("passed", 0)),
+            "{failed}": str(statistics.get("failed", 0)),
+            "{blocked}": str(statistics.get("blocked", 0)),
+            "{pass_rate}": str(statistics.get("pass_rate", 0)),
+            "{summary}": report_data.get("summary", ""),
+            "{chart_base64}": chart_base64,
+            "{test_cases_rows}": "".join(test_cases_rows),
+            "{generate_time}": environment.get("generate_time", datetime.now().isoformat()),
+            "{platform}": environment.get("platform", "AI TestMaster"),
+            "{version}": environment.get("version", "1.0.0"),
         }
         html_content = html_template
         for placeholder, value in replacements.items():
@@ -214,7 +214,8 @@ class ReportUtils:
             raise ImportError("weasyprint is not available, cannot generate PDF reports")
 
         # 添加中文字体支持
-        css = CSS(string="""
+        css = CSS(
+            string="""
             @font-face {
                 font-family: 'SimHei';
                 src: local('SimHei'), local('黑体');
@@ -222,7 +223,8 @@ class ReportUtils:
             body {
                 font-family: 'SimHei', Arial, sans-serif;
             }
-        """)
+        """
+        )
 
         # 生成PDF
         pdf_bytes = HTML(string=html_content).write_pdf(stylesheets=[css])
@@ -261,18 +263,18 @@ class ReportUtils:
 
         # 创建饼图
         plt.figure(figsize=(8, 6))
-        colors = ['#4CAF50', '#F44336', '#FF9800']
-        plt.pie(data, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-        plt.axis('equal')  # 保证饼图是圆的
+        colors = ["#4CAF50", "#F44336", "#FF9800"]
+        plt.pie(data, labels=labels, colors=colors, autopct="%1.1f%%", startangle=90)
+        plt.axis("equal")  # 保证饼图是圆的
 
         # 保存到内存
         buffer = BytesIO()
-        plt.savefig(buffer, format='png')
+        plt.savefig(buffer, format="png")
         buffer.seek(0)
         plt.close()
 
         # 转换为base64
-        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
         return image_base64
 
     @staticmethod
@@ -287,14 +289,14 @@ class ReportUtils:
         Returns:
             (content, content_type, filename): 报告内容、内容类型、文件名
         """
-        if format == 'html':
+        if format == "html":
             content = ReportUtils.generate_html_report(report_data, report_name)
-            content_type = 'text/html'
+            content_type = "text/html"
             filename = f"{report_name}.html"
-        elif format == 'pdf':
+        elif format == "pdf":
             html_content = ReportUtils.generate_html_report(report_data, report_name)
             content = ReportUtils.generate_pdf_report(html_content)
-            content_type = 'application/pdf'
+            content_type = "application/pdf"
             filename = f"{report_name}.pdf"
         else:
             raise ValueError(f"Unsupported format: {format}")

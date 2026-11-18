@@ -21,6 +21,7 @@
     `_execute`（内部 `asyncio.to_thread`）转线程池；函数仍保留 `async def` 签名，
     调用方无需改动。
 """
+
 import asyncio
 
 from fastapi import Depends, HTTPException, status
@@ -36,14 +37,12 @@ async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
 
+
 # OAuth2令牌提取器，指定登录端点路径用于Swagger文档自动生成
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> User:
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """
     获取当前登录用户
 
@@ -91,9 +90,7 @@ async def get_current_user(
 
 
 async def require_project_owner(
-    project_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    project_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> User:
     """
     校验当前用户是否为项目所有者
@@ -114,17 +111,10 @@ async def require_project_owner(
         HTTPException 403: 当前用户非项目所有者
     """
     from app.models.project import Project
-    result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        )
-    )
+
+    result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
     return current_user
 
 
@@ -162,14 +152,9 @@ class ProjectAccessChecker:
             HTTPException 403: 当前用户非项目所有者
         """
         from app.models.project import Project
-        result = await _execute(self.db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == self.user.id
-            )
+
+        result = await _execute(
+            self.db, select(Project).where(Project.id == project_id, Project.user_id == self.user.id)
         )
         if result.scalar_one_or_none() is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")

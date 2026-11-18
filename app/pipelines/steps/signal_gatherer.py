@@ -5,6 +5,7 @@
 
 辅助函数已拆分至 _signal_gatherer_helpers，本模块通过重新导出保持 import 路径不变。
 """
+
 import hashlib
 from typing import Any, ClassVar
 
@@ -65,15 +66,19 @@ class SignalGatherer(PipelineStep):
         input_hashes = []
         for inp in sorted(iteration.inputs, key=lambda i: i.id):
             input_hashes.append(inp.content_hash or "")
-        history_sig = ctx.db.query(
-            func.count(TestCase.id),
-            func.max(TestCase.id),
-            func.max(TestCase.update_time),
-        ).filter(
-            TestCase.project_id == iteration.project_id,
-            TestCase.lifecycle_status != "archived",
-            TestCase.is_deleted.is_(False),
-        ).first()
+        history_sig = (
+            ctx.db.query(
+                func.count(TestCase.id),
+                func.max(TestCase.id),
+                func.max(TestCase.update_time),
+            )
+            .filter(
+                TestCase.project_id == iteration.project_id,
+                TestCase.lifecycle_status != "archived",
+                TestCase.is_deleted.is_(False),
+            )
+            .first()
+        )
         raw = (
             f"{self.name}:{self.version}:iteration={iteration.id}:project={iteration.project_id}:"
             f"history={history_sig}:{':'.join(input_hashes)}"

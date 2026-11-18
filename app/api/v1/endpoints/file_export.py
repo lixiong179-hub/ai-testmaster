@@ -16,6 +16,7 @@
     - 下载文件返回原始文件流
     - Excel导出支持按项目筛选数据
 """
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -42,6 +43,7 @@ from app.utils.file_utils import (
 from app.crud import file as file_crud
 from app.api.v1.endpoints.file_upload import _file_to_dict
 from loguru import logger
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -89,8 +91,7 @@ def _extract_images_from_zip(
                 if info.filename.startswith("/") or ".." in info.filename:
                     failed_files.append(
                         {
-                            "file_name": os.path.basename(info.filename)
-                            or "未知文件",
+                            "file_name": os.path.basename(info.filename) or "未知文件",
                             "reason": "文件路径包含非法字符",
                         }
                     )
@@ -101,11 +102,7 @@ def _extract_images_from_zip(
                 basename = os.path.basename(info.filename)
                 if not basename:
                     continue
-                file_ext = (
-                    basename.rsplit(".", 1)[-1].lower()
-                    if "." in basename
-                    else ""
-                )
+                file_ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
                 if file_ext in SUPPORTED_IMAGE_EXTENSIONS:
                     total_size += info.file_size
 
@@ -113,10 +110,7 @@ def _extract_images_from_zip(
                 failed_files.append(
                     {
                         "file_name": zip_filename,
-                        "reason": (
-                            f"ZIP包中图片总大小超过限制"
-                            f"（最大{MAX_ZIP_TOTAL_SIZE // (1024 * 1024)}MB）"
-                        ),
+                        "reason": (f"ZIP包中图片总大小超过限制（最大{MAX_ZIP_TOTAL_SIZE // (1024 * 1024)}MB）"),
                     }
                 )
                 return uploaded_files, failed_files
@@ -127,11 +121,7 @@ def _extract_images_from_zip(
                 if not basename:
                     continue
 
-                file_ext = (
-                    basename.rsplit(".", 1)[-1].lower()
-                    if "." in basename
-                    else ""
-                )
+                file_ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
 
                 if file_ext not in SUPPORTED_IMAGE_EXTENSIONS:
                     continue
@@ -151,9 +141,7 @@ def _extract_images_from_zip(
                         file_contents = src.read()
 
                     unique_filename = f"{uuid.uuid4()}.{file_ext}"
-                    file_path = os.path.join(
-                        project_upload_dir, unique_filename
-                    )
+                    file_path = os.path.join(project_upload_dir, unique_filename)
 
                     with open(file_path, "wb") as dst:
                         dst.write(file_contents)
@@ -179,22 +167,14 @@ def _extract_images_from_zip(
                     uploaded_files.append(_file_to_dict(new_file))
                     image_index += 1
                 except Exception as e:
-                    logger.error(
-                        f"ZIP解压-单文件处理失败: {basename}, 错误: {str(e)}"
-                    )
-                    failed_files.append(
-                        {"file_name": basename, "reason": str(e)}
-                    )
+                    logger.error(f"ZIP解压-单文件处理失败: {basename}, 错误: {str(e)}")
+                    failed_files.append({"file_name": basename, "reason": str(e)})
 
     except zipfile.BadZipFile:
-        failed_files.append(
-            {"file_name": zip_filename, "reason": "无效的ZIP文件"}
-        )
+        failed_files.append({"file_name": zip_filename, "reason": "无效的ZIP文件"})
     except Exception as e:
         logger.error(f"ZIP解压失败: {str(e)}")
-        failed_files.append(
-            {"file_name": zip_filename, "reason": f"ZIP解压失败: {str(e)}"}
-        )
+        failed_files.append({"file_name": zip_filename, "reason": f"ZIP解压失败: {str(e)}"})
 
     return uploaded_files, failed_files
 
@@ -206,6 +186,7 @@ async def extract_file_content(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _check_and_extract(sync_db: Session) -> dict:
             project = (
                 sync_db.query(Project)
@@ -222,9 +203,7 @@ async def extract_file_content(
             loop = asyncio.new_event_loop()
             try:
                 return loop.run_until_complete(
-                    batch_extract_files(
-                        extract_request.file_ids, sync_db, extract_request.force_refresh
-                    )
+                    batch_extract_files(extract_request.file_ids, sync_db, extract_request.force_refresh)
                 )
             finally:
                 loop.close()
@@ -240,9 +219,7 @@ async def extract_file_content(
         raise
     except Exception as e:
         logger.error(f"提取文件内容失败: {e}")
-        raise HTTPException(
-            status_code=500, detail="提取文件内容失败"
-        )
+        raise HTTPException(status_code=500, detail="提取文件内容失败")
 
 
 @router.get("/preview/{file_id}")
@@ -251,18 +228,17 @@ async def preview_file(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    file_result = await _execute(db,
-        select(ProjectFile).where(ProjectFile.id == file_id)
-    )
+    file_result = await _execute(db, select(ProjectFile).where(ProjectFile.id == file_id))
     file_record = file_result.scalars().first()
     if not file_record:
         raise HTTPException(status_code=404, detail="文件不存在")
 
-    project_result = await _execute(db,
+    project_result = await _execute(
+        db,
         select(Project).where(
             Project.id == file_record.project_id,
             Project.user_id == current_user.id,
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -283,17 +259,13 @@ async def preview_screen(
 ):
     from app.models.ui_prototype import UIPrototypeScreen
 
-    screen_result = await _execute(db,
-        select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
-    )
+    screen_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id))
     screen = screen_result.scalars().first()
     if not screen:
         raise HTTPException(status_code=404, detail="屏幕不存在")
 
-    project_result = await _execute(db,
-        select(Project).where(
-            Project.id == screen.project_id, Project.user_id == current_user.id
-        )
+    project_result = await _execute(
+        db, select(Project).where(Project.id == screen.project_id, Project.user_id == current_user.id)
     )
     project = project_result.scalars().first()
     if not project:

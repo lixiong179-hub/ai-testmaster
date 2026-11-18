@@ -11,6 +11,7 @@
     - 外键 → projects（ondelete=CASCADE，项目删除时映射级联清理）
     - 外键 → test_cases（ondelete=CASCADE，用例删除时映射级联清理）
 """
+
 from typing import Any
 
 from sqlalchemy import (

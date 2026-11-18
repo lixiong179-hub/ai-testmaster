@@ -1,5 +1,5 @@
-
 """参数化上下文 - 维护单次执行中的参数缓存和元信息。"""
+
 from datetime import datetime
 from dataclasses import dataclass, field
 
@@ -15,6 +15,7 @@ class ParameterContext:
         cached_values: 已解析参数的缓存字典。
         execution_timestamp: 执行开始时间戳（固定）。
     """
+
     execution_id: str
     user_id: int | None = None
     project_id: int | None = None
@@ -23,4 +24,4 @@ class ParameterContext:
 
     def __post_init__(self) -> None:
         if not self.execution_timestamp:
-            self.execution_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            self.execution_timestamp = datetime.now().strftime("%Y%m%d%H%M%S")

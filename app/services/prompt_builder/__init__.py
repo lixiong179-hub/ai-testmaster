@@ -20,6 +20,7 @@
         .with_case(case) \\
         .build() -> str
 """
+
 from app.services.prompt_builder.builder import PromptBuilder
 from app.services.prompt_builder.constants import (
     SINGLE_IMAGE_PROMPT,
@@ -33,11 +34,11 @@ from app.services.prompt_builder.ui_spec_formatter import (
 )
 
 __all__ = [
-    'PromptBuilder',
-    'SINGLE_IMAGE_PROMPT',
-    'MULTI_IMAGE_FLOW_PROMPT',
-    'BATCH_SUMMARY_PROMPT',
-    'TEXT_STRUCTURE_PROMPT',
-    'format_ui_spec_for_prompt',
-    'format_ui_specs_list',
+    "PromptBuilder",
+    "SINGLE_IMAGE_PROMPT",
+    "MULTI_IMAGE_FLOW_PROMPT",
+    "BATCH_SUMMARY_PROMPT",
+    "TEXT_STRUCTURE_PROMPT",
+    "format_ui_spec_for_prompt",
+    "format_ui_specs_list",
 ]

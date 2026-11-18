@@ -1,5 +1,5 @@
-"""测试用例AI生成 - 响应解析工具
-"""
+"""测试用例AI生成 - 响应解析工具"""
+
 import json
 import re
 from typing import Any
@@ -23,7 +23,7 @@ def _repair_truncated_json(text: str) -> str:
         if escape_next:
             escape_next = False
             continue
-        if ch == '\\' and in_string:
+        if ch == "\\" and in_string:
             escape_next = True
             continue
         if ch == '"' and not escape_next:
@@ -31,38 +31,38 @@ def _repair_truncated_json(text: str) -> str:
             continue
         if in_string:
             continue
-        if ch == '{':
+        if ch == "{":
             open_braces += 1
-        elif ch == '}':
+        elif ch == "}":
             open_braces -= 1
             if open_braces == 0:
                 last_valid_obj_end = i
-        elif ch == '[':
+        elif ch == "[":
             open_brackets += 1
-        elif ch == ']':
+        elif ch == "]":
             open_brackets -= 1
             if open_brackets == 0:
                 last_valid_arr_end = i
 
     if last_valid_arr_end > 0:
-        return text[:last_valid_arr_end + 1]
+        return text[: last_valid_arr_end + 1]
 
     if last_valid_obj_end > 0:
-        return text[:last_valid_obj_end + 1]
+        return text[: last_valid_obj_end + 1]
 
     repaired = text
     if open_brackets > 0:
-        repaired += ']' * open_brackets
+        repaired += "]" * open_brackets
     if open_braces > 0:
-        repaired += '}' * open_braces
+        repaired += "}" * open_braces
     return repaired
 
 
 def _strip_code_block(text: str) -> str:
     """移除markdown代码块标记。"""
     text = text.strip()
-    text = re.sub(r'^```(?:json)?\s*', '', text)
-    text = re.sub(r'\s*```\s*$', '', text)
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```\s*$", "", text)
     return text.strip()
 
 
@@ -94,7 +94,7 @@ def parse_ai_response(content: str) -> dict[str, Any]:
         pass
 
     def _parse_embedded_object() -> dict[str, Any] | None:
-        json_match = re.search(r'\{[\s\S]*\}', cleaned)
+        json_match = re.search(r"\{[\s\S]*\}", cleaned)
         if not json_match:
             return None
         try:
@@ -112,7 +112,7 @@ def parse_ai_response(content: str) -> dict[str, Any]:
         return None
 
     def _parse_embedded_array() -> dict[str, Any] | None:
-        json_match = re.search(r'\[[\s\S]*\]', cleaned)
+        json_match = re.search(r"\[[\s\S]*\]", cleaned)
         if not json_match:
             return None
         try:
@@ -129,11 +129,9 @@ def parse_ai_response(content: str) -> dict[str, Any]:
                 pass
         return None
 
-    first_object = cleaned.find('{')
-    first_array = cleaned.find('[')
-    prefer_object = first_object != -1 and (
-        first_array == -1 or first_object < first_array
-    )
+    first_object = cleaned.find("{")
+    first_array = cleaned.find("[")
+    prefer_object = first_object != -1 and (first_array == -1 or first_object < first_array)
     parsers = (
         (_parse_embedded_object, _parse_embedded_array)
         if prefer_object

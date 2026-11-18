@@ -1,4 +1,4 @@
-﻿"""
+"""
 执行视频回放端点模块
 
 本模块定义执行视频回放的API端点，支持测试执行过程的视频录制和回放。
@@ -22,6 +22,7 @@
       直接复用请求级会话（单事务、无额外连接开销）；
     - 视频/回放服务内部仍为同步实现，统一用 run_async_coro_in_thread 释放事件循环。
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -56,9 +57,7 @@ async def get_video_storage_stats(
     total_size_bytes = stats.get("total_size_mb", 0) * 1024 * 1024
     total_size_gb = round(total_size_bytes / (1024**3), 2)
     max_storage_gb = 50
-    storage_usage_percent = (
-        round((total_size_gb / max_storage_gb) * 100, 1) if max_storage_gb > 0 else 0
-    )
+    storage_usage_percent = round((total_size_gb / max_storage_gb) * 100, 1) if max_storage_gb > 0 else 0
     return StorageStatsResponse(
         total_videos=stats.get("total_count", 0),
         total_size_bytes=int(total_size_bytes),
@@ -104,9 +103,7 @@ async def delete_video(
     service = get_video_service(db)
     success = await run_async_coro_in_thread(service.delete_video(video_id))
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="视频不存在或删除失败"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="视频不存在或删除失败")
     return {"success": True, "message": "视频已删除"}
 
 

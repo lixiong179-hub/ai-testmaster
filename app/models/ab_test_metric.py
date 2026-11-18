@@ -6,6 +6,7 @@ A/B测试指标模型
 上下文token数、人工二次修改率、evidence_refs准确率、
 历史低可信过滤准确率、上下文完整性评分有效性等。
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, Float, JSON
 from app.utils.db_time import utcnow
 from app.db.database import Base
@@ -13,6 +14,7 @@ from app.db.database import Base
 
 class ABTestMetric(Base):
     """A/B测试指标记录模型，每条记录对应一次实验中某变体的一个指标采样"""
+
     __tablename__ = "ab_test_metrics"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)

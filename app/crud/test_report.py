@@ -27,6 +27,7 @@
 软删除/硬删除：
     - delete_test_report 为硬删除，物理移除数据库记录
 """
+
 from sqlalchemy.orm import Session
 from app.models.report import TestReport
 from app.schemas.test_report import TestReportCreate, TestReportUpdate
@@ -51,10 +52,7 @@ def create_test_report(db: Session, report: TestReportCreate, user_id: int) -> T
         user_id参数当前未使用，预留用于后续增加创建者字段。
     """
     db_report = TestReport(
-        name=report.name,
-        description=report.description,
-        project_id=report.project_id,
-        test_task_id=report.test_task_id
+        name=report.name, description=report.description, project_id=report.project_id, test_task_id=report.test_task_id
     )
     db.add(db_report)
     db.commit()
@@ -81,9 +79,7 @@ def get_test_reports(db: Session, project_id: int, skip: int = 0, limit: int = 1
         此函数未做用户权限过滤，适用于内部调用；
         对外接口应在Service层增加用户权限校验。
     """
-    return db.query(TestReport).filter(
-        TestReport.project_id == project_id
-    ).offset(skip).limit(limit).all()
+    return db.query(TestReport).filter(TestReport.project_id == project_id).offset(skip).limit(limit).all()
 
 
 def get_test_report_by_id(db: Session, report_id: int, project_id: int) -> TestReport | None:
@@ -101,13 +97,12 @@ def get_test_report_by_id(db: Session, report_id: int, project_id: int) -> TestR
     Returns:
         Optional[TestReport]: 测试报告对象，不存在则返回None
     """
-    return db.query(TestReport).filter(
-        TestReport.id == report_id,
-        TestReport.project_id == project_id
-    ).first()
+    return db.query(TestReport).filter(TestReport.id == report_id, TestReport.project_id == project_id).first()
 
 
-def update_test_report(db: Session, report_id: int, project_id: int, report_update: TestReportUpdate) -> TestReport | None:
+def update_test_report(
+    db: Session, report_id: int, project_id: int, report_update: TestReportUpdate
+) -> TestReport | None:
     """
     更新测试报告，带项目权限过滤
 
@@ -182,7 +177,6 @@ def get_test_reports_by_task(db: Session, test_task_id: int, project_id: int) ->
     Note:
         此查询未加分页，适用于单任务报告数量较少的场景。
     """
-    return db.query(TestReport).filter(
-        TestReport.test_task_id == test_task_id,
-        TestReport.project_id == project_id
-    ).all()
+    return (
+        db.query(TestReport).filter(TestReport.test_task_id == test_task_id, TestReport.project_id == project_id).all()
+    )

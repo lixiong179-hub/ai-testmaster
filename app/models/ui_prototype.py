@@ -26,6 +26,7 @@ UI原型模型模块
     本模块必须在 test_case.py 之前导入，因为 TestCase 模型通过
     secondary="ui_screen_test_case_links" 引用本模块定义的关联表。
 """
+
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean
 from sqlalchemy.orm import relationship
@@ -48,6 +49,7 @@ class UIPrototypeSource(str):
         MANUAL     : 手工上传（用户直接上传图片）
         OTHER      : 其他来源
     """
+
     MOCKINGBOT = "mockingbot"  # 摹客
     LANNHU = "lannhu"  # 蓝湖
     FIGMA = "figma"
@@ -79,70 +81,94 @@ class UIPrototypeScreen(Base):
         - 基于UI原型自动生成UI自动化测试用例
         - UI适配校验（布局校验点）
     """
+
     __tablename__ = "ui_prototype_screens"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 屏幕主键ID
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID")  # 项目ID，级联删除
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)  # 屏幕主键ID
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID"
+    )  # 项目ID，级联删除
 
     # 原型基本信息
-    prototype_name = Column(String(200), nullable=False, comment="原型名称，如：答题模块v1.2")          # 原型名称，标识整组原型
-    source = Column(String(50), nullable=False, default="manual", comment="UI工具来源：mockingbot/lannhu/figma/axure/manual/other")  # 原型来源工具
-    screen_name = Column(String(200), nullable=False, comment="屏幕名称，如：答题页、结果页")           # 单页屏幕名称
-    screen_order = Column(Integer, default=0, comment="屏幕顺序/页码")                                 # 屏幕在原型中的排列顺序
+    prototype_name = Column(String(200), nullable=False, comment="原型名称，如：答题模块v1.2")  # 原型名称，标识整组原型
+    source = Column(
+        String(50), nullable=False, default="manual", comment="UI工具来源：mockingbot/lannhu/figma/axure/manual/other"
+    )  # 原型来源工具
+    screen_name = Column(String(200), nullable=False, comment="屏幕名称，如：答题页、结果页")  # 单页屏幕名称
+    screen_order = Column(Integer, default=0, comment="屏幕顺序/页码")  # 屏幕在原型中的排列顺序
 
     # 文件存储
-    original_file_path = Column(String(500), nullable=True, comment="原始UI图文件路径")                # 原型图文件存储路径
-    original_file_name = Column(String(255), nullable=True, comment="原始文件名")                      # 上传时的原始文件名
-    file_type = Column(String(20), nullable=False, default="png", comment="文件类型：png/jpg/webp")    # 图片格式
-    file_size = Column(Integer, nullable=True, comment="文件大小（KB）")                               # 文件大小，单位KB
+    original_file_path = Column(String(500), nullable=True, comment="原始UI图文件路径")  # 原型图文件存储路径
+    original_file_name = Column(String(255), nullable=True, comment="原始文件名")  # 上传时的原始文件名
+    file_type = Column(String(20), nullable=False, default="png", comment="文件类型：png/jpg/webp")  # 图片格式
+    file_size = Column(Integer, nullable=True, comment="文件大小（KB）")  # 文件大小，单位KB
 
     # AI解析结果（核心字段）
-    ui_spec = Column(JSON, nullable=True, comment="UI规格JSON，结构化解析结果")                        # AI解析出的UI规格，包含元素、布局、交互等
-    ui_spec_version = Column(String(20), nullable=False, default="1.0", comment="解析规格版本")         # ui_spec的版本号，兼容格式升级
-    parse_status = Column(String(20), nullable=False, default="pending", comment="解析状态：pending/running/completed/failed")  # pending=待解析，running=解析中，completed=已完成，failed=解析失败
-    parse_error = Column(Text, nullable=True, comment="解析错误信息")                                  # 解析失败时的错误信息
-    parse_model = Column(String(50), nullable=True, comment="解析使用的视觉模型")                      # AI视觉模型标识，如 gpt-4o、claude-3.5
+    ui_spec = Column(
+        JSON, nullable=True, comment="UI规格JSON，结构化解析结果"
+    )  # AI解析出的UI规格，包含元素、布局、交互等
+    ui_spec_version = Column(
+        String(20), nullable=False, default="1.0", comment="解析规格版本"
+    )  # ui_spec的版本号，兼容格式升级
+    parse_status = Column(
+        String(20), nullable=False, default="pending", comment="解析状态：pending/running/completed/failed"
+    )  # pending=待解析，running=解析中，completed=已完成，failed=解析失败
+    parse_error = Column(Text, nullable=True, comment="解析错误信息")  # 解析失败时的错误信息
+    parse_model = Column(
+        String(50), nullable=True, comment="解析使用的视觉模型"
+    )  # AI视觉模型标识，如 gpt-4o、claude-3.5
 
     # 页面关系
-    parent_screen_id = Column(Integer, ForeignKey("ui_prototype_screens.id", ondelete="SET NULL"), nullable=True, comment="父屏幕ID（用于页面层级）")  # 父屏幕ID，构成页面层级树
-    related_screens = Column(JSON, nullable=True, comment="关联屏幕ID列表")                            # 关联的其他屏幕ID列表
+    parent_screen_id = Column(
+        Integer,
+        ForeignKey("ui_prototype_screens.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="父屏幕ID（用于页面层级）",
+    )  # 父屏幕ID，构成页面层级树
+    related_screens = Column(JSON, nullable=True, comment="关联屏幕ID列表")  # 关联的其他屏幕ID列表
 
     # 导航与流程
-    navigation_flow = Column(JSON, nullable=True, comment="导航流向JSON，从本屏出发的可能跳转")         # 页面跳转关系，JSON格式
-    is_entry_point = Column(Boolean, default=False, comment="是否为入口页面")                          # 标记是否为应用入口页面
-    is_end_point = Column(Boolean, default=False, comment="是否为结束页面")                            # 标记是否为流程结束页面
+    navigation_flow = Column(
+        JSON, nullable=True, comment="导航流向JSON，从本屏出发的可能跳转"
+    )  # 页面跳转关系，JSON格式
+    is_entry_point = Column(Boolean, default=False, comment="是否为入口页面")  # 标记是否为应用入口页面
+    is_end_point = Column(Boolean, default=False, comment="是否为结束页面")  # 标记是否为流程结束页面
 
     # 布局校验点（专门针对UI适配问题）
-    layout_checks = Column(JSON, nullable=True, comment="布局校验点列表，如：底栏固定、弹窗遮罩等")      # UI适配校验规则列表
+    layout_checks = Column(
+        JSON, nullable=True, comment="布局校验点列表，如：底栏固定、弹窗遮罩等"
+    )  # UI适配校验规则列表
 
     # 解析摘要（用于前端快速展示）
-    summary = Column(Text, nullable=True, comment="AI解析摘要，前端快速展示用")                        # AI生成的页面摘要
-    element_count = Column(Integer, default=0, comment="识别出的元素数量")                             # AI识别出的UI元素总数
-    button_count = Column(Integer, default=0, comment="按钮数量")                                      # AI识别出的按钮数量
-    input_count = Column(Integer, default=0, comment="输入框数量")                                     # AI识别出的输入框数量
+    summary = Column(Text, nullable=True, comment="AI解析摘要，前端快速展示用")  # AI生成的页面摘要
+    element_count = Column(Integer, default=0, comment="识别出的元素数量")  # AI识别出的UI元素总数
+    button_count = Column(Integer, default=0, comment="按钮数量")  # AI识别出的按钮数量
+    input_count = Column(Integer, default=0, comment="输入框数量")  # AI识别出的输入框数量
 
     # 审核状态
-    review_status = Column(String(20), default="pending", comment="审核状态：pending/approved/rejected")  # pending=待审核，approved=已通过，rejected=已拒绝
-    reviewed_by = Column(String(100), nullable=True, comment="审核人")                                 # 审核人用户名
-    reviewed_at = Column(DateTime, nullable=True, comment="审核时间")                                  # 审核操作时间
-    review_comment = Column(Text, nullable=True, comment="审核意见")                                   # 审核人填写的意见
+    review_status = Column(
+        String(20), default="pending", comment="审核状态：pending/approved/rejected"
+    )  # pending=待审核，approved=已通过，rejected=已拒绝
+    reviewed_by = Column(String(100), nullable=True, comment="审核人")  # 审核人用户名
+    reviewed_at = Column(DateTime, nullable=True, comment="审核时间")  # 审核操作时间
+    review_comment = Column(Text, nullable=True, comment="审核意见")  # 审核人填写的意见
 
     # 元数据
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)          # 创建者ID，SET NULL保留屏幕
-    create_time = Column(DateTime, nullable=False, default=utcnow, comment="创建时间")                 # 创建时间，UTC时区
-    update_time = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow, comment="更新时间") # 更新时间
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )  # 创建者ID，SET NULL保留屏幕
+    create_time = Column(DateTime, nullable=False, default=utcnow, comment="创建时间")  # 创建时间，UTC时区
+    update_time = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow, comment="更新时间")  # 更新时间
 
     # 关联关系
-    project = relationship("Project", back_populates="ui_prototype_screens")                          # 所属项目
-    creator = relationship("User", foreign_keys=[created_by])                                         # 创建者
-    parent = relationship("UIPrototypeScreen", remote_side=[id], backref="children")                  # 父屏幕，自引用构成层级
+    project = relationship("Project", back_populates="ui_prototype_screens")  # 所属项目
+    creator = relationship("User", foreign_keys=[created_by])  # 创建者
+    parent = relationship("UIPrototypeScreen", remote_side=[id], backref="children")  # 父屏幕，自引用构成层级
 
     # 多对多关联（通过关联表）
     linked_test_cases = relationship(
-        "TestCase",
-        secondary="ui_screen_test_case_links",
-        back_populates="linked_ui_screens"
-    )                                                                                                # 关联的测试用例列表
+        "TestCase", secondary="ui_screen_test_case_links", back_populates="linked_ui_screens"
+    )  # 关联的测试用例列表
 
 
 class UIScreenTestCaseLink(Base):
@@ -156,22 +182,26 @@ class UIScreenTestCaseLink(Base):
         - source : 来源关联，用例是基于该UI屏幕生成的
         - documented : 已文档化，用例已覆盖该UI屏幕的测试
     """
+
     __tablename__ = "ui_screen_test_case_links"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 关联主键ID
-    screen_id = Column(Integer, ForeignKey("ui_prototype_screens.id", ondelete="CASCADE"), nullable=False, comment="UI屏幕ID")  # 屏幕ID，级联删除
-    test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, comment="测试用例ID")  # 用例ID，级联删除
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)  # 关联主键ID
+    screen_id = Column(
+        Integer, ForeignKey("ui_prototype_screens.id", ondelete="CASCADE"), nullable=False, comment="UI屏幕ID"
+    )  # 屏幕ID，级联删除
+    test_case_id = Column(
+        Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, comment="测试用例ID"
+    )  # 用例ID，级联删除
     link_type = Column(String(20), default="source", comment="关联类型：source=来源/documented=已文档化")  # 关联类型
-    create_time = Column(DateTime, nullable=False, default=utcnow)                                    # 创建时间
+    create_time = Column(DateTime, nullable=False, default=utcnow)  # 创建时间
 
 
 # 扩展Project模型添加关联关系
 from app.models.project import Project
+
 Project.ui_prototype_screens = relationship(
-    "UIPrototypeScreen",
-    back_populates="project",
-    cascade="all, delete-orphan"
-)                                                                                                    # 动态扩展Project模型，添加UI原型屏幕关联
+    "UIPrototypeScreen", back_populates="project", cascade="all, delete-orphan"
+)  # 动态扩展Project模型，添加UI原型屏幕关联
 
 
 class UIPrototypeProject(Base):
@@ -192,39 +222,46 @@ class UIPrototypeProject(Base):
         - 按迭代组织UI原型项目
         - 合并多页面的页面流转图
     """
+
     __tablename__ = "ui_prototype_projects"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 原型项目主键ID
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID")  # 项目ID，级联删除
-    name = Column(String(200), nullable=False, comment="原型项目名称")                                 # 原型项目名称
-    description = Column(Text, nullable=True, comment="原型描述")                                      # 原型项目描述
-    source = Column(String(50), nullable=False, default="manual", comment="来源：mockingbot/lannhu/figma/axure/manual/other")  # 原型来源工具
-    screen_count = Column(Integer, default=0, comment="屏幕总数")                                     # 原型项目包含的屏幕总数
-    parsed_count = Column(Integer, default=0, comment="已解析数量")                                   # 已完成AI解析的屏幕数量
-    parse_status = Column(String(20), default="pending", comment="整体解析状态")                      # 整体解析进度状态
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)  # 原型项目主键ID
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID"
+    )  # 项目ID，级联删除
+    name = Column(String(200), nullable=False, comment="原型项目名称")  # 原型项目名称
+    description = Column(Text, nullable=True, comment="原型描述")  # 原型项目描述
+    source = Column(
+        String(50), nullable=False, default="manual", comment="来源：mockingbot/lannhu/figma/axure/manual/other"
+    )  # 原型来源工具
+    screen_count = Column(Integer, default=0, comment="屏幕总数")  # 原型项目包含的屏幕总数
+    parsed_count = Column(Integer, default=0, comment="已解析数量")  # 已完成AI解析的屏幕数量
+    parse_status = Column(String(20), default="pending", comment="整体解析状态")  # 整体解析进度状态
 
     # 合并的页面流程
-    merged_flow = Column(JSON, nullable=True, comment="多图合并后的页面流转图")                        # 多屏幕合并后的完整页面流转图
+    merged_flow = Column(JSON, nullable=True, comment="多图合并后的页面流转图")  # 多屏幕合并后的完整页面流转图
 
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)          # 创建者ID，SET NULL保留项目
-    create_time = Column(DateTime, nullable=False, default=utcnow)                                    # 创建时间，UTC时区
-    update_time = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)                   # 更新时间
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )  # 创建者ID，SET NULL保留项目
+    create_time = Column(DateTime, nullable=False, default=utcnow)  # 创建时间，UTC时区
+    update_time = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)  # 更新时间
 
-    iteration_id = Column(Integer, ForeignKey("iterations.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联迭代ID")  # 迭代ID，SET NULL保留项目
-    iteration = relationship("Iteration", backref="ui_prototype_projects")                            # 所属迭代
+    iteration_id = Column(
+        Integer, ForeignKey("iterations.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联迭代ID"
+    )  # 迭代ID，SET NULL保留项目
+    iteration = relationship("Iteration", backref="ui_prototype_projects")  # 所属迭代
 
     # 关联关系
-    screens = relationship("UIPrototypeScreen", back_populates="prototype_project", cascade="all, delete-orphan")  # 屏幕列表，级联删除
+    screens = relationship(
+        "UIPrototypeScreen", back_populates="prototype_project", cascade="all, delete-orphan"
+    )  # 屏幕列表，级联删除
 
 
 # 扩展UIPrototypeScreen添加prototype_project关系
 UIPrototypeScreen.prototype_project_id = Column(
-    Integer,
-    ForeignKey("ui_prototype_projects.id", ondelete="CASCADE"),
-    nullable=True,
-    comment="所属原型项目ID"
-)                                                                                                    # 动态添加原型项目ID字段
+    Integer, ForeignKey("ui_prototype_projects.id", ondelete="CASCADE"), nullable=True, comment="所属原型项目ID"
+)  # 动态添加原型项目ID字段
 UIPrototypeScreen.prototype_project = relationship(
-    "UIPrototypeProject",
-    back_populates="screens"
-)                                                                                                    # 动态添加原型项目关联关系
+    "UIPrototypeProject", back_populates="screens"
+)  # 动态添加原型项目关联关系

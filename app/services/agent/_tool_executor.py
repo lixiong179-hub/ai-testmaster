@@ -11,6 +11,7 @@
 抽出目的：
     runtime.py 单文件 ≤350 行约束 + 工具执行逻辑高内聚。
 """
+
 from __future__ import annotations
 
 import json
@@ -63,24 +64,33 @@ async def execute_tool_call(
     except json.JSONDecodeError as e:
         raise ToolExecutionError(
             f"工具参数解析失败: {tool_name}: {e}",
-            tool_name=tool_name, agent_type=agent_type, session_id=session_id,
+            tool_name=tool_name,
+            agent_type=agent_type,
+            session_id=session_id,
         ) from e
 
     if tool_registry is None:
         raise ToolExecutionError(
             f"工具注册表不可用: {tool_name}",
-            tool_name=tool_name, agent_type=agent_type, session_id=session_id,
+            tool_name=tool_name,
+            agent_type=agent_type,
+            session_id=session_id,
         )
     tool = tool_registry.get(tool_name)
     if tool is None:
         raise ToolExecutionError(
             f"工具未注册: {tool_name}",
-            tool_name=tool_name, agent_type=agent_type, session_id=session_id,
+            tool_name=tool_name,
+            agent_type=agent_type,
+            session_id=session_id,
         )
 
     context = ToolContext(
-        db=db, session_id=session_id, agent_type=agent_type,
-        project_id=project_id, execution_callback=execution_callback,
+        db=db,
+        session_id=session_id,
+        agent_type=agent_type,
+        project_id=project_id,
+        execution_callback=execution_callback,
     )
     try:
         result: ToolResult = await tool.execute(args, context)
@@ -88,13 +98,17 @@ async def execute_tool_call(
         _record_tool_call(metrics, tool_name, False)
         raise ToolExecutionError(
             f"工具未实现: {tool_name}: {e}",
-            tool_name=tool_name, agent_type=agent_type, session_id=session_id,
+            tool_name=tool_name,
+            agent_type=agent_type,
+            session_id=session_id,
         ) from e
     except Exception as e:
         _record_tool_call(metrics, tool_name, False)
         raise ToolExecutionError(
             f"工具执行失败: {tool_name}: {e}",
-            tool_name=tool_name, agent_type=agent_type, session_id=session_id,
+            tool_name=tool_name,
+            agent_type=agent_type,
+            session_id=session_id,
         ) from e
 
     _record_tool_call(metrics, tool_name, result.success)
@@ -108,13 +122,17 @@ async def execute_tool_call(
         },
     }
     await append_message_fn(
-        session_id, "tool", tool_msg,
-        tool_name=tool_name, tool_call_id=tool_call.get("id"),
+        session_id,
+        "tool",
+        tool_msg,
+        tool_name=tool_name,
+        tool_call_id=tool_call.get("id"),
     )
     history.append({"role": "tool", "content": tool_msg})
     if audit_service is not None:
         await audit_service.record_action(
-            session_id=session_id, iteration=iteration,
+            session_id=session_id,
+            iteration=iteration,
             action_type="tool_call",
             action_detail={"tool_name": tool_name, "args": args, "result": tool_msg["tool_result"]},
             decision_confidence=None,

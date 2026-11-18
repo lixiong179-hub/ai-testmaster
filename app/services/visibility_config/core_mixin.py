@@ -1,5 +1,5 @@
-"""可见模式配置服务 - 核心配置CRUD
-"""
+"""可见模式配置服务 - 核心配置CRUD"""
+
 from pathlib import Path
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -27,7 +27,7 @@ class VisibilityConfigCoreMixin:
         execution_speed="normal",
         action_delay_ms=500,
         highlight_elements=True,
-        show_ai_analysis=True
+        show_ai_analysis=True,
     )
 
     def __init__(self):
@@ -57,7 +57,7 @@ class VisibilityConfigCoreMixin:
 
     def get_task_config(self, task: TestTask) -> VisibilityConfig:
         global_config = self.get_global_config()
-        if hasattr(task, 'visibility_config') and task.visibility_config:
+        if hasattr(task, "visibility_config") and task.visibility_config:
             try:
                 task_config = VisibilityConfig.from_dict(task.visibility_config)
                 return VisibilityConfigMerger.merge(global_config, task_config)
@@ -72,7 +72,7 @@ class VisibilityConfigCoreMixin:
             logger.warning(f"项目不存在: {project_id}，使用全局配置")
             return global_config
         project_vis_config = None
-        if hasattr(project, 'config') and project.config:
+        if hasattr(project, "config") and project.config:
             vis_cfg = project.config.get("visibility_config") if isinstance(project.config, dict) else None
             if vis_cfg and isinstance(vis_cfg, dict):
                 try:
@@ -89,7 +89,7 @@ class VisibilityConfigCoreMixin:
         if task:
             task_config = self.get_task_config(task)
             config = VisibilityConfigMerger.merge(config, task_config)
-        if hasattr(case, 'visibility_config') and case.visibility_config:
+        if hasattr(case, "visibility_config") and case.visibility_config:
             try:
                 case_config = VisibilityConfig.from_dict(case.visibility_config)
                 config = VisibilityConfigMerger.merge(config, case_config)
@@ -110,6 +110,7 @@ class VisibilityConfigCoreMixin:
     def get_video_save_path(self, task_id: int, case_id: int) -> Path:
         """获取视频保存路径"""
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"task_{task_id}_case_{case_id}_{timestamp}.webm"
         return self._video_base_dir / filename
@@ -117,6 +118,7 @@ class VisibilityConfigCoreMixin:
     def get_screenshot_save_path(self, task_id: int, case_id: int, step_number: int) -> Path:
         """获取截图保存路径"""
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"task_{task_id}_case_{case_id}_step_{step_number}_{timestamp}.png"
         return self._screenshot_base_dir / filename

@@ -6,6 +6,7 @@ SQL 方言适配与子查询构建下沉至 `app.services.pipeline_service.dashb
 `trends_router` 单独导出：`pipeline.py` 仍以无 `/dashboard` 前缀的方式二次注册
 趋势类端点，保持既有前端调用路径不变。
 """
+
 import asyncio
 import logging
 from datetime import timedelta
@@ -52,9 +53,7 @@ async def get_dashboard_overview(
         # PipelineRun: total_runs + completed_runs + avg_duration → 1 次查询
         run_stmt = select(
             func.count(PipelineRun.id).label("total_runs"),
-            func.sum(
-                case((PipelineRun.status == "completed", 1), else_=0)
-            ).label("completed_runs"),
+            func.sum(case((PipelineRun.status == "completed", 1), else_=0)).label("completed_runs"),
             func.coalesce(
                 func.avg(
                     case(
@@ -107,12 +106,7 @@ async def get_dashboard_overview(
             run_stmt = run_stmt.where(PipelineRun.id.in_(run_subq))
             ai_stmt = ai_stmt.where(AICallLog.run_id.in_(run_subq))
             step_stmt = step_stmt.where(PipelineStep.run_id.in_(run_subq))
-            metric_subq = (
-                select(PipelineMetric.id)
-                .where(PipelineMetric.project_id == project_id)
-                .subquery()
-                .select()
-            )
+            metric_subq = select(PipelineMetric.id).where(PipelineMetric.project_id == project_id).subquery().select()
             fmea_stmt = fmea_stmt.where(PipelineMetric.id.in_(metric_subq))
 
         # 4 次 SQL 往返（原 8 次）
@@ -133,10 +127,15 @@ async def get_dashboard_overview(
         success_rate = (completed_runs_val / total_runs_val * 100) if total_runs_val > 0 else 0.0
 
         result = {
-            "total_runs": total_runs_val, "completed_runs": completed_runs_val,
-            "success_rate": round(success_rate, 1), "total_tokens": total_tokens_val,
-            "total_cost_usd": round(total_cost_val, 4), "avg_duration_seconds": round(avg_duration_val, 1),
-            "cache_hit_rate": round(cache_hit_rate, 1), "fmea_alerts": fmea_active_val, "period_days": days,
+            "total_runs": total_runs_val,
+            "completed_runs": completed_runs_val,
+            "success_rate": round(success_rate, 1),
+            "total_tokens": total_tokens_val,
+            "total_cost_usd": round(total_cost_val, 4),
+            "avg_duration_seconds": round(avg_duration_val, 1),
+            "cache_hit_rate": round(cache_hit_rate, 1),
+            "fmea_alerts": fmea_active_val,
+            "period_days": days,
         }
         return create_response(data=result, msg="获取成功")
     except Exception as e:
@@ -172,7 +171,8 @@ async def get_token_usage(
         rows = rows_result.all()
         result = [
             {
-                "date": row.date, "prompt_tokens": int(row.prompt_tokens),
+                "date": row.date,
+                "prompt_tokens": int(row.prompt_tokens),
                 "completion_tokens": int(row.completion_tokens),
                 "total_tokens": int(row.prompt_tokens + row.completion_tokens),
                 "cost_usd": float(row.cost_usd),
@@ -210,10 +210,12 @@ async def get_run_duration(
                 PipelineRun.started_at.isnot(None),
                 PipelineRun.finished_at.isnot(None),
             )
-            .group_by("date").order_by("date")
+            .group_by("date")
+            .order_by("date")
         )
         if project_id is not None:
             from app.models.iteration import Iteration
+
             stmt = stmt.join(Iteration, PipelineRun.iteration_id == Iteration.id).where(
                 Iteration.project_id == project_id
             )
@@ -221,7 +223,8 @@ async def get_run_duration(
         rows = rows_result.all()
         result = [
             {
-                "date": row.date, "run_count": row.run_count,
+                "date": row.date,
+                "run_count": row.run_count,
                 "avg_duration_seconds": round(float(row.avg_duration), 1),
                 "max_duration_seconds": round(float(row.max_duration), 1),
                 "min_duration_seconds": round(float(row.min_duration), 1),
@@ -257,7 +260,8 @@ async def get_step_latency(
                 PipelineStep.started_at.isnot(None),
                 PipelineStep.finished_at.isnot(None),
             )
-            .group_by(PipelineStep.step_name).order_by(PipelineStep.step_name)
+            .group_by(PipelineStep.step_name)
+            .order_by(PipelineStep.step_name)
         )
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
@@ -266,7 +270,8 @@ async def get_step_latency(
         rows = rows_result.all()
         result = [
             {
-                "step_name": row.step_name, "count": row.count,
+                "step_name": row.step_name,
+                "count": row.count,
                 "avg_duration_seconds": round(float(row.avg_duration), 1),
                 "max_duration_seconds": round(float(row.max_duration), 1),
                 "skipped_count": int(row.skipped_count),
@@ -297,7 +302,8 @@ async def get_cache_hit_rate(
                 func.coalesce(func.sum(case((PipelineStep.status == "skipped", 1), else_=0)), 0).label("skipped_steps"),
             )
             .where(PipelineStep.started_at >= since)
-            .group_by("date").order_by("date")
+            .group_by("date")
+            .order_by("date")
         )
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
@@ -306,9 +312,12 @@ async def get_cache_hit_rate(
         rows = rows_result.all()
         result = [
             {
-                "date": row.date, "total_steps": row.total_steps,
+                "date": row.date,
+                "total_steps": row.total_steps,
                 "skipped_steps": int(row.skipped_steps),
-                "cache_hit_rate": round(int(row.skipped_steps) / row.total_steps * 100, 1) if row.total_steps > 0 else 0.0,
+                "cache_hit_rate": round(int(row.skipped_steps) / row.total_steps * 100, 1)
+                if row.total_steps > 0
+                else 0.0,
             }
             for row in rows
         ]

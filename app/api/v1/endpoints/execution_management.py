@@ -1,4 +1,4 @@
-﻿"""
+"""
 执行管理端点模块
 
 本模块定义测试执行的管理API端点，包括截图获取和视频回放。
@@ -17,6 +17,7 @@
     - 截图按任务/用例/步骤/类型组织存储
     - 视频通过VideoService管理，支持按任务和用例查询
 """
+
 import asyncio
 import os
 import re
@@ -39,9 +40,7 @@ from app.services.video import get_video_service
 router = APIRouter()
 
 # 截图类型白名单：仅允许字母/数字/下划线，防止路径穿越攻击
-_ALLOWED_SCREENSHOT_TYPES = frozenset({
-    "before", "after", "error", "click", "input", "navigate", "assert", "default"
-})
+_ALLOWED_SCREENSHOT_TYPES = frozenset({"before", "after", "error", "click", "input", "navigate", "assert", "default"})
 _SCREENSHOT_TYPE_PATTERN = re.compile(r"^[a-zA-Z0-9_]{1,32}$")
 
 
@@ -52,30 +51,20 @@ async def get_step_screenshot(
     step_number: int,
     type: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """获取步骤截图"""
     try:
         # 安全校验：type 参数用于文件路径拼接，必须严格校验防止路径穿越
         if not _SCREENSHOT_TYPE_PATTERN.match(type):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的截图类型"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的截图类型")
 
-        result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = result.scalar_one_or_none()
         if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        await asyncio.to_thread(
-            verify_project_permission, db, task.project_id, current_user.id
-        )
+        await asyncio.to_thread(verify_project_permission, db, task.project_id, current_user.id)
 
         # 使用 os.path.join 构造路径，并通过 realpath 校验最终路径未越界
         screenshot_dir = os.path.join(".", "screenshots", str(task_id), str(case_id))
@@ -92,38 +81,23 @@ async def get_step_screenshot(
         raise
     except Exception as e:
         logger.error(f"获取截图失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取截图失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取截图失败")
 
 
 @router.get("/{task_id}/case/{case_id}/video")
 async def get_execution_video(
-    task_id: int,
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    task_id: int, case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """获取执行视频"""
     try:
-        result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = result.scalar_one_or_none()
         if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        await asyncio.to_thread(
-            verify_project_permission, db, task.project_id, current_user.id
-        )
+        await asyncio.to_thread(verify_project_permission, db, task.project_id, current_user.id)
 
-        videos_result = await asyncio.to_thread(
-            db.execute, select(VideoRecord).where(VideoRecord.task_id == task_id)
-        )
+        videos_result = await asyncio.to_thread(db.execute, select(VideoRecord).where(VideoRecord.task_id == task_id))
         videos = videos_result.scalars().all()
         # _to_video_info 为纯计算方法，VideoService 单例无需 db 即可调用
         service = get_video_service()
@@ -132,9 +106,7 @@ async def get_execution_video(
         for video in video_infos:
             if video.case_id == case_id and video.file_path and os.path.exists(video.file_path):
                 return FileResponse(
-                    video.file_path,
-                    media_type="video/mp4",
-                    filename=f"task_{task_id}_case_{case_id}.mp4"
+                    video.file_path, media_type="video/mp4", filename=f"task_{task_id}_case_{case_id}.mp4"
                 )
 
         return create_response(code=404, message="视频不存在或未启用录制")
@@ -143,38 +115,23 @@ async def get_execution_video(
         raise
     except Exception as e:
         logger.error(f"获取视频失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取视频失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取视频失败")
 
 
 @router.get("/{task_id}/case/{case_id}/video/info")
 async def get_video_info(
-    task_id: int,
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    task_id: int, case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """获取视频信息"""
     try:
-        result = await asyncio.to_thread(
-            db.execute, select(TestTask).where(TestTask.id == task_id)
-        )
+        result = await asyncio.to_thread(db.execute, select(TestTask).where(TestTask.id == task_id))
         task = result.scalar_one_or_none()
         if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        await asyncio.to_thread(
-            verify_project_permission, db, task.project_id, current_user.id
-        )
+        await asyncio.to_thread(verify_project_permission, db, task.project_id, current_user.id)
 
-        videos_result = await asyncio.to_thread(
-            db.execute, select(VideoRecord).where(VideoRecord.case_id == case_id)
-        )
+        videos_result = await asyncio.to_thread(db.execute, select(VideoRecord).where(VideoRecord.case_id == case_id))
         videos = videos_result.scalars().all()
         service = get_video_service()
         video_infos = [service._to_video_info(v) for v in videos]
@@ -189,7 +146,4 @@ async def get_video_info(
         raise
     except Exception as e:
         logger.error(f"获取视频信息失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取视频信息失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取视频信息失败")

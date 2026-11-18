@@ -23,6 +23,7 @@
 - TestPointExtractRequest -> 触发文件内容解析和AI提取流程
 - AnalysisProgress -> 异步任务进度追踪
 """
+
 from pydantic import BaseModel, Field
 from datetime import date, datetime
 from app.models.enums import TEST_POINT_STATUS_PATTERN
@@ -35,6 +36,7 @@ class TestPointExtractRequest(BaseModel):
     业务用途：基于已上传的项目文件（需求文档等），通过AI提取测试点
     对应API：POST /api/v1/test-points/extract
     """
+
     file_id: int = Field(..., description="项目文件 ID（必填）")  # 必填，指定从哪个文件提取测试点
 
 
@@ -50,8 +52,11 @@ class TestPointExtractFromUiRequest(BaseModel):
         - 可交互元素维度：按钮、输入框、链接等交互操作
         - 流程边维度：页面间跳转、导航关系
     """
+
     project_id: int = Field(..., description="项目ID（必填）")  # 必填，项目隔离
-    ui_screen_ids: list[int] = Field(..., min_length=1, description="UI原型屏幕ID列表（至少1个）")  # 必填，指定从哪些屏幕提取
+    ui_screen_ids: list[int] = Field(
+        ..., min_length=1, description="UI原型屏幕ID列表（至少1个）"
+    )  # 必填，指定从哪些屏幕提取
     iteration_id: int | None = Field(None, description="关联迭代ID（可选）")  # 可选，关联迭代
 
 
@@ -63,11 +68,16 @@ class TestPointBase(BaseModel):
     验证规则：模块1-100字符，描述1-500字符，优先级1-3
     与Model映射：对应 TestPoint Model 的 module/point/priority/ai_prompt/status 字段
     """
+
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")  # 必填，如"登录模块"/"支付模块"
-    point: str = Field(..., min_length=1, max_length=500, description="测试点描述")  # 必填，如"输入错误密码登录"/"余额不足支付"
+    point: str = Field(
+        ..., min_length=1, max_length=500, description="测试点描述"
+    )  # 必填，如"输入错误密码登录"/"余额不足支付"
     priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")  # 必填，1=高/2=中/3=低
     ai_prompt: str | None = Field(None, description="AI分析时的提示词")  # 可选，引导AI生成更精准的测试用例
-    status: str = Field("active", pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived")  # 生命周期状态
+    status: str = Field(
+        "active", pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived"
+    )  # 生命周期状态
 
 
 class TestPointCreate(TestPointBase):
@@ -79,6 +89,7 @@ class TestPointCreate(TestPointBase):
     对应API：POST /api/v1/test-points/
     与Model映射：project_id对应TestPoint.project_id外键
     """
+
     __test__ = False
     project_id: int = Field(..., description="项目ID")  # 必填，测试点所属项目，实现多项目隔离
     capability_id: int | None = Field(None, description="关联业务能力ID")  # 可选，关联业务能力
@@ -92,6 +103,7 @@ class TestPointResponse(TestPointBase):
     对应API：GET /api/v1/test-points/{point_id}
     与Model映射：映射 TestPoint Model 的 id/project_id/create_time及Base中的所有字段
     """
+
     id: int  # 测试点主键ID，与TestPoint.id对应
     project_id: int  # 所属项目ID，与TestPoint.project_id对应
     requirement_id: int | None = None  # 关联需求ID，历史数据允许为空
@@ -113,6 +125,7 @@ class TestPointAnalyzeRequest(BaseModel):
     业务用途：对项目中的测试点进行AI分析，优化测试点质量
     对应API：POST /api/v1/test-points/analyze
     """
+
     project_id: int = Field(..., description="项目ID")  # 必填，指定分析的项目
 
 
@@ -124,6 +137,7 @@ class TestPointListRequest(BaseModel):
     验证规则：project_id必填，分页参数有边界约束
     对应API：GET /api/v1/test-points/
     """
+
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离查询
     module: str | None = Field(None, description="模块名称")  # 可选，按模块筛选
     priority: int | None = Field(None, ge=1, le=3, description="优先级")  # 可选，按优先级筛选
@@ -145,6 +159,7 @@ class TestPointListResponse(BaseModel):
     业务用途：返回分页查询结果
     对应API：GET /api/v1/test-points/ 的响应
     """
+
     total: int  # 符合条件的测试点总数
     items: list[TestPointResponse]  # 当前页的测试点列表
     page: int  # 当前页码
@@ -176,6 +191,7 @@ class AnalysisProgress(BaseModel):
     业务用途：追踪AI分析测试点的异步任务进度，通过WebSocket或轮询获取
     验证规则：进度0-100
     """
+
     progress: int = Field(..., ge=0, le=100, description="分析进度（0-100%）")  # 进度百分比，0=开始/100=完成
     message: str = Field(..., description="进度消息")  # 当前阶段的描述信息
     status: str = Field(..., description="分析状态")  # 如"processing"/"completed"/"failed"
@@ -189,12 +205,15 @@ class TestPointUpdate(BaseModel):
     验证规则：所有字段可选，仅更新传入的字段
     对应API：PUT /api/v1/test-points/{point_id}
     """
+
     __test__ = False
     module: str | None = Field(None, min_length=1, max_length=100, description="模块名称")  # 可选
     point: str | None = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
     priority: int | None = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选
     ai_prompt: str | None = Field(None, description="AI提示词")  # 可选
-    status: str | None = Field(None, pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived")  # 可选
+    status: str | None = Field(
+        None, pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived"
+    )  # 可选
 
 
 class TestPointXmindPreviewItem(BaseModel):
@@ -208,6 +227,7 @@ class TestPointXmindPreviewItem(BaseModel):
         - point: 必填，二级主题映射
         - priority: 必填，1高/2中/3低
     """
+
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")
     function: str = Field("", max_length=100, description="功能名称（已弃用，兼容XMind旧数据）")
     point: str = Field(..., min_length=1, max_length=500, description="测试点描述")
@@ -241,6 +261,7 @@ class TestPointXmindPreviewResponse(BaseModel):
     业务用途：预览模式下返回解析结果，不写入数据库
     对应API：POST /api/v1/test-point/import-xmind (preview=true)
     """
+
     preview_mode: str = Field("test_points", description="预览模式：test_points 或 test_cases")
     total: int = Field(..., description="解析出的测试点总数")
     items: list[TestPointXmindPreviewItem] = Field(..., description="测试点列表")
@@ -258,6 +279,7 @@ class TestPointXmindImportResponse(BaseModel):
     业务用途：导入模式下返回写入结果统计
     对应API：POST /api/v1/test-point/import-xmind (preview=false)
     """
+
     saved_count: int = Field(..., description="成功保存数量")
     saved_case_count: int = Field(0, description="成功保存的测试用例数量")
     total_parsed: int = Field(..., description="解析总数")

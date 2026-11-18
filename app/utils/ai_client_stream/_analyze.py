@@ -19,13 +19,9 @@ from app.core.constants import TimeoutConfig
 
 
 class _AnalyzeStreamMixin:
-
     async def analyze_requirements_stream(self, content: str):
         logger.info(f"开始AI分析需求（流式），输入内容长度: {len(content)} 字符")
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         prompt_template = (
             "你是一名资深测试工程师，请根据以下需求内容分析并提取结构化测试点：\n\n"
             "需求内容：\n{REQ_CONTENT_PLACEHOLDER}\n\n"
@@ -48,27 +44,28 @@ class _AnalyzeStreamMixin:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
             "max_tokens": 4096,
-            "stream": True
+            "stream": True,
         }
         full_content = ""
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"AI分析需求（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                async with httpx.AsyncClient(timeout=TimeoutConfig.AI_API) as client, client.stream(
-                    "POST", self.api_url, headers=headers, json=data
-                ) as response:
+                async with (
+                    httpx.AsyncClient(timeout=TimeoutConfig.AI_API) as client,
+                    client.stream("POST", self.api_url, headers=headers, json=data) as response,
+                ):
                     response.raise_for_status()
                     async for line in response.aiter_lines():
-                        if line.startswith('data: '):
+                        if line.startswith("data: "):
                             data_part = line[6:]
-                            if data_part == '[DONE]':
+                            if data_part == "[DONE]":
                                 break
                             try:
                                 chunk_data = json.loads(data_part)
-                                if 'choices' in chunk_data:
-                                    delta = chunk_data['choices'][0].get('delta', {})
-                                    if 'content' in delta:
-                                        full_content += delta['content']
+                                if "choices" in chunk_data:
+                                    delta = chunk_data["choices"][0].get("delta", {})
+                                    if "content" in delta:
+                                        full_content += delta["content"]
                                         progress = min(int(len(full_content) / 20), 95)
                                         yield {"progress": progress, "message": "分析中..."}
                             except json.JSONDecodeError:
@@ -106,7 +103,7 @@ class _AnalyzeStreamMixin:
                 return test_points
         except json.JSONDecodeError:
             pass
-        json_match = re.search(r'```(?:json)?\s*\n?(\[[\s\S]*?\])\s*\n?```', full_content)
+        json_match = re.search(r"```(?:json)?\s*\n?(\[[\s\S]*?\])\s*\n?```", full_content)
         if json_match:
             json_str = json_match.group(1)
             try:
@@ -122,7 +119,7 @@ class _AnalyzeStreamMixin:
                         return test_points
                     except json.JSONDecodeError:
                         pass
-        json_match = re.search(r'\[\s*\{[\s\S]*\}\s*\]', full_content)
+        json_match = re.search(r"\[\s*\{[\s\S]*\}\s*\]", full_content)
         if json_match:
             json_str = json_match.group(0)
             try:

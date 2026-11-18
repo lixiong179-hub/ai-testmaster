@@ -4,6 +4,7 @@
 本 Mixin 不持有独立 __init__，依赖聚合类提供 self.browser /
 self.vision_model，以及跨 Mixin 的 self._get_active_page。
 """
+
 import asyncio
 import re
 from typing import Any

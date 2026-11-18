@@ -15,7 +15,7 @@ class FlowMetaSchema(BaseModel):
 class FlowNodeSchema(BaseModel):
     screen_id: int = Field(..., gt=0, description="UI屏幕ID")
     screen_order: int = Field(..., gt=0, description="前端排序序号，从1开始")
-    flow_type: Literal['main', 'branch', 'exception', 'bypass'] = Field(
+    flow_type: Literal["main", "branch", "exception", "bypass"] = Field(
         ..., description="流程类型：main=主干/branch=分支/exception=异常/bypass=旁路"
     )
     main_order: int | None = Field(None, gt=0, description="主干显式顺序，仅main节点使用")
@@ -24,23 +24,22 @@ class FlowNodeSchema(BaseModel):
     ui_spec_elements: list[dict[str, Any]] | None = Field(None, description="UI元素列表（从ui_spec提取）")
     summary: str | None = Field(None, max_length=1000, description="AI解析摘要")
     flow_meta: FlowMetaSchema | None = Field(
-        None,
-        description="流程补充信息，含 pre_action/expected_result/bypass_reason/note"
+        None, description="流程补充信息，含 pre_action/expected_result/bypass_reason/note"
     )
     image_url: str | None = Field(None, max_length=2000, description="截图URL，用于多模态Prompt")
 
-    @field_validator('screen_name')
+    @field_validator("screen_name")
     @classmethod
     def screen_name_not_blank(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError('screen_name不能为纯空白字符')
+            raise ValueError("screen_name不能为纯空白字符")
         return v.strip()
 
 
 class FlowEdgeSchema(BaseModel):
     source: str = Field(..., min_length=1, description="源节点screen_id的字符串形式")
     target: str = Field(..., min_length=1, description="目标节点screen_id的字符串形式")
-    edge_type: Literal['normal', 'branch', 'exception', 'bypass'] = Field(
+    edge_type: Literal["normal", "branch", "exception", "bypass"] = Field(
         ..., description="连线类型：normal=正常/branch=分支/exception=异常/bypass=旁路"
     )
     condition: str | None = Field(None, max_length=500, description="触发条件/异常场景")
@@ -49,20 +48,20 @@ class FlowEdgeSchema(BaseModel):
     pre_action: str | None = Field(None, max_length=500, description="前置操作描述")
     note: str | None = Field(None, max_length=500, description="备注信息")
 
-    @field_validator('label')
+    @field_validator("label")
     @classmethod
     def label_not_blank(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError('label不能为纯空白字符')
+            raise ValueError("label不能为纯空白字符")
         return v.strip()
 
-    @model_validator(mode='after')
-    def validate_condition_for_special_edges(self) -> 'FlowEdgeSchema':
-        if self.edge_type != 'normal' and not (self.condition or '').strip():
+    @model_validator(mode="after")
+    def validate_condition_for_special_edges(self) -> "FlowEdgeSchema":
+        if self.edge_type != "normal" and not (self.condition or "").strip():
             label_map = {
-                'branch': '触发条件',
-                'exception': '异常场景',
-                'bypass': '出现时机',
+                "branch": "触发条件",
+                "exception": "异常场景",
+                "bypass": "出现时机",
             }
             raise ValueError(f"{label_map.get(self.edge_type, '条件')}不能为空")
         if self.condition is not None:

@@ -5,6 +5,7 @@
 
 与 _ContextLoadersMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
+
 from typing import Any
 
 from app.crud import file as file_crud
@@ -56,12 +57,16 @@ class _RequirementUiLoadersMixin:
                 if force_refresh or not content:
                     content = await get_file_content(file_id)
                 if content:
-                    context["requirement_content"] += f"\n\n【{file_record.file_name}】\n{budget.trim_text(content, 1800)}"
+                    context["requirement_content"] += (
+                        f"\n\n【{file_record.file_name}】\n{budget.trim_text(content, 1800)}"
+                    )
                     context["files_used"].append(file_id)
-                    context["evidence_refs"]["requirement_files"].append({
-                        "id": file_id,
-                        "file_name": file_record.file_name,
-                    })
+                    context["evidence_refs"]["requirement_files"].append(
+                        {
+                            "id": file_id,
+                            "file_name": file_record.file_name,
+                        }
+                    )
 
     def _load_requirement_from_test_points(
         self,
@@ -77,10 +82,15 @@ class _RequirementUiLoadersMixin:
         requirement_ids = _dedupe_ints([p.requirement_id for p in selected_point_models if p.requirement_id])
         requirements: list[Requirement] = []
         if requirement_ids:
-            requirements = self.db.query(Requirement).filter(
-                Requirement.project_id == project_id,
-                Requirement.id.in_(requirement_ids),
-            ).order_by(Requirement.update_time.desc(), Requirement.id.desc()).all()
+            requirements = (
+                self.db.query(Requirement)
+                .filter(
+                    Requirement.project_id == project_id,
+                    Requirement.id.in_(requirement_ids),
+                )
+                .order_by(Requirement.update_time.desc(), Requirement.id.desc())
+                .all()
+            )
         if requirements:
             for req in requirements:
                 content, trimmed = _trim_requirement_text(req.description or "", search_terms, budget, 1800)
@@ -89,11 +99,13 @@ class _RequirementUiLoadersMixin:
                 if req.source_file_id:
                     context["files_used"].append(req.source_file_id)
                 if trimmed:
-                    context["warnings"].append(_warning(
-                        "REQUIREMENT_TRIMMED_BY_KEYWORDS",
-                        "需求文本已基于测试点关键词裁剪",
-                        {"requirement_id": req.id},
-                    ))
+                    context["warnings"].append(
+                        _warning(
+                            "REQUIREMENT_TRIMMED_BY_KEYWORDS",
+                            "需求文本已基于测试点关键词裁剪",
+                            {"requirement_id": req.id},
+                        )
+                    )
             context["context_stats"]["requirement_strategy"] = "test_point_requirement"
         elif search_terms:
             candidates = []
@@ -110,20 +122,30 @@ class _RequirementUiLoadersMixin:
                 if req.source_file_id:
                     context["files_used"].append(req.source_file_id)
                 if trimmed:
-                    context["warnings"].append(_warning(
-                        "REQUIREMENT_TRIMMED_BY_KEYWORDS",
-                        "需求文本已基于测试点关键词裁剪",
-                        {"requirement_id": req.id},
-                    ))
+                    context["warnings"].append(
+                        _warning(
+                            "REQUIREMENT_TRIMMED_BY_KEYWORDS",
+                            "需求文本已基于测试点关键词裁剪",
+                            {"requirement_id": req.id},
+                        )
+                    )
             if candidates:
                 context["context_stats"]["requirement_strategy"] = "keyword_top_n"
-                context["warnings"].append(_warning(
-                    "REQUIREMENT_KEYWORD_MATCH",
-                    "未找到测试点直接关联需求，已按测试点关键词匹配需求Top-N",
-                    {"matched_requirement_ids": [req.id for _, req in candidates[:DEFAULT_MATCHED_REQUIREMENT_LIMIT]]},
-                ))
+                context["warnings"].append(
+                    _warning(
+                        "REQUIREMENT_KEYWORD_MATCH",
+                        "未找到测试点直接关联需求，已按测试点关键词匹配需求Top-N",
+                        {
+                            "matched_requirement_ids": [
+                                req.id for _, req in candidates[:DEFAULT_MATCHED_REQUIREMENT_LIMIT]
+                            ]
+                        },
+                    )
+                )
             else:
-                context["warnings"].append(_warning("REQUIREMENT_NOT_FOUND", "未找到与测试点匹配的需求，上下文将缺少精准需求约束"))
+                context["warnings"].append(
+                    _warning("REQUIREMENT_NOT_FOUND", "未找到与测试点匹配的需求，上下文将缺少精准需求约束")
+                )
                 context["context_stats"]["fallbacks"].append("requirement_not_found")
         else:
             context["warnings"].append(_warning("REQUIREMENT_NOT_FOUND", "测试点文本为空，无法按需匹配需求"))
@@ -154,10 +176,14 @@ class _RequirementUiLoadersMixin:
         ui_screen_ids: list[int],
     ) -> None:
         """按屏幕 ID 批量查询 UI（规避 N+1）。"""
-        screens = self.db.query(UIPrototypeScreen).filter(
-            UIPrototypeScreen.id.in_(ui_screen_ids),
-            UIPrototypeScreen.project_id == project_id,
-        ).all()
+        screens = (
+            self.db.query(UIPrototypeScreen)
+            .filter(
+                UIPrototypeScreen.id.in_(ui_screen_ids),
+                UIPrototypeScreen.project_id == project_id,
+            )
+            .all()
+        )
         screen_map: dict[int, UIPrototypeScreen] = {screen.id: screen for screen in screens}
         found_screen_ids = set()
         for screen_id in ui_screen_ids:
@@ -167,21 +193,27 @@ class _RequirementUiLoadersMixin:
                 context["ui_descriptions"].append(_screen_desc(screen, "explicit"))
                 context["evidence_refs"]["ui_screens"].append(_screen_ref(screen, "explicit"))
                 if screen.ui_spec:
-                    context["ui_specs"].append({
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "ui_spec": screen.ui_spec,
-                        "navigation_flow": screen.navigation_flow,
-                        "related_screens": screen.related_screens,
-                    })
+                    context["ui_specs"].append(
+                        {
+                            "screen_id": screen.id,
+                            "screen_name": screen.screen_name,
+                            "ui_spec": screen.ui_spec,
+                            "navigation_flow": screen.navigation_flow,
+                            "related_screens": screen.related_screens,
+                        }
+                    )
                 else:
-                    context["warnings"].append(_warning(
-                        "UI_SPEC_MISSING",
-                        f"屏幕「{screen.screen_name}」缺少ui_spec，交互步骤需标记待确认UI",
-                        {"screen_id": screen.id},
-                    ))
+                    context["warnings"].append(
+                        _warning(
+                            "UI_SPEC_MISSING",
+                            f"屏幕「{screen.screen_name}」缺少ui_spec，交互步骤需标记待确认UI",
+                            {"screen_id": screen.id},
+                        )
+                    )
             else:
-                context["warnings"].append(_warning("UI_SCREEN_NOT_FOUND", f"未找到UI屏幕ID: {screen_id}", {"screen_id": screen_id}))
+                context["warnings"].append(
+                    _warning("UI_SCREEN_NOT_FOUND", f"未找到UI屏幕ID: {screen_id}", {"screen_id": screen_id})
+                )
         missing_count = len(set(ui_screen_ids) - found_screen_ids)
         if missing_count:
             context["warnings"].append(_warning("UI_PARTIAL_MATCH", f"{missing_count}个UI屏幕未被纳入上下文"))
@@ -196,34 +228,44 @@ class _RequirementUiLoadersMixin:
         for file_id in ui_file_ids:
             file_record = file_crud.get_file_by_id(self.db, file_id, project_id)
             if file_record and file_record.resource_type == "ui_mockup":
-                context["ui_descriptions"].append({
-                    "file_name": file_record.file_name,
-                    "file_url": file_record.file_url,
-                    "description": file_record.description or "",
-                })
+                context["ui_descriptions"].append(
+                    {
+                        "file_name": file_record.file_name,
+                        "file_url": file_record.file_url,
+                        "description": file_record.description or "",
+                    }
+                )
                 context["files_used"].append(file_id)
-                linked_screens = self.db.query(UIPrototypeScreen).filter(
-                    UIPrototypeScreen.project_id == project_id,
-                    UIPrototypeScreen.prototype_name == file_record.file_name,
-                    UIPrototypeScreen.parse_status == "completed",
-                    UIPrototypeScreen.ui_spec.isnot(None),
-                ).all()
+                linked_screens = (
+                    self.db.query(UIPrototypeScreen)
+                    .filter(
+                        UIPrototypeScreen.project_id == project_id,
+                        UIPrototypeScreen.prototype_name == file_record.file_name,
+                        UIPrototypeScreen.parse_status == "completed",
+                        UIPrototypeScreen.ui_spec.isnot(None),
+                    )
+                    .all()
+                )
                 if not linked_screens:
-                    context["warnings"].append(_warning(
-                        "UI_FILE_NO_PARSED_SCREENS",
-                        f"UI文件「{file_record.file_name}」无已解析屏幕，无法提供可交互UI元素",
-                        {"file_id": file_id, "file_name": file_record.file_name},
-                    ))
+                    context["warnings"].append(
+                        _warning(
+                            "UI_FILE_NO_PARSED_SCREENS",
+                            f"UI文件「{file_record.file_name}」无已解析屏幕，无法提供可交互UI元素",
+                            {"file_id": file_id, "file_name": file_record.file_name},
+                        )
+                    )
                 for screen in linked_screens:
                     context["ui_descriptions"].append(_screen_desc(screen, "ui_file"))
                     context["evidence_refs"]["ui_screens"].append(_screen_ref(screen, "ui_file"))
-                    context["ui_specs"].append({
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "ui_spec": screen.ui_spec,
-                        "navigation_flow": screen.navigation_flow,
-                        "related_screens": screen.related_screens,
-                    })
+                    context["ui_specs"].append(
+                        {
+                            "screen_id": screen.id,
+                            "screen_name": screen.screen_name,
+                            "ui_spec": screen.ui_spec,
+                            "navigation_flow": screen.navigation_flow,
+                            "related_screens": screen.related_screens,
+                        }
+                    )
 
     def _load_ui_by_keyword_match(
         self,
@@ -238,7 +280,9 @@ class _RequirementUiLoadersMixin:
             screen_candidates = []
             screens = self.db.query(UIPrototypeScreen).filter(UIPrototypeScreen.project_id == project_id).all()
             for screen in screens:
-                score = _score_terms(search_terms, screen.screen_name, screen.prototype_name, screen.summary, screen.ui_spec)
+                score = _score_terms(
+                    search_terms, screen.screen_name, screen.prototype_name, screen.summary, screen.ui_spec
+                )
                 if score > 0:
                     parse_boost = 1 if screen.ui_spec else 0
                     screen_candidates.append((score, parse_boost, screen))
@@ -253,31 +297,43 @@ class _RequirementUiLoadersMixin:
                     adjacent_ids.extend(_collect_navigation_screen_ids(screen))
                 adjacent_ids = [sid for sid in _dedupe_ints(adjacent_ids) if sid not in seen_screen_ids]
                 if adjacent_ids:
-                    adjacent = self.db.query(UIPrototypeScreen).filter(
-                        UIPrototypeScreen.project_id == project_id,
-                        UIPrototypeScreen.id.in_(adjacent_ids[:DEFAULT_ADJACENT_UI_SCREEN_LIMIT]),
-                    ).all()
+                    adjacent = (
+                        self.db.query(UIPrototypeScreen)
+                        .filter(
+                            UIPrototypeScreen.project_id == project_id,
+                            UIPrototypeScreen.id.in_(adjacent_ids[:DEFAULT_ADJACENT_UI_SCREEN_LIMIT]),
+                        )
+                        .all()
+                    )
                     for screen in adjacent:
                         matched_screens.append(screen)
                         seen_screen_ids.add(screen.id)
             for screen in matched_screens:
-                confidence = "matched" if _score_terms(search_terms, screen.screen_name, screen.summary, screen.ui_spec) > 0 else "adjacent"
+                confidence = (
+                    "matched"
+                    if _score_terms(search_terms, screen.screen_name, screen.summary, screen.ui_spec) > 0
+                    else "adjacent"
+                )
                 context["ui_descriptions"].append(_screen_desc(screen, confidence))
                 context["evidence_refs"]["ui_screens"].append(_screen_ref(screen, confidence))
                 if screen.ui_spec:
-                    context["ui_specs"].append({
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "ui_spec": screen.ui_spec,
-                        "navigation_flow": screen.navigation_flow,
-                        "related_screens": screen.related_screens,
-                    })
+                    context["ui_specs"].append(
+                        {
+                            "screen_id": screen.id,
+                            "screen_name": screen.screen_name,
+                            "ui_spec": screen.ui_spec,
+                            "navigation_flow": screen.navigation_flow,
+                            "related_screens": screen.related_screens,
+                        }
+                    )
                 else:
-                    context["warnings"].append(_warning(
-                        "UI_SPEC_MISSING",
-                        f"UI屏幕《{screen.screen_name}》缺少ui_spec，交互步骤需标记待确认UI",
-                        {"screen_id": screen.id},
-                    ))
+                    context["warnings"].append(
+                        _warning(
+                            "UI_SPEC_MISSING",
+                            f"UI屏幕《{screen.screen_name}》缺少ui_spec，交互步骤需标记待确认UI",
+                            {"screen_id": screen.id},
+                        )
+                    )
             context["context_stats"]["ui_strategy"] = "keyword_top_n"
         else:
             context["warnings"].append(_warning("UI_NO_MATCH", "未匹配到与测试点相关的UI页面，未回退加载全量UI"))

@@ -18,6 +18,7 @@ Mixin组合:
     3. 创建记录 -> CRUDMixin.create_video_record
     4. 定期清理 -> CleanupMixin.cleanup_expired_videos
 """
+
 from typing import Optional
 from pathlib import Path
 from sqlalchemy.orm import Session
@@ -47,12 +48,7 @@ class VideoService(
 
     _instance = None
 
-    def __init__(
-        self,
-        db: Session | None = None,
-        video_base_dir: str = "/tmp/test_videos",
-        retention_days: int = 30
-    ):
+    def __init__(self, db: Session | None = None, video_base_dir: str = "/tmp/test_videos", retention_days: int = 30):
         """初始化视频服务。
 
         Args:
@@ -66,7 +62,7 @@ class VideoService(
         self._ensure_directory(video_base_dir)
 
     @classmethod
-    def get_instance(cls, db: Session, **kwargs) -> 'VideoService':
+    def get_instance(cls, db: Session, **kwargs) -> "VideoService":
         """获取单例实例，首次调用时初始化，后续调用更新db。
 
         Args:
@@ -87,14 +83,14 @@ VideoRecordService = VideoService
 
 
 __all__ = [
-    'VideoService',
-    'VideoRecordService',
-    'VideoInfo',
-    'VideoStatus',
-    'CRUDMixin',
-    'CleanupMixin',
-    'FFmpegMixin',
-    'PathUtilsMixin',
+    "VideoService",
+    "VideoRecordService",
+    "VideoInfo",
+    "VideoStatus",
+    "CRUDMixin",
+    "CleanupMixin",
+    "FFmpegMixin",
+    "PathUtilsMixin",
 ]
 
 

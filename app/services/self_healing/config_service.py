@@ -4,6 +4,7 @@
 (settings.AI_SELF_HEALING_ENABLED) AND 项目开关，全局关闭时项目强制关闭，
 保证灰度发布安全。
 """
+
 from typing import Any
 
 from fastapi import HTTPException
@@ -43,9 +44,7 @@ class SelfHealingConfigService:
         stored = raw.get(CONFIG_KEY, {})
         stored = stored if isinstance(stored, dict) else {}
         merged = {**DEFAULT_SELF_HEALING_CONFIG, **stored}
-        merged["enabled"] = bool(
-            settings.AI_SELF_HEALING_ENABLED and merged.get("enabled", True)
-        )
+        merged["enabled"] = bool(settings.AI_SELF_HEALING_ENABLED and merged.get("enabled", True))
         return merged
 
     def set_project_config(self, project_id: int, config: dict) -> dict:
@@ -65,9 +64,7 @@ class SelfHealingConfigService:
         self._db.commit()
         self._db.refresh(project)
 
-        validated["enabled"] = bool(
-            settings.AI_SELF_HEALING_ENABLED and validated["enabled"]
-        )
+        validated["enabled"] = bool(settings.AI_SELF_HEALING_ENABLED and validated["enabled"])
         return validated
 
     def is_self_healing_enabled(self, project_id: int) -> bool:
@@ -92,9 +89,7 @@ class SelfHealingConfigService:
         result["enabled"] = enabled
 
         strategies = config.get("strategies", result["strategies"])
-        if not isinstance(strategies, list) or not all(
-            isinstance(s, str) for s in strategies
-        ):
+        if not isinstance(strategies, list) or not all(isinstance(s, str) for s in strategies):
             raise HTTPException(status_code=400, detail="strategies 必须为字符串列表")
         invalid = [s for s in strategies if s not in ALLOWED_STRATEGIES]
         if invalid:

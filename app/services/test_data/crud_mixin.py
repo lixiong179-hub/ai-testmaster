@@ -4,6 +4,7 @@
 - 测试数据记录的增删改查
 - 数据版本管理
 """
+
 from typing import Any
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -30,7 +31,7 @@ class TestDataCrudMixin:
         field_type: str = "text",
         data_value: str | None = None,
         generation_rule: str = "random",
-        description: str | None = None
+        description: str | None = None,
     ) -> TestData:
         """
         创建测试数据
@@ -52,7 +53,7 @@ class TestDataCrudMixin:
             field_type=field_type,
             data_value=data_value,
             generation_rule=generation_rule,
-            description=description
+            description=description,
         )
         self.db.add(data)
         self.db.commit()
@@ -91,7 +92,7 @@ class TestDataCrudMixin:
         field_type: str | None = None,
         data_value: str | None = None,
         generation_rule: str | None = None,
-        description: str | None = None
+        description: str | None = None,
     ) -> TestData | None:
         """
         更新测试数据
@@ -146,11 +147,7 @@ class TestDataCrudMixin:
         logger.info(f"删除测试数据: {data.field_name} (ID: {data.id})")
         return True
 
-    def batch_create_data(
-        self,
-        step_id: int,
-        data_list: list[dict[str, Any]]
-    ) -> list[TestData]:
+    def batch_create_data(self, step_id: int, data_list: list[dict[str, Any]]) -> list[TestData]:
         """
         批量创建测试数据
 
@@ -169,7 +166,7 @@ class TestDataCrudMixin:
                 field_type=item.get("field_type", "text"),
                 data_value=item.get("data_value"),
                 generation_rule=item.get("generation_rule", "random"),
-                description=item.get("description")
+                description=item.get("description"),
             )
             self.db.add(data)
             created.append(data)

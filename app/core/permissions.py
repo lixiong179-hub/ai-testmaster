@@ -22,6 +22,7 @@
     - app.api.v1.endpoints.auth.get_current_user: 获取当前登录用户
     - app.models.user.User: 用户模型（含is_superuser字段和roles关联）
 """
+
 from typing import Any
 from collections.abc import Callable
 from fastapi import Depends, HTTPException, Request, status
@@ -50,10 +51,7 @@ class PermissionDenied(HTTPException):
     """
 
     def __init__(self, detail: str = "权限不足"):
-        super().__init__(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=detail
-        )
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
 def check_role(user: User, allowed_roles: list[str]) -> bool:
@@ -77,14 +75,14 @@ def check_role(user: User, allowed_roles: list[str]) -> bool:
         - roles提取使用try/except兜底，确保关联查询异常时不影响系统可用性
     """
     # 超级管理员拥有所有权限，直接放行，无需逐一匹配角色
-    if getattr(user, 'is_superuser', False):
+    if getattr(user, "is_superuser", False):
         return True
 
     # 检查用户角色（通过roles关联查询）
     # 使用getattr避免User对象无roles属性时抛出AttributeError
     user_roles = []
     try:
-        user_roles = [role.name for role in getattr(user, 'roles', [])]
+        user_roles = [role.name for role in getattr(user, "roles", [])]
     except Exception:
         # roles关联查询可能因数据库异常等原因失败，此时视为无角色
         logger.exception("权限校验失败：获取用户角色列表异常")
@@ -117,15 +115,10 @@ def require_roles(roles: list[str]) -> Callable[..., Any]:
         PermissionDenied: 当用户角色不在允许列表中时抛出，detail中包含所需角色信息
     """
 
-    def role_checker(
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
-    ) -> User:
+    def role_checker(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
         # 调用核心校验逻辑，不通过则抛出权限异常
         if not check_role(current_user, roles):
-            raise PermissionDenied(
-                detail=f"需要以下角色之一: {', '.join(roles)}"
-            )
+            raise PermissionDenied(detail=f"需要以下角色之一: {', '.join(roles)}")
         return current_user
 
     return role_checker
@@ -136,13 +129,13 @@ def require_roles(roles: list[str]) -> Callable[..., Any]:
 # 将常用的角色组合实例化为FastAPI依赖项，避免在各路由中重复声明角色列表
 # ============================================================================
 
-require_technical_view = require_roles(['test_engineer', 'admin', 'developer'])
+require_technical_view = require_roles(["test_engineer", "admin", "developer"])
 """技术视图权限：允许测试工程师、管理员、开发者访问技术细节（如元素定位、执行日志）"""
 
-require_admin = require_roles(['admin'])
+require_admin = require_roles(["admin"])
 """管理员权限：仅允许管理员角色，用于系统配置、用户管理等敏感操作"""
 
-require_test_engineer = require_roles(['test_engineer', 'admin'])
+require_test_engineer = require_roles(["test_engineer", "admin"])
 """测试工程师权限：允许测试工程师和管理员，用于测试用例的创建、编辑、执行"""
 
 
@@ -173,19 +166,19 @@ class ViewPermissions:
     # 业务视图 - 所有用户可见
     # viewer: 只读观察者，可查看业务数据但无技术细节
     # product_manager: 产品经理，关注业务指标和测试报告
-    BUSINESS_VIEW = ['viewer', 'test_engineer', 'admin', 'developer', 'product_manager']
+    BUSINESS_VIEW = ["viewer", "test_engineer", "admin", "developer", "product_manager"]
 
     # 技术视图 - 技术人员可见
     # 排除viewer和product_manager，因为技术细节（如元素定位器、错误堆栈）对非技术角色无意义
-    TECHNICAL_VIEW = ['test_engineer', 'admin', 'developer']
+    TECHNICAL_VIEW = ["test_engineer", "admin", "developer"]
 
     # 编辑权限 - 测试工程师和管理员
     # 涉及测试用例和定位信息的修改，需要专业角色
-    EDIT = ['test_engineer', 'admin']
+    EDIT = ["test_engineer", "admin"]
 
     # 管理权限 - 仅管理员
     # 涉及系统级操作，如用户管理、全局配置、数据清理
-    ADMIN = ['admin']
+    ADMIN = ["admin"]
 
 
 def can_view_technical(user: User | None) -> bool:
@@ -281,10 +274,7 @@ def _has_permission_code(user: User, code: str) -> bool:
     """
     if getattr(user, "is_superuser", False):
         return True
-    return any(
-        role.permissions and code in role.permissions
-        for role in getattr(user, "roles", []) or []
-    )
+    return any(role.permissions and code in role.permissions for role in getattr(user, "roles", []) or [])
 
 
 def require_permission(code: str) -> Callable[..., Any]:
@@ -328,9 +318,7 @@ def require_project_role(required_role: str = "member") -> Callable[..., Any]:
             )
             .first()
         )
-        if not member or ProjectMember.role_level(member.role) < ROLE_LEVEL.get(
-            required_role, 0
-        ):
+        if not member or ProjectMember.role_level(member.role) < ROLE_LEVEL.get(required_role, 0):
             raise PermissionDenied(detail=f"需要项目角色: {required_role}")
         return current_user
 

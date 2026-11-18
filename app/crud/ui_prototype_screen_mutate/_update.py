@@ -77,9 +77,7 @@ def update_ui_screen_review(
     return screen
 
 
-def update_ui_screen_order(
-    db: Session, screen_id: int, screen_order: int
-) -> UIPrototypeScreen | None:
+def update_ui_screen_order(db: Session, screen_id: int, screen_order: int) -> UIPrototypeScreen | None:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return None
@@ -93,17 +91,19 @@ def update_ui_screen_order(
 def link_ui_screen_to_test_case(
     db: Session, screen_id: int, test_case_id: int, link_type: str = "source"
 ) -> UIScreenTestCaseLink:
-    existing = db.query(UIScreenTestCaseLink).filter(
-        UIScreenTestCaseLink.screen_id == screen_id,
-        UIScreenTestCaseLink.test_case_id == test_case_id,
-    ).first()
+    existing = (
+        db.query(UIScreenTestCaseLink)
+        .filter(
+            UIScreenTestCaseLink.screen_id == screen_id,
+            UIScreenTestCaseLink.test_case_id == test_case_id,
+        )
+        .first()
+    )
     if existing:
         existing.link_type = link_type
         db.commit()
         return existing
-    link = UIScreenTestCaseLink(
-        screen_id=screen_id, test_case_id=test_case_id, link_type=link_type
-    )
+    link = UIScreenTestCaseLink(screen_id=screen_id, test_case_id=test_case_id, link_type=link_type)
     db.add(link)
     db.commit()
     db.refresh(link)

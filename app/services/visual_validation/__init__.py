@@ -5,6 +5,7 @@
     - is_visual_validation_enabled  : 执行链路开关判定（全局 AND 项目）
     - spawn_visual_validation_agent : fire-and-forget 触发视觉校验管线
 """
+
 from app.services.visual_validation.config_service import (
     CONFIG_KEY,
     DEFAULT_VISUAL_VALIDATION_CONFIG,

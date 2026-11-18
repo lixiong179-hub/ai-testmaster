@@ -23,6 +23,7 @@
     - 编排函数（validate_single_case/validate_single_case_status/
       validate_cases_quality/compute_quality_score）保留在此模块
 """
+
 from typing import Any
 
 from app.services.case_quality.quality_scoring_constants import (
@@ -64,12 +65,19 @@ _STEP_INFERENCE_EXPECTED_PATTERN = STEP_INFERENCE_EXPECTED_PATTERN
 _TITLE_ATOMICITY_VIOLATION = TITLE_ATOMICITY_VIOLATION_PATTERN
 
 __all__ = [
-    "validate_title", "validate_precondition", "validate_steps",
-    "validate_test_data_quality", "validate_expected_result",
-    "validate_case_category", "validate_boundary_strategy",
-    "validate_type_consistency", "validate_single_case",
-    "validate_single_case_status", "validate_cases_quality",
-    "compute_quality_score", "QUALITY_MIN_SCORE",
+    "validate_title",
+    "validate_precondition",
+    "validate_steps",
+    "validate_test_data_quality",
+    "validate_expected_result",
+    "validate_case_category",
+    "validate_boundary_strategy",
+    "validate_type_consistency",
+    "validate_single_case",
+    "validate_single_case_status",
+    "validate_cases_quality",
+    "compute_quality_score",
+    "QUALITY_MIN_SCORE",
 ]
 
 
@@ -155,6 +163,7 @@ def compute_quality_score(cases: list[dict[str, Any]]) -> float:
     if not cases:
         return 0.0
     from app.services.test_case_generation.continuous_scorer import compute_continuous_score
+
     scores: list[float] = [compute_continuous_score(case) for case in cases]
     return round(sum(scores) / len(scores), 1)
 

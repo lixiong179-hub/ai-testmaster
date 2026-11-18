@@ -16,12 +16,15 @@ from app.services.case_quality.models import QualityReport
 
 
 class _ProjectAnalyzerMixin:
-
     async def analyze_project_quality(self, project_id: int) -> dict[str, Any]:
-        cases: list[TestCase] = self.db.query(TestCase).filter(
-            TestCase.project_id == project_id,
-            TestCase.is_deleted.is_(False),
-        ).all()
+        cases: list[TestCase] = (
+            self.db.query(TestCase)
+            .filter(
+                TestCase.project_id == project_id,
+                TestCase.is_deleted.is_(False),
+            )
+            .all()
+        )
 
         if not cases:
             return {
@@ -35,23 +38,22 @@ class _ProjectAnalyzerMixin:
 
         case_ids: list[int] = [c.id for c in cases]
 
-        all_steps: list[TestStep] = self.db.query(TestStep).filter(
-            TestStep.test_case_id.in_(case_ids)
-        ).order_by(TestStep.step_number).all()
+        all_steps: list[TestStep] = (
+            self.db.query(TestStep).filter(TestStep.test_case_id.in_(case_ids)).order_by(TestStep.step_number).all()
+        )
 
         steps_map: dict[int, list[TestStep]] = {cid: [] for cid in case_ids}
         for step in all_steps:
             steps_map[step.test_case_id].append(step)
 
         all_precondition_steps: list[TestCasePreconditionStep] = (
-            self.db.query(TestCasePreconditionStep).filter(
-                TestCasePreconditionStep.test_case_id.in_(case_ids)
-            ).order_by(TestCasePreconditionStep.step_number).all()
+            self.db.query(TestCasePreconditionStep)
+            .filter(TestCasePreconditionStep.test_case_id.in_(case_ids))
+            .order_by(TestCasePreconditionStep.step_number)
+            .all()
         )
 
-        precondition_map: dict[int, list[TestCasePreconditionStep]] = {
-            cid: [] for cid in case_ids
-        }
+        precondition_map: dict[int, list[TestCasePreconditionStep]] = {cid: [] for cid in case_ids}
         for ps in all_precondition_steps:
             precondition_map[ps.test_case_id].append(ps)
 
@@ -62,9 +64,7 @@ class _ProjectAnalyzerMixin:
 
         all_step_ids: list[int] = [s.id for s in all_steps]
         all_locators: list[ElementLocator] = (
-            self.db.query(ElementLocator).filter(
-                ElementLocator.step_id.in_(all_step_ids)
-            ).all() if all_step_ids else []
+            self.db.query(ElementLocator).filter(ElementLocator.step_id.in_(all_step_ids)).all() if all_step_ids else []
         )
         locators_by_step: dict[int, list[ElementLocator]] = {}
         for loc in all_locators:
@@ -93,10 +93,7 @@ class _ProjectAnalyzerMixin:
                 logger.error(f"分析用例失败 {case.id}: {e}")
 
         total_cases: int = len(case_reports)
-        average_score: float = (
-            sum(r.overall_score for r in case_reports) / total_cases
-            if total_cases > 0 else 0
-        )
+        average_score: float = sum(r.overall_score for r in case_reports) / total_cases if total_cases > 0 else 0
 
         quality_distribution: dict[str, int] = {
             "excellent": len([r for r in case_reports if r.overall_score >= 80]),
@@ -108,17 +105,17 @@ class _ProjectAnalyzerMixin:
         all_issues: list[dict[str, Any]] = []
         for report in case_reports:
             for suggestion in report.suggestions:
-                all_issues.append({
-                    "case_id": report.case_id,
-                    "case_name": report.case_name,
-                    "suggestion": suggestion,
-                })
+                all_issues.append(
+                    {
+                        "case_id": report.case_id,
+                        "case_name": report.case_name,
+                        "suggestion": suggestion,
+                    }
+                )
 
         project_requirement = self._calc_project_requirement_coverage(
             cases=cases,
-            project_test_point_priorities=project_meta.get(
-                "project_test_point_priorities", {}
-            ),
+            project_test_point_priorities=project_meta.get("project_test_point_priorities", {}),
         )
 
         return {
@@ -134,17 +131,14 @@ class _ProjectAnalyzerMixin:
 
     def _build_project_coverage_context(self, project_id: int) -> dict[str, Any]:
         point_priorities: dict[int, int] = {
-            pid: priority for pid, priority in self.db.query(
-                TestPoint.id, TestPoint.priority
-            ).filter(
-                TestPoint.project_id == project_id
-            ).all()
+            pid: priority
+            for pid, priority in self.db.query(TestPoint.id, TestPoint.priority)
+            .filter(TestPoint.project_id == project_id)
+            .all()
         }
 
         ui_labels: set[str] = set()
-        spec_rows = self.db.query(UIPrototypeScreen.ui_spec).filter(
-            UIPrototypeScreen.project_id == project_id
-        ).all()
+        spec_rows = self.db.query(UIPrototypeScreen.ui_spec).filter(UIPrototypeScreen.project_id == project_id).all()
         for (spec,) in spec_rows:
             ui_labels.update(self._extract_ui_labels_from_spec(spec or {}))
 
@@ -180,21 +174,11 @@ class _ProjectAnalyzerMixin:
         }
 
         def point_weight(priority: int) -> float:
-            return _TEST_POINT_PRIORITY_WEIGHTS.get(
-                priority, _DEFAULT_TEST_POINT_PRIORITY_WEIGHT
-            )
+            return _TEST_POINT_PRIORITY_WEIGHTS.get(priority, _DEFAULT_TEST_POINT_PRIORITY_WEIGHT)
 
-        project_weight_sum = sum(
-            point_weight(priority)
-            for priority in project_test_point_priorities.values()
-        )
-        covered_weight_sum = sum(
-            point_weight(project_test_point_priorities[tp_id])
-            for tp_id in covered_ids
-        )
-        coverage_rate = (
-            covered_weight_sum / project_weight_sum if project_weight_sum > 0 else 0.0
-        )
+        project_weight_sum = sum(point_weight(priority) for priority in project_test_point_priorities.values())
+        covered_weight_sum = sum(point_weight(project_test_point_priorities[tp_id]) for tp_id in covered_ids)
+        coverage_rate = covered_weight_sum / project_weight_sum if project_weight_sum > 0 else 0.0
 
         return {
             "coverage_rate": coverage_rate,
@@ -219,9 +203,7 @@ class _ProjectAnalyzerMixin:
 
         def walk(node: Any, depth: int) -> None:
             if depth > max_depth:
-                logger.warning(
-                    f"_extract_ui_labels_from_spec: 递归深度超过 {max_depth}，提前终止"
-                )
+                logger.warning(f"_extract_ui_labels_from_spec: 递归深度超过 {max_depth}，提前终止")
                 return
             if isinstance(node, dict):
                 for k, v in node.items():
@@ -240,20 +222,26 @@ class _ProjectAnalyzerMixin:
     async def get_quality_trend(self, project_id: int, days: int = 30) -> list[dict[str, Any]]:
         from_date = utcnow() - timedelta(days=days)
 
-        cases: list[TestCase] = self.db.query(TestCase).filter(
-            TestCase.project_id == project_id,
-            TestCase.is_deleted.is_(False),
-        ).all()
+        cases: list[TestCase] = (
+            self.db.query(TestCase)
+            .filter(
+                TestCase.project_id == project_id,
+                TestCase.is_deleted.is_(False),
+            )
+            .all()
+        )
 
         if not cases:
             return []
 
         case_ids: list[int] = [c.id for c in cases]
 
-        results: list[TestResult] = self.db.query(TestResult).filter(
-            TestResult.case_id.in_(case_ids),
-            TestResult.exec_time >= from_date
-        ).order_by(TestResult.exec_time).all()
+        results: list[TestResult] = (
+            self.db.query(TestResult)
+            .filter(TestResult.case_id.in_(case_ids), TestResult.exec_time >= from_date)
+            .order_by(TestResult.exec_time)
+            .all()
+        )
 
         results_map: dict[int, list[TestResult]] = {}
         for result in results:
@@ -264,12 +252,14 @@ class _ProjectAnalyzerMixin:
         trend: list[dict[str, Any]] = []
         for case_id, case_results in results_map.items():
             for result in case_results:
-                trend.append({
-                    "case_id": case_id,
-                    "case_name": case_title_map.get(case_id, ""),
-                    "date": result.exec_time.isoformat() if result.exec_time else None,
-                    "status": result.exec_status,
-                    "execution_time": getattr(result, 'execution_time', None),
-                })
+                trend.append(
+                    {
+                        "case_id": case_id,
+                        "case_name": case_title_map.get(case_id, ""),
+                        "date": result.exec_time.isoformat() if result.exec_time else None,
+                        "status": result.exec_status,
+                        "execution_time": getattr(result, "execution_time", None),
+                    }
+                )
 
         return trend

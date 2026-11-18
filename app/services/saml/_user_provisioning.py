@@ -11,6 +11,7 @@
     - 新用户生成随机密码（强制走 SAML 流程，不可本地登录）
     - 用户名添加 saml_ 前缀 + 随机后缀避免冲突
 """
+
 from __future__ import annotations
 
 import re
@@ -51,7 +52,7 @@ class SAMLUserProvisioner:
             select(User).where(
                 User.saml_issuer == issuer,
                 User.saml_nameid == nameid,
-            )
+            ),
         )
         return result.scalar_one_or_none()
 
@@ -113,9 +114,7 @@ class SAMLUserProvisioner:
                 local_user.external_system = f"saml:{provider}"
                 await commit_async(db)
                 await refresh_async(db, local_user)
-                logger.info(
-                    f"SAML 用户已绑定现有本地账号: email={email} user_id={local_user.id}"
-                )
+                logger.info(f"SAML 用户已绑定现有本地账号: email={email} user_id={local_user.id}")
                 return local_user
 
         username = self._generate_username(provider, attributes, nameid)
@@ -157,9 +156,7 @@ class SAMLUserProvisioner:
             return nameid
         return ""
 
-    def _generate_username(
-        self, provider: str, attributes: dict[str, Any], nameid: str
-    ) -> str:
+    def _generate_username(self, provider: str, attributes: dict[str, Any], nameid: str) -> str:
         """根据 SAML 属性生成唯一用户名。
 
         优先使用 username / displayname，否则用 nameid 本地部分。

@@ -16,6 +16,7 @@
     - get_project_by_id 同时按 project_id 和 user_id 过滤，
       防止越权访问其他用户的项目数据
 """
+
 from sqlalchemy.orm import Session
 from app.models.project import Project
 
@@ -60,7 +61,4 @@ def get_project_by_id(db: Session, project_id: int, user_id: int) -> Project | N
     Note:
         此函数被 update_project 和 delete_project 复用，作为权限校验的前置检查。
     """
-    return db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == user_id
-    ).first()
+    return db.query(Project).filter(Project.id == project_id, Project.user_id == user_id).first()

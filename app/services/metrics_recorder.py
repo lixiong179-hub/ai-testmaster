@@ -10,6 +10,7 @@
 
 指标查询（聚合 / 时序 / 仪表盘摘要）仍在 `app.services.metrics_service`。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -47,10 +48,7 @@ def record_metric(
         ValueError: metric_name 不在合法枚举中。
     """
     if metric_name not in VALID_METRIC_NAMES:
-        raise ValueError(
-            f"Invalid metric name: '{metric_name}'. "
-            f"Valid names: {sorted(VALID_METRIC_NAMES)}"
-        )
+        raise ValueError(f"Invalid metric name: '{metric_name}'. Valid names: {sorted(VALID_METRIC_NAMES)}")
 
     record = PipelineMetric(
         metric_name=metric_name,
@@ -63,6 +61,7 @@ def record_metric(
     )
     try:
         from app.db.database import get_db_context
+
         with get_db_context() as db:
             db.add(record)
             db.flush()

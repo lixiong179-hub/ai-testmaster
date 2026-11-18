@@ -1,17 +1,16 @@
-"""批量任务管理器 - 管理并发批量定位任务。
-"""
+"""批量任务管理器 - 管理并发批量定位任务。"""
+
 from typing import Any
 from loguru import logger
 from app.utils.db_time import utcnow
 
 
 class BatchTaskManager:
-
     _instance = None
     _tasks: dict[int, Any] = {}
     _reports: dict[int, tuple] = {}
 
-    def __new__(cls) -> 'BatchTaskManager':
+    def __new__(cls) -> "BatchTaskManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -56,7 +55,8 @@ class BatchTaskManager:
     def _cleanup_expired_reports(self) -> None:
         now = utcnow()
         expired = [
-            case_id for case_id, (_, completed_at) in self._reports.items()
+            case_id
+            for case_id, (_, completed_at) in self._reports.items()
             if (now - completed_at).total_seconds() > 1800
         ]
         for case_id in expired:

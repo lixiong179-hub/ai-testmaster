@@ -8,6 +8,7 @@
     handler : 构造器，统一签名 `(**kw) -> (task | None, deprecation | None)`
     stats   : 命中该动作时需要累加的 stats 键（顺序无关）
 """
+
 from typing import Any
 from collections.abc import Callable
 
@@ -95,25 +96,35 @@ def _make_pending_skip(**_kw: Any) -> HandlerReturn:
 ACTION_RULES: dict[str, dict[str, Any]] = {
     "keep": {"kind": "keep", "handler": _no_task, "stats": ("keep_count",)},
     "deprecate": {
-        "kind": "deprecate", "handler": _make_deprecation, "stats": ("deprecate_count",),
+        "kind": "deprecate",
+        "handler": _make_deprecation,
+        "stats": ("deprecate_count",),
     },
     "needs_modify": {
-        "kind": "modify", "handler": _make_modify, "stats": ("modify_count",),
+        "kind": "modify",
+        "handler": _make_modify,
+        "stats": ("modify_count",),
     },
     "locator_broken": {
-        "kind": "locator_fix", "handler": _make_locator_fix, "stats": ("locator_fix_count",),
+        "kind": "locator_fix",
+        "handler": _make_locator_fix,
+        "stats": ("locator_fix_count",),
     },
     "locator_and_modify": {
-        "kind": "modify_locator", "handler": _make_modify_with_locator,
+        "kind": "modify_locator",
+        "handler": _make_modify_with_locator,
         "stats": ("modify_count",),
     },
     "add_new": {"kind": "create", "handler": _make_create, "stats": ("create_count",)},
     "conflict": {
-        "kind": "conflict", "handler": _make_conflict_skip,
+        "kind": "conflict",
+        "handler": _make_conflict_skip,
         "stats": ("skip_count", "conflict_count"),
     },
     "pending_review": {
-        "kind": "pending_review", "handler": _make_pending_skip, "stats": ("skip_count",),
+        "kind": "pending_review",
+        "handler": _make_pending_skip,
+        "stats": ("skip_count",),
     },
 }
 

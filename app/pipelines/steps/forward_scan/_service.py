@@ -51,7 +51,7 @@ class ForwardScanService:
 
         verdicts: list[ForwardVerdict] = []
         for i, (candidate, matches) in enumerate(zip(candidates, coarse_results)):
-            top_matches = matches[:self.top_k]
+            top_matches = matches[: self.top_k]
             top_score = top_matches[0].similarity if top_matches else 0.0
 
             if top_score < self.similarity_threshold:
@@ -82,14 +82,8 @@ class ForwardScanService:
         candidates: list[dict[str, Any]],
         fingerprints: list[dict[str, Any]],
     ) -> list[list[CoarseMatch]]:
-        cand_texts = [
-            f"{c.get('description', '')} {c.get('reason', '')}"[:200]
-            for c in candidates
-        ]
-        fp_texts = [
-            f"{fp.get('title', '')} {fp.get('summary', '')}"[:200]
-            for fp in fingerprints
-        ]
+        cand_texts = [f"{c.get('description', '')} {c.get('reason', '')}"[:200] for c in candidates]
+        fp_texts = [f"{fp.get('title', '')} {fp.get('summary', '')}"[:200] for fp in fingerprints]
 
         sim_matrix = batchComputeSimilarity(cand_texts, fp_texts)
 
@@ -160,9 +154,7 @@ class ForwardScanService:
         ]
 
         for idx, match in enumerate(top_matches, 1):
-            lines.append(
-                f"{idx}. [{match.case_id}] {match.title} (相似度 {match.similarity:.2f})"
-            )
+            lines.append(f"{idx}. [{match.case_id}] {match.title} (相似度 {match.similarity:.2f})")
             lines.append(f"   摘要: {match.summary[:100]}")
 
         return "\n".join(lines)

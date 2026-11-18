@@ -6,7 +6,6 @@ from app.services.case_quality.models import QualityReport
 
 
 class _CaseAnalyzerMixin:
-
     async def analyze_case_quality(self, case_id: int) -> QualityReport:
         test_case = self.db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
@@ -14,19 +13,24 @@ class _CaseAnalyzerMixin:
 
         logger.info(f"开始分析用例质量: {test_case.title} (ID: {case_id})")
 
-        steps = self.db.query(TestStep).filter(
-            TestStep.test_case_id == case_id
-        ).order_by(TestStep.step_number).all()
+        steps = self.db.query(TestStep).filter(TestStep.test_case_id == case_id).order_by(TestStep.step_number).all()
 
-        precondition_steps = self.db.query(TestCasePreconditionStep).filter(
-            TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number).all()
+        precondition_steps = (
+            self.db.query(TestCasePreconditionStep)
+            .filter(TestCasePreconditionStep.test_case_id == case_id)
+            .order_by(TestCasePreconditionStep.step_number)
+            .all()
+        )
 
-        all_cases = self.db.query(TestCase).filter(
-            TestCase.project_id == test_case.project_id,
-            TestCase.id != case_id,
-            TestCase.is_deleted.is_(False),
-        ).all()
+        all_cases = (
+            self.db.query(TestCase)
+            .filter(
+                TestCase.project_id == test_case.project_id,
+                TestCase.id != case_id,
+                TestCase.is_deleted.is_(False),
+            )
+            .all()
+        )
 
         coverage_context = self._build_project_coverage_context(test_case.project_id)
 
@@ -72,11 +76,11 @@ class _CaseAnalyzerMixin:
         logger.info(f"开始分析用例质量: {case.title} (ID: {case.id})")
 
         complexity = self._analyze_complexity(steps, precondition_steps)
-        redundancy = self._analyze_redundancy(
-            case, steps, all_cases, case_text_map=case_text_map
-        )
+        redundancy = self._analyze_redundancy(case, steps, all_cases, case_text_map=case_text_map)
         coverage = self._analyze_coverage(
-            steps, coverage_context=coverage_context, case=case,
+            steps,
+            coverage_context=coverage_context,
+            case=case,
         )
         suggestions = self._generate_optimization_suggestions(complexity, redundancy, coverage)
 

@@ -21,6 +21,7 @@ AI客户端主入口模块
     ai_client_core → ai_client_parser → ai_client_prompt → ai_client_stream
                   → ai_client_test_case → ai_client_enhanced → ai_client_formatter
 """
+
 from app.utils.ai_client_core import (
     AIServiceError,
     AIAuthenticationError,
@@ -84,6 +85,7 @@ class AIClient(AIStreamMixin, AITestCaseMixin, AIClientBase):
         from app.utils.ai_client import ai_client
         result = await ai_client.analyze_requirements_stream(content)
     """
+
     pass
 
 

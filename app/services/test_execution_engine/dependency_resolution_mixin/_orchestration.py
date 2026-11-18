@@ -11,18 +11,15 @@ import contextlib
 
 
 class _OrchestrationMixin:
-
-    async def _navigate_to_dependency_anchor(
-        self, case: TestCase
-    ) -> tuple[bool, str]:
-        has_api_setup = bool(getattr(case, 'setup_api_calls', None))
-        is_mobile = getattr(self, '_mobile_device_id', None) is not None
+    async def _navigate_to_dependency_anchor(self, case: TestCase) -> tuple[bool, str]:
+        has_api_setup = bool(getattr(case, "setup_api_calls", None))
+        is_mobile = getattr(self, "_mobile_device_id", None) is not None
 
         if has_api_setup:
             api_ok, api_desc = await self._execute_setup_api_calls(case)
             if api_ok:
                 target_url = self._extract_target_url_from_case(case)
-                if target_url and self.browser and getattr(self.browser, '_page', None):
+                if target_url and self.browser and getattr(self.browser, "_page", None):
                     with contextlib.suppress(Exception):
                         await self.browser._page.goto(target_url, wait_until="networkidle")
                 return True, api_desc
@@ -48,19 +45,17 @@ class _OrchestrationMixin:
         return False, "全部降级失败"
 
     def _extract_target_url_from_case(self, case: TestCase) -> str | None:
-        precondition = getattr(case, 'precondition', '') or ''
+        precondition = getattr(case, "precondition", "") or ""
         url = self._extract_url_from_text(precondition)
         if url:
             return url
 
-        steps_json = getattr(case, 'steps_json', None)
+        steps_json = getattr(case, "steps_json", None)
         if steps_json and isinstance(steps_json, list):
             for step in steps_json:
                 if not isinstance(step, dict):
                     continue
-                step_url = self._extract_url_from_text(
-                    step.get('action', '') + ' ' + (step.get('input_value') or '')
-                )
+                step_url = self._extract_url_from_text(step.get("action", "") + " " + (step.get("input_value") or ""))
                 if step_url:
                     return step_url
 
@@ -80,7 +75,7 @@ class _OrchestrationMixin:
         for case in cases:
             if case.id in case_results:
                 continue
-            dep = getattr(case, 'depends_on', None)
+            dep = getattr(case, "depends_on", None)
             if dep:
                 title_to_dependents.setdefault(dep, []).append(case)
 
@@ -99,24 +94,19 @@ class _OrchestrationMixin:
                     queue.append(dep_case.title)
 
         if blocked_ids:
-            logger.info(
-                f"用例 '{failed_title}' 失败，"
-                f"{len(blocked_ids)} 个下游用例标记为 BLOCKED（含链式依赖）"
-            )
+            logger.info(f"用例 '{failed_title}' 失败，{len(blocked_ids)} 个下游用例标记为 BLOCKED（含链式依赖）")
 
         return list(blocked_ids)
 
     def _should_skip_as_blocked(self, case: TestCase) -> bool:
-        depends_on = getattr(case, 'depends_on', None)
+        depends_on = getattr(case, "depends_on", None)
         return bool(depends_on) and depends_on in self._failed_main_titles
 
-    async def _save_main_flow_snapshots(
-        self, case: TestCase, step_results: list[Any]
-    ) -> None:
+    async def _save_main_flow_snapshots(self, case: TestCase, step_results: list[Any]) -> None:
         if not step_results:
             return
 
-        anchor_index = getattr(self, '_anchor_step_index', None)
+        anchor_index = getattr(self, "_anchor_step_index", None)
         if not anchor_index:
             return
 
@@ -129,11 +119,8 @@ class _OrchestrationMixin:
             return
 
         for step_result in step_results:
-            step_num = getattr(step_result, 'step_number', None)
-            if (
-                step_num in anchor_steps_needed
-                and getattr(step_result, 'status', None) == ExecutionStatus.PASSED
-            ):
+            step_num = getattr(step_result, "step_number", None)
+            if step_num in anchor_steps_needed and getattr(step_result, "status", None) == ExecutionStatus.PASSED:
                 try:
                     await self._save_anchor_snapshot(case, step_num)
                 except Exception as e:

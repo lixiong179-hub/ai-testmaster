@@ -5,6 +5,7 @@
     2. _classify_by_dom: 用 DOM 快照校正（DOM 证据置信度更高，覆盖初判）
     3. suggested_strategy 映射: load_delay→retry, env_noise→skip, 其余→ai_heal
 """
+
 import re
 from typing import Any
 
@@ -129,7 +130,7 @@ class FailureAnalyzer:
         """
         clean = selector.strip()
         if clean.lower().startswith("xpath="):
-            clean = clean[len("xpath="):]
+            clean = clean[len("xpath=") :]
 
         tokens: list[str] = []
         tokens.extend(re.findall(r"id\s*=\s*['\"]([^'\"]+)['\"]", clean))

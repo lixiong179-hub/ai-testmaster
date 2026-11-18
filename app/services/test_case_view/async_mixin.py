@@ -15,6 +15,7 @@
         service = TestCaseViewService(db)  # db 为 AsyncSession
         view = await service.get_technical_view_async(test_case_id)
 """
+
 from typing import Any
 
 from loguru import logger
@@ -34,9 +35,7 @@ class TestCaseViewAsyncMixin:
     _build_technical_steps 等纯计算方法复用 sync 版本（TechnicalViewMixin）。
     """
 
-    async def get_technical_view_async(
-        self, test_case_id: int
-    ) -> dict[str, Any] | None:
+    async def get_technical_view_async(self, test_case_id: int) -> dict[str, Any] | None:
         """获取测试用例的技术视图（异步版本）。
 
         组装流程与 sync 版本一致：
@@ -57,10 +56,12 @@ class TestCaseViewAsyncMixin:
             return None
 
         steps_result = await self.db.execute(
-            select(TestStep).where(
+            select(TestStep)
+            .where(
                 TestStep.test_case_id == test_case_id,
                 TestStep.is_technical_view == 1,
-            ).order_by(TestStep.step_number)
+            )
+            .order_by(TestStep.step_number)
         )
         steps = steps_result.scalars().all()
 
@@ -68,16 +69,10 @@ class TestCaseViewAsyncMixin:
         locators, test_data_map = await self._batch_query_step_data_async(step_ids)
 
         # _build_technical_steps 为纯计算方法，直接复用 sync 版本
-        technical_steps, located_count = self._build_technical_steps(
-            steps, locators, test_data_map
-        )
-        locator_coverage = float(
-            (located_count / len(steps) * 100) if steps else 0.0
-        )
+        technical_steps, located_count = self._build_technical_steps(steps, locators, test_data_map)
+        locator_coverage = float((located_count / len(steps) * 100) if steps else 0.0)
 
-        precondition_steps_data = await self._build_precondition_steps_async(
-            test_case_id
-        )
+        precondition_steps_data = await self._build_precondition_steps_async(test_case_id)
 
         return {
             "case_id": int(test_case.id),
@@ -91,28 +86,22 @@ class TestCaseViewAsyncMixin:
             "precondition_steps": precondition_steps_data,
             "steps": technical_steps,
             "locator_coverage": locator_coverage,
-            "execution_history": []
+            "execution_history": [],
         }
 
-    async def _batch_query_step_data_async(
-        self, step_ids: list[int]
-    ) -> tuple:
+    async def _batch_query_step_data_async(self, step_ids: list[int]) -> tuple:
         """批量查询步骤的定位信息和测试数据（异步版本），避免N+1查询。"""
         locators: dict[int, ElementLocator] = {}
         test_data_map: dict[int, list] = {}
         if not step_ids:
             return locators, test_data_map
 
-        locator_result = await self.db.execute(
-            select(ElementLocator).where(ElementLocator.step_id.in_(step_ids))
-        )
+        locator_result = await self.db.execute(select(ElementLocator).where(ElementLocator.step_id.in_(step_ids)))
         locator_list = locator_result.scalars().all()
         locators = {loc.step_id: loc for loc in locator_list}
 
         td_result = await self.db.execute(
-            select(TestData).where(
-                TestData.step_id.in_(step_ids)
-            ).order_by(TestData.sort_order)
+            select(TestData).where(TestData.step_id.in_(step_ids)).order_by(TestData.sort_order)
         )
         td_list = td_result.scalars().all()
         for td in td_list:
@@ -122,14 +111,12 @@ class TestCaseViewAsyncMixin:
 
         return locators, test_data_map
 
-    async def _build_precondition_steps_async(
-        self, test_case_id: int
-    ) -> list[dict[str, Any]]:
+    async def _build_precondition_steps_async(self, test_case_id: int) -> list[dict[str, Any]]:
         """构建前置条件步骤数据（异步版本）。"""
         pc_result = await self.db.execute(
-            select(TestCasePreconditionStep).where(
-                TestCasePreconditionStep.test_case_id == test_case_id
-            ).order_by(TestCasePreconditionStep.step_number)
+            select(TestCasePreconditionStep)
+            .where(TestCasePreconditionStep.test_case_id == test_case_id)
+            .order_by(TestCasePreconditionStep.step_number)
         )
         pc_steps = pc_result.scalars().all()
 
@@ -137,9 +124,7 @@ class TestCaseViewAsyncMixin:
         pc_locators: dict[int, ElementLocator] = {}
         if pc_step_ids:
             pc_locator_result = await self.db.execute(
-                select(ElementLocator).where(
-                    ElementLocator.precondition_step_id.in_(pc_step_ids)
-                )
+                select(ElementLocator).where(ElementLocator.precondition_step_id.in_(pc_step_ids))
             )
             pc_locator_list = pc_locator_result.scalars().all()
             pc_locators = {loc.precondition_step_id: loc for loc in pc_locator_list}
@@ -157,7 +142,7 @@ class TestCaseViewAsyncMixin:
                 "target_element": str(pc_step.target_element) if pc_step.target_element else "",
                 "has_locator": bool(pc_step.has_locator == 1),
                 "locator_status": str(pc_step.locator_status),
-                "locator": None
+                "locator": None,
             }
             if pc_locator:
                 pc_best = pc_locator.get_best_locator()
@@ -168,15 +153,15 @@ class TestCaseViewAsyncMixin:
                     "ai_coordinate": pc_locator.ai_coordinate,
                     "confidence": float(pc_locator.ai_confidence) if pc_locator.ai_confidence else None,
                     "locator_type": pc_best.get("type") if pc_best else None,
-                    "locator_value": str(pc_best.get("value")) if pc_best and pc_best.get("value") is not None else None
+                    "locator_value": str(pc_best.get("value"))
+                    if pc_best and pc_best.get("value") is not None
+                    else None,
                 }
             precondition_steps_data.append(pc_step_data)
 
         return precondition_steps_data
 
-    async def get_business_view_async(
-        self, test_case_id: int
-    ) -> BusinessTestCaseView | None:
+    async def get_business_view_async(self, test_case_id: int) -> BusinessTestCaseView | None:
         """获取测试用例的业务视图（异步版本），仅展示 is_business_view=1 的步骤。"""
         test_case_result = await self.db.execute(
             select(TestCase).where(
@@ -190,18 +175,18 @@ class TestCaseViewAsyncMixin:
             return None
 
         steps_result = await self.db.execute(
-            select(TestStep).where(
+            select(TestStep)
+            .where(
                 TestStep.test_case_id == test_case_id,
                 TestStep.is_business_view == 1,
-            ).order_by(TestStep.step_number)
+            )
+            .order_by(TestStep.step_number)
         )
         steps = steps_result.scalars().all()
 
         business_steps = [
             BusinessStepView(
-                step_number=int(s.step_number),
-                action=str(s.action),
-                expected_result=str(s.expected_result)
+                step_number=int(s.step_number), action=str(s.action), expected_result=str(s.expected_result)
             )
             for s in steps
         ]
@@ -210,18 +195,14 @@ class TestCaseViewAsyncMixin:
             case_id=int(test_case.id),
             case_no=str(test_case.case_no),
             title=str(test_case.title),
-            description=str(getattr(test_case, 'description', test_case.title)),
+            description=str(getattr(test_case, "description", test_case.title)),
             precondition=str(test_case.precondition) if test_case.precondition else None,
-            steps=business_steps
+            steps=business_steps,
         )
 
-    async def get_locator_coverage_async(
-        self, test_case_id: int
-    ) -> dict[str, Any]:
+    async def get_locator_coverage_async(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的定位覆盖率统计（异步版本）。"""
-        steps_result = await self.db.execute(
-            select(TestStep).where(TestStep.test_case_id == test_case_id)
-        )
+        steps_result = await self.db.execute(select(TestStep).where(TestStep.test_case_id == test_case_id))
         steps = steps_result.scalars().all()
 
         total = len(steps)
@@ -234,16 +215,12 @@ class TestCaseViewAsyncMixin:
             "located_steps": located,
             "pending_steps": pending,
             "failed_steps": failed,
-            "coverage_percentage": (located / total * 100) if total > 0 else 0.0
+            "coverage_percentage": (located / total * 100) if total > 0 else 0.0,
         }
 
-    async def get_view_statistics_async(
-        self, test_case_id: int
-    ) -> dict[str, Any]:
+    async def get_view_statistics_async(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的视图统计信息（异步版本）。"""
-        steps_result = await self.db.execute(
-            select(TestStep).where(TestStep.test_case_id == test_case_id)
-        )
+        steps_result = await self.db.execute(select(TestStep).where(TestStep.test_case_id == test_case_id))
         steps = steps_result.scalars().all()
 
         total = len(steps)
@@ -256,15 +233,10 @@ class TestCaseViewAsyncMixin:
             "business_view_steps": business_visible,
             "technical_view_steps": technical_visible,
             "located_steps": has_locator_count,
-            "locator_coverage": f"{has_locator_count / total * 100:.1f}%" if total > 0 else "0%"
+            "locator_coverage": f"{has_locator_count / total * 100:.1f}%" if total > 0 else "0%",
         }
 
-    async def batch_update_view_config_async(
-        self,
-        test_case_id: int,
-        view_type: str,
-        visible: bool
-    ) -> int:
+    async def batch_update_view_config_async(self, test_case_id: int, view_type: str, visible: bool) -> int:
         """批量更新测试用例所有步骤的视图可见性配置（异步版本）。
 
         Args:
@@ -285,24 +257,17 @@ class TestCaseViewAsyncMixin:
             logger.error(f"未知的视图类型: {view_type}")
             return 0
 
-        steps_result = await self.db.execute(
-            select(TestStep).where(TestStep.test_case_id == test_case_id)
-        )
+        steps_result = await self.db.execute(select(TestStep).where(TestStep.test_case_id == test_case_id))
         steps = steps_result.scalars().all()
         for step in steps:
             setattr(step, field_name, value)
         await self.db.commit()
         count = len(steps)
-        logger.info(
-            f"批量更新测试用例 {test_case_id} 的 {view_type} 视图配置: {count} 个步骤"
-        )
+        logger.info(f"批量更新测试用例 {test_case_id} 的 {view_type} 视图配置: {count} 个步骤")
         return count
 
     async def update_step_view_config_async(
-        self,
-        step_id: int,
-        is_business_view: int | None = None,
-        is_technical_view: int | None = None
+        self, step_id: int, is_business_view: int | None = None, is_technical_view: int | None = None
     ) -> bool:
         """更新单个步骤的视图可见性配置（异步版本）。
 
@@ -314,9 +279,7 @@ class TestCaseViewAsyncMixin:
         Returns:
             更新成功返回True，步骤不存在返回False。
         """
-        step_result = await self.db.execute(
-            select(TestStep).where(TestStep.id == step_id)
-        )
+        step_result = await self.db.execute(select(TestStep).where(TestStep.id == step_id))
         step = step_result.scalars().first()
         if not step:
             logger.warning(f"步骤不存在: {step_id}")

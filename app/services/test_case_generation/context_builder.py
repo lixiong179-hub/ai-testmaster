@@ -7,6 +7,7 @@
 
 本文件保持向后兼容，原有 `from ... import ContextBuilder` 路径无需修改。
 """
+
 from sqlalchemy.orm import Session
 
 from app.services.test_case_generation._context_loaders_mixin import _ContextLoadersMixin

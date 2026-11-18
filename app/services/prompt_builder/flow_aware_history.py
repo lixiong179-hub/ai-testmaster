@@ -6,6 +6,7 @@
     - _find_uncovered_flow_nodes: 查找未被历史用例覆盖的流程节点
     - _append_flow_aware_history_cases: 追加流程感知的历史用例评审部分
 """
+
 from typing import Any
 
 
@@ -13,9 +14,9 @@ from app.services.prompt_builder.helpers import _safe_int
 
 
 _CHILD_TYPE_CONFIG = [
-    ('branch', '分支'),
-    ('exception', '异常'),
-    ('bypass', '旁路'),
+    ("branch", "分支"),
+    ("exception", "异常"),
+    ("bypass", "旁路"),
 ]
 
 
@@ -48,44 +49,45 @@ def _match_flow_nodes(
             - label: 可读标签
     """
     child_sources = {
-        'branch': branch_by_source,
-        'exception': exception_by_source,
-        'bypass': bypass_by_source,
+        "branch": branch_by_source,
+        "exception": exception_by_source,
+        "bypass": bypass_by_source,
     }
     matched: list[dict[str, Any]] = []
 
     for i, node in enumerate(main_nodes, 1):
-        screen_name = (node.get('screen_name') or '').lower()
-        if screen_name and (screen_name in combined_text or any(
-            kw in combined_text for kw in screen_name.split() if len(kw) >= 2
-        )):
-            matched.append({
-                'node_type': 'main',
-                'step_index': i,
-                'child_index': -1,
-                'label': f"步骤{i}[{node.get('screen_name', '')}]",
-            })
+        screen_name = (node.get("screen_name") or "").lower()
+        if screen_name and (
+            screen_name in combined_text or any(kw in combined_text for kw in screen_name.split() if len(kw) >= 2)
+        ):
+            matched.append(
+                {
+                    "node_type": "main",
+                    "step_index": i,
+                    "child_index": -1,
+                    "label": f"步骤{i}[{node.get('screen_name', '')}]",
+                }
+            )
 
-        screen_id = node.get('screen_id')
+        screen_id = node.get("screen_id")
         for child_type, suffix in _CHILD_TYPE_CONFIG:
             for cidx, edge in enumerate(child_sources[child_type].get(screen_id, [])):
-                tid = _safe_int(edge.get('target'))
+                tid = _safe_int(edge.get("target"))
                 if tid is None:
                     continue
                 target_node = node_map.get(tid, {})
-                target_name = (target_node.get('screen_name') or '').lower()
-                condition = (edge.get('condition') or '').lower()
+                target_name = (target_node.get("screen_name") or "").lower()
+                condition = (edge.get("condition") or "").lower()
                 keywords = f"{target_name} {condition}"
                 if any(kw in combined_text for kw in keywords.split() if len(kw) >= 2):
-                    matched.append({
-                        'node_type': child_type,
-                        'step_index': i,
-                        'child_index': cidx,
-                        'label': (
-                            f"步骤{i}-{suffix}{chr(ord('A') + cidx)}"
-                            f"[{target_node.get('screen_name', '')}]"
-                        ),
-                    })
+                    matched.append(
+                        {
+                            "node_type": child_type,
+                            "step_index": i,
+                            "child_index": cidx,
+                            "label": (f"步骤{i}-{suffix}{chr(ord('A') + cidx)}[{target_node.get('screen_name', '')}]"),
+                        }
+                    )
 
     return matched
 
@@ -115,19 +117,23 @@ def _infer_history_case_flow_coverage(
         流程归属标注字符串，如 "→ 覆盖: 步骤1[登录页], 步骤1-异常A[密码错误]"。
         无法匹配时返回 "→ 覆盖: 未匹配流程节点"。
     """
-    title = (case.get('title') or '').lower()
-    summary = (case.get('summary') or case.get('expected_result') or '').lower()
-    module = (case.get('module') or '').lower()
+    title = (case.get("title") or "").lower()
+    summary = (case.get("summary") or case.get("expected_result") or "").lower()
+    module = (case.get("module") or "").lower()
     combined_text = f"{title} {summary} {module}"
 
     matched = _match_flow_nodes(
-        combined_text, main_nodes,
-        branch_by_source, exception_by_source, bypass_by_source, node_map,
+        combined_text,
+        main_nodes,
+        branch_by_source,
+        exception_by_source,
+        bypass_by_source,
+        node_map,
     )
 
     if not matched:
         return "→ 覆盖: 未匹配流程节点"
-    labels = [m['label'] for m in matched]
+    labels = [m["label"] for m in matched]
     return f"→ 覆盖: {', '.join(labels)}"
 
 
@@ -154,14 +160,18 @@ def _find_uncovered_flow_nodes(
     """
     covered_keys: set[str] = set()
     for case in history_cases:
-        title = (case.get('title') or '').lower()
-        summary = (case.get('summary') or case.get('expected_result') or '').lower()
-        module = (case.get('module') or '').lower()
+        title = (case.get("title") or "").lower()
+        summary = (case.get("summary") or case.get("expected_result") or "").lower()
+        module = (case.get("module") or "").lower()
         combined_text = f"{title} {summary} {module}"
 
         matched = _match_flow_nodes(
-            combined_text, main_nodes,
-            branch_by_source, exception_by_source, bypass_by_source, node_map,
+            combined_text,
+            main_nodes,
+            branch_by_source,
+            exception_by_source,
+            bypass_by_source,
+            node_map,
         )
         for m in matched:
             key = f"{m['node_type']}_{m['step_index']}_{m['child_index']}"
@@ -169,19 +179,19 @@ def _find_uncovered_flow_nodes(
 
     uncovered: list[str] = []
     child_sources = {
-        'branch': branch_by_source,
-        'exception': exception_by_source,
+        "branch": branch_by_source,
+        "exception": exception_by_source,
     }
     for i, node in enumerate(main_nodes, 1):
         if f"main_{i}_-1" not in covered_keys:
             uncovered.append(f"步骤{i}[{node.get('screen_name', '')}] — 主干流程未覆盖")
 
-        screen_id = node.get('screen_id')
-        for child_type, suffix in [('branch', '分支'), ('exception', '异常')]:
+        screen_id = node.get("screen_id")
+        for child_type, suffix in [("branch", "分支"), ("exception", "异常")]:
             for cidx, edge in enumerate(child_sources[child_type].get(screen_id, [])):
                 key = f"{child_type}_{i}_{cidx}"
                 if key not in covered_keys:
-                    tid = _safe_int(edge.get('target'))
+                    tid = _safe_int(edge.get("target"))
                     target_node = node_map.get(tid, {}) if tid is not None else {}
                     uncovered.append(
                         f"步骤{i}-{suffix}{chr(ord('A') + cidx)}"
@@ -192,7 +202,7 @@ def _find_uncovered_flow_nodes(
         for cidx, edge in enumerate(bypass_by_source.get(screen_id, [])):
             key = f"bypass_{i}_{cidx}"
             if key not in covered_keys:
-                tid = _safe_int(edge.get('target'))
+                tid = _safe_int(edge.get("target"))
                 target_node = node_map.get(tid, {}) if tid is not None else {}
                 uncovered.append(
                     f"步骤{i}[{node.get('screen_name', '')}]"
@@ -228,37 +238,34 @@ def _append_flow_aware_history_cases(
         node_map: 节点映射字典。
     """
     parts.append("## 项目已有测试用例（覆盖摘要，仅供避重参考）\n")
-    parts.append(
-        "以下为项目已有的测试用例摘要，仅供避免重复生成使用："
-    )
+    parts.append("以下为项目已有的测试用例摘要，仅供避免重复生成使用：")
     parts.append("")
     parts.append("参考原则：")
-    parts.append(
-        "- 已覆盖：流程场景已被旧用例覆盖 → 无需重复生成"
-    )
-    parts.append(
-        "- 避重：新场景未被任何旧用例覆盖 → 仅生成新场景用例"
-    )
-    parts.append(
-        "- 不要改写或废弃已有用例，已有用例的维护由保鲜建议流程单独处理"
-    )
+    parts.append("- 已覆盖：流程场景已被旧用例覆盖 → 无需重复生成")
+    parts.append("- 避重：新场景未被任何旧用例覆盖 → 仅生成新场景用例")
+    parts.append("- 不要改写或废弃已有用例，已有用例的维护由保鲜建议流程单独处理")
     parts.append("")
 
     for i, case in enumerate(history_cases, 1):
         desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
         coverage = _infer_history_case_flow_coverage(
-            case, main_nodes,
-            branch_by_source, exception_by_source, bypass_by_source, node_map,
+            case,
+            main_nodes,
+            branch_by_source,
+            exception_by_source,
+            bypass_by_source,
+            node_map,
         )
-        parts.append(
-            f"  {i}. [{case.get('module', '')}] {case.get('title', '')} "
-            f"(ID:{case.get('id', '')}) — {desc}"
-        )
+        parts.append(f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}")
         parts.append(f"     {coverage}")
 
     uncovered = _find_uncovered_flow_nodes(
-        history_cases, main_nodes,
-        branch_by_source, exception_by_source, bypass_by_source, node_map,
+        history_cases,
+        main_nodes,
+        branch_by_source,
+        exception_by_source,
+        bypass_by_source,
+        node_map,
     )
     if uncovered:
         parts.append("")

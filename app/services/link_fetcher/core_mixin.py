@@ -1,6 +1,7 @@
 """Link Fetcher Core Mixin - 带认证的链接内容获取服务核心逻辑
 负责初始化和HTTP请求，内容处理委托给ContentMixin
 """
+
 import requests
 from typing import Any
 from loguru import logger
@@ -33,10 +34,7 @@ class LinkFetcherCoreMixin:
         self.session = requests.Session()
 
     def fetch_content(
-        self,
-        url: str,
-        auth_type: str = "none",
-        auth_config: dict[str, Any] | None = None
+        self, url: str, auth_type: str = "none", auth_config: dict[str, Any] | None = None
     ) -> tuple[bool, str, str]:
         """获取链接内容（主入口）
 

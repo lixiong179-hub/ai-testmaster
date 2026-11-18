@@ -9,6 +9,7 @@ _EXTENDED_ASSERTION_PATTERN），保持原有导入路径兼容。
 2. 扩展断言：loading_visible/loading_hidden/response_time_lt/no_console_errors/
    no_network_errors/text_not_empty/no_sensitive_data/no_xss
 """
+
 import re
 from typing import Any
 
@@ -25,10 +26,18 @@ from app.services.test_execution_engine._extended_assertion_mixin import (
 
 
 _STRUCTURED_ASSERTION_PREFIXES = (
-    "[text_", "[visible", "[not_visible", "[url_",
-    "[loading_visible", "[loading_hidden", "[response_time_lt",
-    "[no_console_errors", "[no_network_errors", "[text_not_empty",
-    "[no_sensitive_data", "[no_xss",
+    "[text_",
+    "[visible",
+    "[not_visible",
+    "[url_",
+    "[loading_visible",
+    "[loading_hidden",
+    "[response_time_lt",
+    "[no_console_errors",
+    "[no_network_errors",
+    "[text_not_empty",
+    "[no_sensitive_data",
+    "[no_xss",
 )
 
 _ASSERTION_PATTERN = re.compile(
@@ -75,7 +84,7 @@ class StructuredAssertionMixin(
             end = rest.find("]")
             if end >= 0:
                 bracket_value = rest[1:end]
-                tail = rest[end + 1:]
+                tail = rest[end + 1 :]
                 if assertion_type.startswith("url_") and tail == "":
                     expected = bracket_value
                 else:
@@ -98,19 +107,15 @@ class StructuredAssertionMixin(
                 end = rest.find("]")
                 if end >= 0:
                     params["locator"] = rest[1:end]
-                    params["description"] = rest[end + 1:]
+                    params["description"] = rest[end + 1 :]
         elif assertion_type == "response_time_lt":
             threshold_str = rest.strip()
             if not threshold_str.isdigit() or int(threshold_str) <= 0:
-                raise VerificationError(
-                    f"response_time_lt 阈值必须为正整数，实际: '{threshold_str}'"
-                )
+                raise VerificationError(f"response_time_lt 阈值必须为正整数，实际: '{threshold_str}'")
             params["threshold_ms"] = int(threshold_str)
         elif assertion_type == "no_console_errors" and rest.startswith("exclude:"):
             exclude_str = rest[8:]
-            params["exclude_patterns"] = [
-                p.strip() for p in exclude_str.split(",") if p.strip()
-            ]
+            params["exclude_patterns"] = [p.strip() for p in exclude_str.split(",") if p.strip()]
         return assertion_type, params
 
     async def _execute_structured_assertion(self, text: str, action_info: dict[str, Any]) -> None:
@@ -133,7 +138,9 @@ class StructuredAssertionMixin(
             raise VerificationError("无法解析结构化断言语法")
 
     async def _dispatch_extended_assertion(
-        self, assertion_type: str, params: dict[str, Any],
+        self,
+        assertion_type: str,
+        params: dict[str, Any],
     ) -> None:
         """分发扩展断言到对应的处理方法。"""
         dispatch_map = {

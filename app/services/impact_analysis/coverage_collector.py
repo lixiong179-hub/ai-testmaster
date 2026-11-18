@@ -8,6 +8,7 @@
 
 依赖：coverage.py（数据源，由 pytest --cov 生成）
 """
+
 import json
 import logging
 import os
@@ -104,10 +105,7 @@ class CoverageCollector:
                 if entry.is_valid():
                     entries.append(entry)
 
-        logger.info(
-            f"采集覆盖率条目: test_case_id={test_case_id}, "
-            f"files={len(files)}, entries={len(entries)}"
-        )
+        logger.info(f"采集覆盖率条目: test_case_id={test_case_id}, files={len(files)}, entries={len(entries)}")
         return entries
 
     def _to_relative_path(self, file_path: str) -> str | None:

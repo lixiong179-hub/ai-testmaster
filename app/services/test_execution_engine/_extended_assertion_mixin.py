@@ -5,6 +5,7 @@
 依赖聚合类提供 self.browser / self._step_start_time_monotonic，
 以及跨 Mixin 的 self._get_active_page。
 """
+
 import time
 from typing import Any
 
@@ -72,15 +73,19 @@ class StructuredExtendedAssertionMixin:
         """获取浏览器缺陷证据，browser 或 get_defect_evidence 不可用时返回空结构。"""
         if not self.browser or not hasattr(self.browser, "get_defect_evidence"):
             return {
-                "console_errors": [], "network_failures": [],
-                "memory_leak_suspect": None, "uncaught_exceptions": [],
+                "console_errors": [],
+                "network_failures": [],
+                "memory_leak_suspect": None,
+                "uncaught_exceptions": [],
             }
         try:
             return self.browser.get_defect_evidence()
         except Exception:
             return {
-                "console_errors": [], "network_failures": [],
-                "memory_leak_suspect": None, "uncaught_exceptions": [],
+                "console_errors": [],
+                "network_failures": [],
+                "memory_leak_suspect": None,
+                "uncaught_exceptions": [],
             }
 
     async def _assert_loading_visible(self, params: dict[str, Any]) -> None:
@@ -122,9 +127,7 @@ class StructuredExtendedAssertionMixin:
             raise VerificationError("步骤开始时间未记录，无法计算响应时间")
         elapsed_ms = (time.monotonic() - start_mono) * 1000
         if elapsed_ms > threshold_ms:
-            raise VerificationError(
-                f"响应时间断言失败: 实际耗时 {elapsed_ms:.0f}ms, 阈值 {threshold_ms}ms"
-            )
+            raise VerificationError(f"响应时间断言失败: 实际耗时 {elapsed_ms:.0f}ms, 阈值 {threshold_ms}ms")
 
     async def _assert_no_console_errors(self, params: dict[str, Any]) -> None:
         """断言无控制台错误，支持 exclude: 模式排除特定错误。"""
@@ -133,13 +136,10 @@ class StructuredExtendedAssertionMixin:
         exclude_patterns: list[str] = params.get("exclude_patterns", [])
         if exclude_patterns:
             console_errors = [
-                err for err in console_errors
-                if not any(pat in err.get("message", "") for pat in exclude_patterns)
+                err for err in console_errors if not any(pat in err.get("message", "") for pat in exclude_patterns)
             ]
         if console_errors:
-            error_details = "; ".join(
-                f"[{e.get('type', 'error')}] {e.get('message', '')}" for e in console_errors
-            )
+            error_details = "; ".join(f"[{e.get('type', 'error')}] {e.get('message', '')}" for e in console_errors)
             raise VerificationError(f"控制台存在错误: {error_details}")
 
     async def _assert_no_network_errors(self, params: dict[str, Any]) -> None:
@@ -148,8 +148,7 @@ class StructuredExtendedAssertionMixin:
         network_failures: list[dict[str, Any]] = evidence.get("network_failures", [])
         if network_failures:
             failure_details = "; ".join(
-                f"[{f.get('method', '')} {f.get('url', '')} status={f.get('status', 0)}]"
-                for f in network_failures
+                f"[{f.get('method', '')} {f.get('url', '')} status={f.get('status', 0)}]" for f in network_failures
             )
             raise VerificationError(f"网络请求失败: {failure_details}")
 
@@ -185,14 +184,14 @@ class StructuredExtendedAssertionMixin:
         for failure in evidence.get("network_failures", []):
             url = failure.get("url", "")
             if any(pat in url for pat in ("eyJ", "sk-", "token", "secret", "password")):
-                findings.append({
-                    "type": "sensitive_in_network",
-                    "detail": f"敏感关键词出现在请求URL中: {url[:100]}",
-                })
+                findings.append(
+                    {
+                        "type": "sensitive_in_network",
+                        "detail": f"敏感关键词出现在请求URL中: {url[:100]}",
+                    }
+                )
         if findings:
-            detail_str = "; ".join(
-                f"[P0] {f.get('type', '')}: {f.get('detail', '')}" for f in findings
-            )
+            detail_str = "; ".join(f"[P0] {f.get('type', '')}: {f.get('detail', '')}" for f in findings)
             raise VerificationError(f"敏感数据暴露: {detail_str}")
 
     async def _assert_no_xss(self, params: dict[str, Any]) -> None:
@@ -206,7 +205,5 @@ class StructuredExtendedAssertionMixin:
         except Exception as exc:
             raise VerificationError(f"XSS检测执行异常: {exc}") from exc
         if findings:
-            detail_str = "; ".join(
-                f"{f.get('type', '')}: {f.get('detail', '')}" for f in findings
-            )
+            detail_str = "; ".join(f"{f.get('type', '')}: {f.get('detail', '')}" for f in findings)
             raise VerificationError(f"XSS漏洞检测: {detail_str}")

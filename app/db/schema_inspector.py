@@ -1,4 +1,5 @@
 """数据库结构检查模块 - ORM模型与数据库表结构差异检测"""
+
 import logging
 import re
 from typing import Any
@@ -11,8 +12,8 @@ logger = logging.getLogger(__name__)
 class SchemaInspectorMixin:
     """数据库结构检查混入类 - 列名验证、模型/数据库列信息获取、差异检测。"""
 
-    COLUMN_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
-    COLUMN_TYPE_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9_() ,.]*$')
+    COLUMN_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+    COLUMN_TYPE_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_() ,.]*$")
     SQL_INJECTION_PATTERN = re.compile(r'[;\'"\\-]', re.IGNORECASE)
 
     def _validate_column_name(self, name: str) -> bool:
@@ -31,6 +32,7 @@ class SchemaInspectorMixin:
             self.engine = engine
         else:
             from app.db.database import engine as default_engine
+
             self.engine = default_engine
         self.inspector = inspect(self.engine)
 
@@ -52,12 +54,12 @@ class SchemaInspectorMixin:
 
         for column in table.columns:
             col_info = {
-                'name': column.name,
-                'type': str(column.type),
-                'nullable': column.nullable,
-                'default': self._resolve_sql_default(column),
-                'primary_key': column.primary_key,
-                'comment': column.comment or ''
+                "name": column.name,
+                "type": str(column.type),
+                "nullable": column.nullable,
+                "default": self._resolve_sql_default(column),
+                "primary_key": column.primary_key,
+                "comment": column.comment or "",
             }
             columns.append(col_info)
 
@@ -67,9 +69,9 @@ class SchemaInspectorMixin:
         """解析列的 SQL DEFAULT 值，优先 server_default，其次解析 column.default。"""
         server_default = column.server_default
         if server_default is not None:
-            arg = getattr(server_default, 'arg', None)
+            arg = getattr(server_default, "arg", None)
             if arg is not None:
-                if hasattr(arg, 'text'):
+                if hasattr(arg, "text"):
                     return arg.text
                 return str(arg)
 
@@ -77,11 +79,11 @@ class SchemaInspectorMixin:
         if col_default is None:
             return None
 
-        arg = getattr(col_default, 'arg', None)
+        arg = getattr(col_default, "arg", None)
         if arg is None:
             return None
         if isinstance(arg, bool):
-            return '1' if arg else '0'
+            return "1" if arg else "0"
         if isinstance(arg, (int, float)):
             return str(arg)
         if isinstance(arg, str):
@@ -92,14 +94,17 @@ class SchemaInspectorMixin:
         """获取数据库实际的列信息，表不存在时返回空列表。"""
         try:
             columns = self.inspector.get_columns(table_name)
-            return [{
-                'name': col['name'],
-                'type': str(col['type']),
-                'nullable': col.get('nullable', True),
-                'default': str(col.get('default')) if col.get('default') else None,
-                'primary_key': col.get('primary_key', False),
-                'comment': col.get('comment', '')
-            } for col in columns]
+            return [
+                {
+                    "name": col["name"],
+                    "type": str(col["type"]),
+                    "nullable": col.get("nullable", True),
+                    "default": str(col.get("default")) if col.get("default") else None,
+                    "primary_key": col.get("primary_key", False),
+                    "comment": col.get("comment", ""),
+                }
+                for col in columns
+            ]
         except Exception as e:
             logger.warning(f"无法获取表 {table_name} 的列信息: {e}")
             return []
@@ -113,7 +118,7 @@ class SchemaInspectorMixin:
         model_cols = self.get_model_columns(table_name, Base)
         db_cols = self.get_db_columns(table_name)
 
-        db_col_names = {col['name'] for col in db_cols}
-        missing_cols = [col for col in model_cols if col['name'] not in db_col_names]
+        db_col_names = {col["name"] for col in db_cols}
+        missing_cols = [col for col in model_cols if col["name"] not in db_col_names]
 
         return missing_cols, list(db_col_names)

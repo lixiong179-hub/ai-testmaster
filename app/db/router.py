@@ -18,6 +18,7 @@
 
 依赖：app.db.database._engine 懒加载 secondary 引擎层
 """
+
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -43,6 +44,7 @@ def _redis_client():
     """懒加载 Redis 客户端，失败时返回 None。"""
     try:
         import redis
+
         return redis.from_url(settings.REDIS_URL, socket_timeout=1, socket_connect_timeout=1)
     except Exception:
         return None
@@ -107,6 +109,7 @@ def _is_replica_lag_degraded() -> bool:
     实现：从 ReplicaLagMonitor 缓存读取最新延迟，未启动监控时返回 False。
     """
     from app.db.replica_lag import get_current_lag
+
     lag = get_current_lag()
     return lag is not None and lag > settings.REPLICA_LAG_DEGRADE_SECONDS
 

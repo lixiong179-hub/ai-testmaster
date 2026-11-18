@@ -21,11 +21,7 @@ from app.utils.db_time import utcnow
 
 
 async def create_test_task_async(
-    db: AsyncSession,
-    task_name: str,
-    project_id: int,
-    case_ids: list[int],
-    executor_id: int
+    db: AsyncSession, task_name: str, project_id: int, case_ids: list[int], executor_id: int
 ) -> TestTask:
     """创建测试任务（异步版本）。
 
@@ -52,7 +48,7 @@ async def create_test_task_async(
         status=0,
         progress=0,
         success_count=0,
-        fail_count=0
+        fail_count=0,
     )
     db.add(test_task)
     await db.commit()
@@ -73,20 +69,12 @@ async def get_test_task_by_id_async(db: AsyncSession, task_id: int, project_id: 
     Returns:
         Optional[TestTask]: 测试任务对象，不存在则返回None
     """
-    result = await db.execute(
-        select(TestTask).where(
-            TestTask.id == task_id,
-            TestTask.project_id == project_id
-        )
-    )
+    result = await db.execute(select(TestTask).where(TestTask.id == task_id, TestTask.project_id == project_id))
     return result.scalars().first()
 
 
 async def update_test_task_status_async(
-    db: AsyncSession,
-    task_id: int,
-    project_id: int,
-    status: int
+    db: AsyncSession, task_id: int, project_id: int, status: int
 ) -> TestTask | None:
     """更新测试任务状态（异步版本）。
 
@@ -123,7 +111,7 @@ async def update_test_task_progress_async(
     project_id: int,
     progress: int,
     success_count: int | None = None,
-    fail_count: int | None = None
+    fail_count: int | None = None,
 ) -> TestTask | None:
     """更新测试任务进度（异步版本）。
 

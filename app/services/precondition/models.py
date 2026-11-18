@@ -1,5 +1,5 @@
-
 """前置条件数据模型 - 定义前置条件体系所需的数据类和枚举。"""
+
 from typing import Any
 from dataclasses import dataclass
 from enum import StrEnum
@@ -7,28 +7,33 @@ from enum import StrEnum
 
 class TestObjectType(StrEnum):
     """被测对象类型枚举。"""
+
     WEB = "web"
     APP = "app"
 
 
 class PreconditionError(Exception):
     """前置条件基础异常。"""
+
     pass
 
 
 class PreconditionConfigError(PreconditionError):
     """前置条件配置错误。"""
+
     pass
 
 
 class LoginError(PreconditionError):
     """登录错误。"""
+
     pass
 
 
 @dataclass
 class TestObjectInfo:
     """被测对象信息。"""
+
     type: TestObjectType
     url: str | None = None
     username: str | None = None
@@ -53,6 +58,7 @@ class TestObjectInfo:
 @dataclass
 class LoginFormInfo:
     """Web登录表单信息。"""
+
     username_input: dict[str, Any] | None = None
     password_input: dict[str, Any] | None = None
     submit_button: dict[str, Any] | None = None
@@ -60,11 +66,7 @@ class LoginFormInfo:
     captcha_image: dict[str, Any] | None = None
 
     def is_complete(self) -> bool:
-        return all([
-            self.username_input is not None,
-            self.password_input is not None,
-            self.submit_button is not None
-        ])
+        return all([self.username_input is not None, self.password_input is not None, self.submit_button is not None])
 
     def has_captcha(self) -> bool:
         return self.captcha_input is not None and self.captcha_image is not None
@@ -73,6 +75,7 @@ class LoginFormInfo:
 @dataclass
 class MobileLoginFormInfo:
     """移动端登录表单信息。"""
+
     username_input: dict[str, Any] | None = None
     password_input: dict[str, Any] | None = None
     submit_button: dict[str, Any] | None = None
@@ -84,22 +87,19 @@ class MobileLoginFormInfo:
     get_sms_code_button: dict[str, Any] | None = None
 
     def is_complete(self) -> bool:
-        has_account_login = all([
-            self.username_input is not None,
-            self.password_input is not None,
-            self.submit_button is not None
-        ])
-        has_phone_login = all([
-            self.phone_input is not None,
-            self.sms_code_input is not None,
-            self.submit_button is not None
-        ])
+        has_account_login = all(
+            [self.username_input is not None, self.password_input is not None, self.submit_button is not None]
+        )
+        has_phone_login = all(
+            [self.phone_input is not None, self.sms_code_input is not None, self.submit_button is not None]
+        )
         return has_account_login or has_phone_login
 
 
 @dataclass
 class MobileAppConfig:
     """移动端App配置。"""
+
     platform_name: str = "Android"
     device_name: str | None = None
     udid: str | None = None
@@ -118,6 +118,7 @@ class MobileAppConfig:
 @dataclass
 class PreconditionTimingConfig:
     """前置条件时序配置。"""
+
     max_login_wait_time: int = 10
     wait_interval: int = 1
     captcha_padding: int = 10

@@ -6,9 +6,7 @@ from app.services.execution_replay.legacy_models import ReplayEvent
 class LegacyQueryMixin:
     """回放数据查询：截图、事件范围。"""
 
-    async def get_screenshot_at_time(
-        self, execution_id: str, timestamp: float
-    ) -> str | None:
+    async def get_screenshot_at_time(self, execution_id: str, timestamp: float) -> str | None:
         session = self._active_replays.get(execution_id)
         if not session:
             return None
@@ -21,9 +19,7 @@ class LegacyQueryMixin:
                 return event.data.get("url")
         return screenshots[0] if screenshots else None
 
-    async def get_events_in_range(
-        self, execution_id: str, start_time: float, end_time: float
-    ) -> list[ReplayEvent]:
+    async def get_events_in_range(self, execution_id: str, start_time: float, end_time: float) -> list[ReplayEvent]:
         session = self._active_replays.get(execution_id)
         if not session:
             return []

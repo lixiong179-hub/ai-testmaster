@@ -10,6 +10,7 @@ _resolve_action_type / _resolve_locator / _dispatch_step_action /
 _finalize_step_result）拆分至 _step_helpers_mixin。本模块保留核心执行流程
 与重试控制。
 """
+
 import json
 import asyncio
 import time
@@ -19,8 +20,11 @@ from app.models.test_case import TestStep
 from app.utils.db_time import utcnow
 
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ActionType, StepExecutionError,
-    VerificationError, StepExecutionResult,
+    ExecutionStatus,
+    ActionType,
+    StepExecutionError,
+    VerificationError,
+    StepExecutionResult,
 )
 from app.services.test_execution_engine._step_defect_capture_mixin import (
     StepDefectCaptureMixin,
@@ -53,8 +57,14 @@ class StepExecutorMixin(
     # - 新值 (ExecutionMode 枚举): ai_vision/api/unknown (新版 API 契约)
     # 新值传入时不命中 preprocess/mobile_* 分支，按"智能视觉"默认路径执行，与 AI_VISION 语义一致
     VALID_EXECUTION_MODES = {
-        "preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart",
-        "ai_vision", "api", "unknown",
+        "preprocess",
+        "realtime",
+        "smart",
+        "mobile_realtime",
+        "mobile_smart",
+        "ai_vision",
+        "api",
+        "unknown",
     }
     MAX_STEP_RETRIES = 2
     RETRY_DELAY = 0.5
@@ -75,10 +85,7 @@ class StepExecutorMixin(
 
         start_time = utcnow()
         result = StepExecutionResult(
-            step_number=step.step_number,
-            action=step.action,
-            status=ExecutionStatus.RUNNING,
-            start_time=start_time
+            step_number=step.step_number, action=step.action, status=ExecutionStatus.RUNNING, start_time=start_time
         )
 
         try:
@@ -88,7 +95,7 @@ class StepExecutorMixin(
 
             action_type, action_info = self._resolve_action_type(step, action_with_data)
 
-            if action_type == ActionType.INPUT and hasattr(step, 'input_value') and step.input_value:
+            if action_type == ActionType.INPUT and hasattr(step, "input_value") and step.input_value:
                 action_info["input_value"] = step.input_value
 
             locator_record, element_info, direct_executed = await self._resolve_locator(
@@ -103,17 +110,13 @@ class StepExecutorMixin(
                 return self._finalize_step_result(result, start_time)
 
             if execution_mode == "preprocess" and (
-                action_type in (
-                    ActionType.INPUT, ActionType.CLICK,
-                    ActionType.HOVER, ActionType.SELECT
-                )
+                action_type in (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT)
                 and not locator_record
             ):
                 raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补充")
 
             await self._dispatch_step_action(
-                step, action_type, action_info, step_test_data,
-                locator_record, element_info, direct_executed
+                step, action_type, action_info, step_test_data, locator_record, element_info, direct_executed
             )
 
             before_screenshot = None
@@ -127,8 +130,7 @@ class StepExecutorMixin(
                 after_screenshot = await self.browser.take_screenshot()
                 result.screenshot = after_screenshot
 
-            if (before_screenshot and after_screenshot and
-                self.enable_ai_recognition and step.expected_result):
+            if before_screenshot and after_screenshot and self.enable_ai_recognition and step.expected_result:
                 is_passed = await self.verify_execution_result(
                     before_screenshot, after_screenshot, action_with_data, step.expected_result
                 )
@@ -182,7 +184,7 @@ class StepExecutorMixin(
                 action_type, action_info = self._resolve_action_type(step, action_with_data)
                 result.action_type = action_type
 
-                if action_type == ActionType.INPUT and hasattr(step, 'input_value') and step.input_value:
+                if action_type == ActionType.INPUT and hasattr(step, "input_value") and step.input_value:
                     action_info["input_value"] = step.input_value
 
                 locator_record, element_info, direct_executed = await self._resolve_locator(
@@ -197,7 +199,8 @@ class StepExecutorMixin(
                     return self._finalize_step_result(result, start_time)
 
                 if execution_mode == "preprocess" and (
-                    action_type in (
+                    action_type
+                    in (
                         ActionType.INPUT,
                         ActionType.CLICK,
                         ActionType.HOVER,
@@ -228,12 +231,7 @@ class StepExecutorMixin(
                     after_screenshot = await self.browser.take_screenshot()
                     result.screenshot = after_screenshot
 
-                if (
-                    before_screenshot
-                    and after_screenshot
-                    and self.enable_ai_recognition
-                    and step.expected_result
-                ):
+                if before_screenshot and after_screenshot and self.enable_ai_recognition and step.expected_result:
                     is_passed = await self.verify_execution_result(
                         before_screenshot,
                         after_screenshot,

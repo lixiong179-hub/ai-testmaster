@@ -7,6 +7,7 @@
 端点: POST /, GET /list/{project_id}, GET /{link_id}, PUT /{link_id}, DELETE /{link_id}
 权限: Bearer令牌认证
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func
@@ -27,6 +28,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.utils.db_time import utcnow
 from loguru import logger
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -35,15 +37,14 @@ async def _execute(db: Session, stmt):
 router = APIRouter()
 
 
-async def _verify_project_permission(
-    db: Session, project_id: int, user_id: int
-) -> None:
+async def _verify_project_permission(db: Session, project_id: int, user_id: int) -> None:
     """验证用户对项目的操作权限，不存在或无权限时抛403。"""
-    result = await _execute(db,
+    result = await _execute(
+        db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-        )
+        ),
     )
     project = result.scalars().first()
     if not project:
@@ -53,13 +54,9 @@ async def _verify_project_permission(
         )
 
 
-async def _get_owned_link(
-    db: Session, link_id: int, user_id: int
-) -> RequirementLink:
+async def _get_owned_link(db: Session, link_id: int, user_id: int) -> RequirementLink:
     """查询链接并验证用户对所属项目的权限，不存在抛404、无权限抛403。"""
-    result = await _execute(db,
-        select(RequirementLink).where(RequirementLink.id == link_id)
-    )
+    result = await _execute(db, select(RequirementLink).where(RequirementLink.id == link_id))
     link = result.scalars().first()
     if not link:
         raise HTTPException(
@@ -100,24 +97,23 @@ def _build_link_response(link) -> RequirementLinkResponse:
         cache_expire_minutes=link.cache_expire_minutes,
         created_by=link.created_by,
         create_time=link.create_time,
-        update_time=link.update_time
+        update_time=link.update_time,
     )
 
 
 @router.post("/", response_model=RequirementLinkResponse, status_code=status.HTTP_201_CREATED)
 async def create_requirement_link(
-    link_data: RequirementLinkCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    link_data: RequirementLinkCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         await _verify_project_permission(db, link_data.project_id, current_user.id)
 
-        exists_result = await _execute(db,
+        exists_result = await _execute(
+            db,
             select(RequirementLink).where(
                 RequirementLink.project_id == link_data.project_id,
                 RequirementLink.link_url == link_data.link_url,
-            )
+            ),
         )
         if exists_result.scalars().first() is not None:
             raise HTTPException(
@@ -171,7 +167,7 @@ async def get_requirement_links(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         await _verify_project_permission(db, project_id, current_user.id)
@@ -186,15 +182,19 @@ async def get_requirement_links(
         if is_active is not None:
             conditions.append(RequirementLink.is_active == is_active)
 
-        links_result = await _execute(db,
-            select(RequirementLink).join(Project).where(*conditions)
+        links_result = await _execute(
+            db,
+            select(RequirementLink)
+            .join(Project)
+            .where(*conditions)
             .order_by(RequirementLink.create_time.desc())
-            .offset(skip).limit(page_size)
+            .offset(skip)
+            .limit(page_size),
         )
         links = links_result.scalars().all()
 
-        count_result = await _execute(db,
-            select(func.count()).select_from(RequirementLink).join(Project).where(*conditions)
+        count_result = await _execute(
+            db, select(func.count()).select_from(RequirementLink).join(Project).where(*conditions)
         )
         total = count_result.scalar() or 0
 
@@ -217,9 +217,7 @@ async def get_requirement_links(
 
 @router.get("/{link_id}", response_model=RequirementLinkResponse)
 async def get_requirement_link_detail(
-    link_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    link_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         link = await _get_owned_link(db, link_id, current_user.id)
@@ -240,27 +238,27 @@ async def update_requirement_link(
     link_id: int,
     link_data: RequirementLinkUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         link = await _get_owned_link(db, link_id, current_user.id)
 
         update_data = link_data.model_dump(exclude_unset=True)
-        auth_fields = ['username', 'password', 'token', 'api_key', 'api_key_header', 'cookie']
+        auth_fields = ["username", "password", "token", "api_key", "api_key_header", "cookie"]
         if any(k in update_data for k in auth_fields):
             auth_config = dict(link.auth_config) if link.auth_config else {}
             for field in auth_fields:
                 if update_data.get(field) is not None:
                     auth_config[field] = update_data.pop(field)
-            update_data['auth_config'] = auth_config
+            update_data["auth_config"] = auth_config
         for field in auth_fields:
             update_data.pop(field, None)
-        if 'link_type' in update_data and update_data['link_type']:
-            update_data['link_type'] = update_data['link_type'].value
-        if 'auth_type' in update_data and update_data['auth_type']:
-            update_data['auth_type'] = update_data['auth_type'].value
+        if "link_type" in update_data and update_data["link_type"]:
+            update_data["link_type"] = update_data["link_type"].value
+        if "auth_type" in update_data and update_data["auth_type"]:
+            update_data["auth_type"] = update_data["auth_type"].value
 
-        protected_fields = {'id', 'project_id', 'created_by', 'create_time'}
+        protected_fields = {"id", "project_id", "created_by", "create_time"}
         for key, value in update_data.items():
             if key not in protected_fields and hasattr(link, key):
                 setattr(link, key, value)
@@ -281,9 +279,7 @@ async def update_requirement_link(
 
 @router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_requirement_link(
-    link_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    link_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     try:
         link = await _get_owned_link(db, link_id, current_user.id)

@@ -41,22 +41,28 @@ class DefectCaptureMixin:
         """处理控制台消息，仅收集 error 级别日志。"""
         try:
             if msg.type == "error":
-                self._console_errors.append({
-                    "type": "console_error",
-                    "message": msg.text,
-                    "source": f"{msg.location.get('url', '')}:{msg.location.get('lineNumber', '')}" if hasattr(msg, 'location') and msg.location else "",
-                })
+                self._console_errors.append(
+                    {
+                        "type": "console_error",
+                        "message": msg.text,
+                        "source": f"{msg.location.get('url', '')}:{msg.location.get('lineNumber', '')}"
+                        if hasattr(msg, "location") and msg.location
+                        else "",
+                    }
+                )
         except Exception as e:
             logger.debug(f"处理控制台消息异常: {e}")
 
     def _on_page_error(self, error: Any) -> None:
         """处理页面未捕获异常。"""
         try:
-            self._uncaught_exceptions.append({
-                "type": "uncaught_exception",
-                "message": str(error),
-                "stack": getattr(error, 'stack', '') or '',
-            })
+            self._uncaught_exceptions.append(
+                {
+                    "type": "uncaught_exception",
+                    "message": str(error),
+                    "stack": getattr(error, "stack", "") or "",
+                }
+            )
         except Exception as e:
             logger.debug(f"处理页面异常事件异常: {e}")
 
@@ -76,12 +82,14 @@ class DefectCaptureMixin:
                 request = response.request
                 start_time = self._request_start_times.pop(request.url, None)
                 duration_ms = (time.monotonic() - start_time) * 1000 if start_time else 0.0
-                self._network_failures.append({
-                    "url": request.url,
-                    "method": request.method,
-                    "status": status,
-                    "duration_ms": round(duration_ms, 2),
-                })
+                self._network_failures.append(
+                    {
+                        "url": request.url,
+                        "method": request.method,
+                        "status": status,
+                        "duration_ms": round(duration_ms, 2),
+                    }
+                )
         except Exception as e:
             logger.debug(f"处理响应事件异常: {e}")
 
@@ -90,12 +98,14 @@ class DefectCaptureMixin:
         try:
             start_time = self._request_start_times.pop(request.url, None)
             duration_ms = (time.monotonic() - start_time) * 1000 if start_time else 0.0
-            self._network_failures.append({
-                "url": request.url,
-                "method": request.method,
-                "status": 0,
-                "duration_ms": round(duration_ms, 2),
-            })
+            self._network_failures.append(
+                {
+                    "url": request.url,
+                    "method": request.method,
+                    "status": 0,
+                    "duration_ms": round(duration_ms, 2),
+                }
+            )
         except Exception as e:
             logger.debug(f"处理请求失败事件异常: {e}")
 
@@ -125,7 +135,7 @@ class DefectCaptureMixin:
             return
 
         # 取最近 N 个样本
-        recent = self._memory_samples[-self._MEMORY_LEAK_STEP_THRESHOLD:]
+        recent = self._memory_samples[-self._MEMORY_LEAK_STEP_THRESHOLD :]
         # 检查是否连续增长
         is_monotonic_growth = all(recent[i + 1] > recent[i] for i in range(len(recent) - 1))
         if not is_monotonic_growth:

@@ -10,6 +10,7 @@
     - 新增能力请先扩展同步 Mixin，再在此追加一行 ``asyncio.to_thread`` 桥接；
     - ``self.db`` 必须是同步 ``Session``。
 """
+
 import asyncio
 from typing import Any
 
@@ -79,8 +80,6 @@ class TestDataAsyncMixin:
         """生成步骤的测试数据（异步桥接）。"""
         return await asyncio.to_thread(self.generate_step_data, step_id, parameterizer)
 
-    async def auto_generate_for_step_async(
-        self, step_id: int, action_description: str
-    ) -> list[TestData]:
+    async def auto_generate_for_step_async(self, step_id: int, action_description: str) -> list[TestData]:
         """根据操作描述自动推断生成测试数据（异步桥接）。"""
         return await asyncio.to_thread(self.auto_generate_for_step, step_id, action_description)

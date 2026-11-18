@@ -9,13 +9,15 @@ def generate_test_case(test_point: Any, context: dict[str, Any] | None = None) -
     if isinstance(test_point, str):
         test_point = {"point": test_point, "module": "未知模块", "function": "未知功能", "priority": 2}
     if context:
-        context['test_points'] = [test_point]
+        context["test_points"] = [test_point]
         result = generate_test_case_enhanced(context)
         return result[0] if result else {}
     from app.utils.ai_client_core import AIClientBase
     from app.utils.ai_client_test_case import AITestCaseMixin
+
     class _TempClient(AITestCaseMixin, AIClientBase):
         pass
+
     client = _TempClient()
     return client.generate_test_case(test_point)
 
@@ -23,8 +25,10 @@ def generate_test_case(test_point: Any, context: dict[str, Any] | None = None) -
 async def analyze_requirements_stream(content: str) -> Any:
     from app.utils.ai_client_core import AIClientBase
     from app.utils.ai_client_stream import AIStreamMixin
+
     class _TempClient(AIStreamMixin, AIClientBase):
         pass
+
     client = _TempClient()
     async for chunk in client.analyze_requirements_stream(content):
         yield chunk
@@ -33,8 +37,10 @@ async def analyze_requirements_stream(content: str) -> Any:
 async def generate_test_case_stream(test_point: dict[str, Any]) -> Any:
     from app.utils.ai_client_core import AIClientBase
     from app.utils.ai_client_stream import AIStreamMixin
+
     class _TempClient(AIStreamMixin, AIClientBase):
         pass
+
     client = _TempClient()
     async for chunk in client.generate_test_case_stream(test_point):
         yield chunk
@@ -46,8 +52,8 @@ def parse_precondition_to_steps(precondition: str) -> list[dict[str, Any]]:
     steps = []
     precondition = precondition.strip()
     patterns = [
-        r'(?:步骤\s*)?(\d+)[.、)\]]\s*(.+?)(?=(?:步骤\s*)?\d+[.、)\]]|$)',
-        r'(\d+)\.\s*(.+?)(?=\d+\.|$)',
+        r"(?:步骤\s*)?(\d+)[.、)\]]\s*(.+?)(?=(?:步骤\s*)?\d+[.、)\]]|$)",
+        r"(\d+)\.\s*(.+?)(?=\d+\.|$)",
     ]
     matched = False
     for pattern in patterns:
@@ -57,37 +63,54 @@ def parse_precondition_to_steps(precondition: str) -> list[dict[str, Any]]:
                 step_text = step_text.strip()
                 if step_text:
                     action_type = infer_action_type(step_text)
-                    steps.append({
-                        'step': int(step_num) if step_num.isdigit() else len(steps) + 1,
-                        'action': step_text, 'action_type': action_type,
-                        'input_value': '', 'target_element': '',
-                        'description': f'{len(steps) + 1}. {step_text}',
-                        'expected_result': f'{step_text}完成',
-                        'test_data': [], 'ui_elements': []
-                    })
+                    steps.append(
+                        {
+                            "step": int(step_num) if step_num.isdigit() else len(steps) + 1,
+                            "action": step_text,
+                            "action_type": action_type,
+                            "input_value": "",
+                            "target_element": "",
+                            "description": f"{len(steps) + 1}. {step_text}",
+                            "expected_result": f"{step_text}完成",
+                            "test_data": [],
+                            "ui_elements": [],
+                        }
+                    )
             matched = True
             break
     if not matched:
-        line_pattern = r'[;；\n]+'
+        line_pattern = r"[;；\n]+"
         lines = re.split(line_pattern, precondition)
         lines = [line.strip() for line in lines if line.strip()]
         if len(lines) > 1:
             for i, line in enumerate(lines):
                 action_type = infer_action_type(line)
-                steps.append({
-                    'step': i + 1, 'action': line, 'action_type': action_type,
-                    'input_value': '', 'target_element': '',
-                    'description': f'{i + 1}. {line}',
-                    'expected_result': f'{line}完成',
-                    'test_data': [], 'ui_elements': []
-                })
+                steps.append(
+                    {
+                        "step": i + 1,
+                        "action": line,
+                        "action_type": action_type,
+                        "input_value": "",
+                        "target_element": "",
+                        "description": f"{i + 1}. {line}",
+                        "expected_result": f"{line}完成",
+                        "test_data": [],
+                        "ui_elements": [],
+                    }
+                )
         else:
             action_type = infer_action_type(precondition)
-            steps.append({
-                'step': 1, 'action': precondition, 'action_type': action_type,
-                'input_value': '', 'target_element': '',
-                'description': f'1. {precondition}',
-                'expected_result': f'{precondition}完成',
-                'test_data': [], 'ui_elements': []
-            })
+            steps.append(
+                {
+                    "step": 1,
+                    "action": precondition,
+                    "action_type": action_type,
+                    "input_value": "",
+                    "target_element": "",
+                    "description": f"1. {precondition}",
+                    "expected_result": f"{precondition}完成",
+                    "test_data": [],
+                    "ui_elements": [],
+                }
+            )
     return steps

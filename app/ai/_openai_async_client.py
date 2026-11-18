@@ -14,6 +14,7 @@ OpenAI 兼容 AI Client 异步实现
     - app.ai.openai_client : _COST_PER_1K_PROMPT, _COST_PER_1K_COMPLETION 定价常量
     - app.utils.ai_client_core : AIServiceError, _detect_ai_error
 """
+
 import asyncio
 import json
 import time
@@ -162,8 +163,7 @@ class AsyncOpenAIClient:
             prompt_tokens = usage_data.prompt_tokens if usage_data else 0
             completion_tokens = usage_data.completion_tokens if usage_data else 0
             total_cost_usd = (
-                prompt_tokens / 1000 * _COST_PER_1K_PROMPT
-                + completion_tokens / 1000 * _COST_PER_1K_COMPLETION
+                prompt_tokens / 1000 * _COST_PER_1K_PROMPT + completion_tokens / 1000 * _COST_PER_1K_COMPLETION
             )
             usage = TokenUsage(
                 prompt_tokens=prompt_tokens,
@@ -218,6 +218,7 @@ class AsyncOpenAIClient:
         """记录成功的 AI 调用日志。"""
         try:
             from app.ai.call_log import record_call
+
             db = metadata.get("db") if metadata else None
             record_call(
                 db,
@@ -247,6 +248,7 @@ class AsyncOpenAIClient:
         """记录失败的 AI 调用日志。"""
         try:
             from app.ai.call_log import record_call
+
             db = metadata.get("db") if metadata else None
             record_call(
                 db,

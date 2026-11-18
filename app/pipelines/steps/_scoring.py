@@ -4,6 +4,7 @@
 score_dimensions 共享底层模糊判定规则。本模块保留 prior 特有的
 长度细分、堆砌降分、步骤序号连续性等精排序逻辑。
 """
+
 import re
 from typing import Any
 
@@ -49,7 +50,7 @@ def _extract_step_number(step: dict) -> int | None:
     if isinstance(step_val, int):
         return step_val
     if isinstance(step_val, str):
-        match = re.search(r'\d+', step_val)
+        match = re.search(r"\d+", step_val)
         if match:
             return int(match.group())
     return None
@@ -85,7 +86,7 @@ def _score_steps(steps: Any, case_type: str = "") -> float:
             num = _extract_step_number(s)
             if num is not None:
                 step_numbers.append(num)
-            action_text = (s.get("action") or s.get("description") or "")
+            action_text = s.get("action") or s.get("description") or ""
             if STEP_UNCERTAINTY_PATTERN.search(action_text):
                 uncertainty_deduction += 3.0
             if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action_text):
@@ -138,9 +139,9 @@ def _score_precondition(precondition: str) -> float:
 
     pc_lower = precondition.lower()
 
-    has_network = bool(re.search(r'(网络|network|浏览器网络|设备网络|wifi|联网)', pc_lower))
-    has_login = bool(re.search(r'(登录|login|已登录|账号已登录|token|auth|鉴权|bearer|已授权)', pc_lower))
-    has_permission = bool(re.search(r'(权限|permission|授权|已授权|角色|role)', pc_lower))
+    has_network = bool(re.search(r"(网络|network|浏览器网络|设备网络|wifi|联网)", pc_lower))
+    has_login = bool(re.search(r"(登录|login|已登录|账号已登录|token|auth|鉴权|bearer|已授权)", pc_lower))
+    has_permission = bool(re.search(r"(权限|permission|授权|已授权|角色|role)", pc_lower))
 
     if has_network and has_login and has_permission:
         score = 25.0
@@ -153,10 +154,12 @@ def _score_precondition(precondition: str) -> float:
     else:
         score = 5.0
 
-    has_env = bool(re.search(
-        r'(chrome|firefox|safari|edge|iPhone|iPad|Android|Windows|Mac|iOS|浏览器|设备|操作系统|系统版本)',
-        pc_lower,
-    ))
+    has_env = bool(
+        re.search(
+            r"(chrome|firefox|safari|edge|iPhone|iPad|Android|Windows|Mac|iOS|浏览器|设备|操作系统|系统版本)",
+            pc_lower,
+        )
+    )
     if has_env and score < 25.0:
         score = min(25.0, score + 2.0)
 

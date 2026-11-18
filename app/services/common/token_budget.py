@@ -24,6 +24,7 @@ TTL 策略：
     默认 25h，确保跨时区的一天内 key 始终存活；仅首次写入 marker 时设置
     计数 key 的 TTL，避免持续刷新导致 key 永生。
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -112,9 +113,7 @@ class BaseTokenBudgetGuard(ABC):
                 # results[1] 为 True 表示首次写入 marker，此时设置计数 key 的 TTL
                 if results[1]:
                     self._redis.expire(counter_key, self._ttl_seconds)
-                logger.debug(
-                    f"Token 预算累计: key={counter_key} amount={amount}"
-                )
+                logger.debug(f"Token 预算累计: key={counter_key} amount={amount}")
                 return
             except Exception as e:
                 logger.warning(f"Redis 累计 Token 失败，降级内存计数: {e}")
@@ -138,9 +137,7 @@ class BaseTokenBudgetGuard(ABC):
                 val = self._redis.get(counter_key)
                 return int(val) if val else 0
             except Exception as e:
-                logger.warning(
-                    f"Redis 读取 Token 计数失败，使用内存计数: {e}"
-                )
+                logger.warning(f"Redis 读取 Token 计数失败，使用内存计数: {e}")
                 return self._memory_counter
         return self._memory_counter
 

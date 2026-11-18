@@ -14,6 +14,7 @@ app.services.test_execution_engine 子包的各Mixin模块中。
     - 测试数据方法 -> test_data_mixin.py
     - 动作执行方法 -> action_executor_*_mixin.py
 """
+
 from app.services.test_execution_engine import (
     TestExecutionEngineV2,
     ExecutionStatus,
@@ -29,15 +30,15 @@ from app.services.test_execution_engine import (
 )
 
 __all__ = [
-    'TestExecutionEngineV2',
-    'ExecutionStatus',
-    'ActionType',
-    'ExecutionMode',
-    'ExecutionError',
-    'StepExecutionError',
-    'VerificationError',
-    'StepExecutionResult',
-    'TestExecutionResult',
-    'FailureCategory',
-    'handle_execution_errors',
+    "TestExecutionEngineV2",
+    "ExecutionStatus",
+    "ActionType",
+    "ExecutionMode",
+    "ExecutionError",
+    "StepExecutionError",
+    "VerificationError",
+    "StepExecutionResult",
+    "TestExecutionResult",
+    "FailureCategory",
+    "handle_execution_errors",
 ]

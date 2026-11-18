@@ -13,18 +13,14 @@ from app.utils.ai_client_parser import parse_ai_json_response
 
 
 class _GenerateStreamMixin:
-
     async def generate_test_case_stream(self, test_point: dict[str, Any]):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         prompt = f"""你是一名专业的测试工程师，请根据以下测试点生成可执行的测试用例：
 
-模块：{test_point.get('module', '未知模块')}
-功能：{test_point.get('function', '')}
-测试点：{test_point.get('point', '')}
-优先级：{test_point.get('priority', 2)}（1高/2中/3低）
+模块：{test_point.get("module", "未知模块")}
+功能：{test_point.get("function", "")}
+测试点：{test_point.get("point", "")}
+优先级：{test_point.get("priority", 2)}（1高/2中/3低）
 
 请按照以下格式生成测试用例：
 1. 用例标题（必须具体明确，格式：场景/条件+操作+验证重点）
@@ -59,27 +55,28 @@ class _GenerateStreamMixin:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
             "max_tokens": 1500,
-            "stream": True
+            "stream": True,
         }
         full_content = ""
         for attempt in range(self.max_retries):
             try:
                 logger.debug(f"AI生成测试用例（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                async with httpx.AsyncClient(timeout=60) as client, client.stream(
-                    "POST", self.api_url, headers=headers, json=data
-                ) as response:
+                async with (
+                    httpx.AsyncClient(timeout=60) as client,
+                    client.stream("POST", self.api_url, headers=headers, json=data) as response,
+                ):
                     response.raise_for_status()
                     async for line in response.aiter_lines():
-                        if line.startswith('data: '):
+                        if line.startswith("data: "):
                             data_part = line[6:]
-                            if data_part == '[DONE]':
+                            if data_part == "[DONE]":
                                 break
                             try:
                                 chunk_data = json.loads(data_part)
-                                if 'choices' in chunk_data:
-                                    delta = chunk_data['choices'][0].get('delta', {})
-                                    if 'content' in delta:
-                                        full_content += delta['content']
+                                if "choices" in chunk_data:
+                                    delta = chunk_data["choices"][0].get("delta", {})
+                                    if "content" in delta:
+                                        full_content += delta["content"]
                                         progress = min(int(len(full_content) / 15), 95)
                                         yield {"progress": progress, "message": "生成中..."}
                             except json.JSONDecodeError:
@@ -87,20 +84,30 @@ class _GenerateStreamMixin:
                 try:
                     generated_case = json.loads(full_content)
                     if isinstance(generated_case, dict):
-                        required_fields = ['title', 'precondition', 'steps', 'expected_result', 'case_type']
+                        required_fields = ["title", "precondition", "steps", "expected_result", "case_type"]
                         missing_fields = [f for f in required_fields if f not in generated_case]
                         if missing_fields:
-                            yield {"progress": 100, "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}", "status": "error", "error": True}
+                            yield {
+                                "progress": 100,
+                                "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}",
+                                "status": "error",
+                                "error": True,
+                            }
                             return
                         yield {"progress": 100, "message": "生成完成", "data": generated_case}
                         return
                 except json.JSONDecodeError:
                     generated_case = parse_ai_json_response(full_content)
                     if generated_case is not None:
-                        required_fields = ['title', 'precondition', 'steps', 'expected_result', 'case_type']
+                        required_fields = ["title", "precondition", "steps", "expected_result", "case_type"]
                         missing_fields = [f for f in required_fields if f not in generated_case]
                         if missing_fields:
-                            yield {"progress": 100, "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}", "status": "error", "error": True}
+                            yield {
+                                "progress": 100,
+                                "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}",
+                                "status": "error",
+                                "error": True,
+                            }
                             return
                         yield {"progress": 100, "message": "生成完成", "data": generated_case}
                         return

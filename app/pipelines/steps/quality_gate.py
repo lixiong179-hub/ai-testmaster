@@ -101,6 +101,7 @@ class QualityGate(PipelineStep):
         analyzer = None
         try:
             from app.services.case_quality import CaseQualityAnalyzer
+
             if ctx.db is not None:
                 analyzer = CaseQualityAnalyzer(ctx.db)
         except Exception as e:
@@ -144,12 +145,24 @@ class QualityGate(PipelineStep):
                     except Exception as e:
                         logger.warning("CaseQualityAnalyzer 分析失败，降级到自研评分: {}", e)
                         score, grade, breakdown = _compute_prior_score(
-                            case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                            case_data,
+                            tp,
+                            signals,
+                            inferred,
+                            aligned,
+                            ctx.iteration_id,
+                            ctx.db,
                             user_confirmed=user_confirmed,
                         )
                 else:
                     score, grade, breakdown = _compute_prior_score(
-                        case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                        case_data,
+                        tp,
+                        signals,
+                        inferred,
+                        aligned,
+                        ctx.iteration_id,
+                        ctx.db,
                         user_confirmed=user_confirmed,
                     )
 
@@ -159,16 +172,18 @@ class QualityGate(PipelineStep):
                     breakdown["coverage_adjustment"] = per_case_adj
                     grade = _score_to_grade(score)
 
-                scores.append({
-                    "_score_idx": _score_idx,
-                    "test_point_id": tp_id,
-                    "case_title": case_data.get("title", ""),
-                    "score": score,
-                    "grade": grade,
-                    "quality_status": _grade_to_quality_status(grade),
-                    "breakdown": breakdown,
-                    "lifecycle_status": case_data.get("lifecycle_status", "draft"),
-                })
+                scores.append(
+                    {
+                        "_score_idx": _score_idx,
+                        "test_point_id": tp_id,
+                        "case_title": case_data.get("title", ""),
+                        "score": score,
+                        "grade": grade,
+                        "quality_status": _grade_to_quality_status(grade),
+                        "breakdown": breakdown,
+                        "lifecycle_status": case_data.get("lifecycle_status", "draft"),
+                    }
+                )
                 total_score += score
                 graded_count += 1
 
@@ -237,15 +252,17 @@ class QualityGate(PipelineStep):
             if entry.get("status") != "success":
                 continue
             for case_data in entry.get("case_data", []):
-                scores.append({
-                    "test_point_id": (entry.get("test_point") or {}).get("id"),
-                    "case_title": case_data.get("title", ""),
-                    "score": 50.0,
-                    "grade": "C",
-                    "quality_status": "pending_review",
-                    "breakdown": {"fallback": True},
-                    "lifecycle_status": "pending_review",
-                })
+                scores.append(
+                    {
+                        "test_point_id": (entry.get("test_point") or {}).get("id"),
+                        "case_title": case_data.get("title", ""),
+                        "score": 50.0,
+                        "grade": "C",
+                        "quality_status": "pending_review",
+                        "breakdown": {"fallback": True},
+                        "lifecycle_status": "pending_review",
+                    }
+                )
 
         return StepResult(
             success=True,

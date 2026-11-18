@@ -1,4 +1,3 @@
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -99,6 +98,7 @@ def get_decisions(
     避免全量加载到内存后再过滤/排序。verdict/sort_by/order 参数语义保持兼容。
     """
     from app.models.review import ReviewDecision
+
     query = db.query(ReviewDecision).filter(
         ReviewDecision.review_id == review_id,
     )
@@ -117,9 +117,7 @@ def get_decisions(
         order_col = None
 
     if order_col is not None:
-        query = query.order_by(
-            order_col.asc() if order == "asc" else order_col.desc()
-        )
+        query = query.order_by(order_col.asc() if order == "asc" else order_col.desc())
         # populate_existing: 强制从数据库重新加载，避免 identity map 缓存
         # 返回先前无序查询的结果顺序（POST /decide 端点先调用 get_decisions 无排序）
         query = query.populate_existing()

@@ -12,6 +12,7 @@ A/B测试指标端点模块
     - GET  /experiments/{experiment_id}/summary  — 获取实验汇总
     - GET  /experiments                          — 列出所有实验
 """
+
 import asyncio
 from typing import Any
 
@@ -28,6 +29,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.services.ab_test_service import ABTestService
 from app.schemas.common import ApiResponse
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -52,9 +54,7 @@ async def _verify_project_ownership(
     db: Session,
 ) -> Project:
     """校验项目归属权：项目必须存在且属于当前用户"""
-    project = (
-        await _execute(db, select(Project).where(Project.id == project_id))
-    ).scalar_one_or_none()
+    project = (await _execute(db, select(Project).where(Project.id == project_id))).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     if project.user_id != current_user.id:
@@ -64,9 +64,7 @@ async def _verify_project_ownership(
 
 async def _get_user_project_ids(db: Session, user_id: int) -> list[int]:
     """获取用户拥有的所有项目ID"""
-    rows = (
-        await _execute(db, select(Project.id).where(Project.user_id == user_id))
-    ).all()
+    rows = (await _execute(db, select(Project.id).where(Project.user_id == user_id))).all()
     return [row[0] for row in rows if row[0] is not None]
 
 
@@ -125,9 +123,7 @@ async def get_experiment_summary(
     try:
         user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        summary = await asyncio.to_thread(
-            service.get_experiment_summary, experiment_id, project_ids=user_project_ids
-        )
+        summary = await asyncio.to_thread(service.get_experiment_summary, experiment_id, project_ids=user_project_ids)
         return create_response(data=summary, msg="获取实验汇总成功")
     except Exception as exc:
         logger.error(f"获取实验汇总失败: {exc}", exc_info=True)
@@ -152,7 +148,7 @@ async def list_experiments(
         )
         total = len(experiments)
         skip = (page - 1) * page_size
-        page_experiments = experiments[skip:skip + page_size]
+        page_experiments = experiments[skip : skip + page_size]
         return create_response(
             data={
                 "items": page_experiments,

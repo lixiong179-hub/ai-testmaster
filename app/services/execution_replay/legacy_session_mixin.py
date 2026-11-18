@@ -1,4 +1,5 @@
 """Legacy 会话管理Mixin - execution_replay_service.py 原始会话管理逻辑。"""
+
 import asyncio
 from typing import Any
 from datetime import timedelta
@@ -42,7 +43,7 @@ class LegacySessionMixin:
         now = utcnow()
         expired_sessions = []
         for execution_id, session in self._active_replays.items():
-            last_activity = session.get('last_activity', session['created_at'])
+            last_activity = session.get("last_activity", session["created_at"])
             if (now - last_activity).total_seconds() > self._session_timeout_minutes * 60:
                 expired_sessions.append(execution_id)
         for execution_id in expired_sessions:
@@ -51,14 +52,10 @@ class LegacySessionMixin:
 
     def _update_activity(self, execution_id: str):
         if execution_id in self._active_replays:
-            self._active_replays[execution_id]['last_activity'] = utcnow()
+            self._active_replays[execution_id]["last_activity"] = utcnow()
 
     async def create_replay_session(
-        self,
-        db: Session,
-        execution_id: str,
-        video_path: str | None = None,
-        screenshots: list[str] | None = None
+        self, db: Session, execution_id: str, video_path: str | None = None, screenshots: list[str] | None = None
     ) -> dict[str, Any]:
         timeline = await self._load_execution_timeline(db, execution_id)
         session: ReplaySession = {
@@ -70,7 +67,7 @@ class LegacySessionMixin:
             "is_playing": False,
             "speed": 1.0,
             "created_at": utcnow(),
-            "last_activity": utcnow()
+            "last_activity": utcnow(),
         }
         self._active_replays[execution_id] = session
         logger.info(f"回放会话已创建: {execution_id}")
@@ -79,14 +76,12 @@ class LegacySessionMixin:
             "total_duration": timeline.total_duration if timeline else 0,
             "has_video": video_path is not None,
             "screenshot_count": len(screenshots) if screenshots else 0,
-            "event_count": len(timeline.events) if timeline else 0
+            "event_count": len(timeline.events) if timeline else 0,
         }
 
-    async def _load_execution_timeline(
-        self, db: Session, execution_id: str
-    ) -> ExecutionTimeline | None:
+    async def _load_execution_timeline(self, db: Session, execution_id: str) -> ExecutionTimeline | None:
         try:
-            parts = execution_id.split('_')
+            parts = execution_id.split("_")
             if len(parts) >= 4:
                 task_id = int(parts[1])
                 case_id = int(parts[3])
@@ -95,72 +90,74 @@ class LegacySessionMixin:
                 if not task or not case:
                     logger.warning(f"执行记录不存在: {execution_id}")
                     return None
-                result = db.query(TestResult).filter(
-                    TestResult.task_id == task_id,
-                    TestResult.case_id == case_id
-                ).order_by(TestResult.create_time.desc()).first()
+                result = (
+                    db.query(TestResult)
+                    .filter(TestResult.task_id == task_id, TestResult.case_id == case_id)
+                    .order_by(TestResult.create_time.desc())
+                    .first()
+                )
                 timeline = ExecutionTimeline(
                     execution_id=execution_id,
                     start_time=task.create_time if task else utcnow(),
                     total_duration=0.0,
-                    events=[]
+                    events=[],
                 )
-                timeline.events.append(ReplayEvent(
-                    timestamp=0.0,
-                    event_type="execution_start",
-                    data={
-                        "task_id": task_id,
-                        "case_id": case_id,
-                        "task_name": task.task_name if task else "",
-                        "case_name": case.title if case else ""
-                    }
-                ))
-                if result and hasattr(result, 'step_results'):
+                timeline.events.append(
+                    ReplayEvent(
+                        timestamp=0.0,
+                        event_type="execution_start",
+                        data={
+                            "task_id": task_id,
+                            "case_id": case_id,
+                            "task_name": task.task_name if task else "",
+                            "case_name": case.title if case else "",
+                        },
+                    )
+                )
+                if result and hasattr(result, "step_results"):
                     step_results = result.step_results
                     if isinstance(step_results, list):
                         for i, step in enumerate(step_results):
                             step_number = i + 1
-                            timestamp = step.get('execution_time', 0) if isinstance(step, dict) else 0
-                            timeline.events.append(ReplayEvent(
-                                timestamp=timestamp,
-                                event_type="step_start",
-                                data={
-                                    "step_number": step_number,
-                                    "action": step.get('action', '') if isinstance(step, dict) else '',
-                                    "target": step.get('target', '') if isinstance(step, dict) else ''
-                                }
-                            ))
-                            if step.get('screenshot') if isinstance(step, dict) else None:
-                                timeline.events.append(ReplayEvent(
-                                    timestamp=timestamp + 0.5,
-                                    event_type="screenshot",
+                            timestamp = step.get("execution_time", 0) if isinstance(step, dict) else 0
+                            timeline.events.append(
+                                ReplayEvent(
+                                    timestamp=timestamp,
+                                    event_type="step_start",
                                     data={
                                         "step_number": step_number,
-                                        "url": step.get('screenshot', '')
-                                    }
-                                ))
-                            status = step.get('status', 'unknown') if isinstance(step, dict) else 'unknown'
-                            timeline.events.append(ReplayEvent(
-                                timestamp=timestamp + 1.0,
-                                event_type="step_end",
-                                data={
-                                    "step_number": step_number,
-                                    "status": status,
-                                    "success": status == "success"
-                                }
-                            ))
-                total_duration = max(
-                    (event.timestamp for event in timeline.events),
-                    default=0.0
-                ) + 1.0
-                timeline.events.append(ReplayEvent(
-                    timestamp=total_duration,
-                    event_type="execution_end",
-                    data={
-                        "result": result.exec_status if result else "unknown",
-                        "total_steps": len(timeline.events) // 3
-                    }
-                ))
+                                        "action": step.get("action", "") if isinstance(step, dict) else "",
+                                        "target": step.get("target", "") if isinstance(step, dict) else "",
+                                    },
+                                )
+                            )
+                            if step.get("screenshot") if isinstance(step, dict) else None:
+                                timeline.events.append(
+                                    ReplayEvent(
+                                        timestamp=timestamp + 0.5,
+                                        event_type="screenshot",
+                                        data={"step_number": step_number, "url": step.get("screenshot", "")},
+                                    )
+                                )
+                            status = step.get("status", "unknown") if isinstance(step, dict) else "unknown"
+                            timeline.events.append(
+                                ReplayEvent(
+                                    timestamp=timestamp + 1.0,
+                                    event_type="step_end",
+                                    data={"step_number": step_number, "status": status, "success": status == "success"},
+                                )
+                            )
+                total_duration = max((event.timestamp for event in timeline.events), default=0.0) + 1.0
+                timeline.events.append(
+                    ReplayEvent(
+                        timestamp=total_duration,
+                        event_type="execution_end",
+                        data={
+                            "result": result.exec_status if result else "unknown",
+                            "total_steps": len(timeline.events) // 3,
+                        },
+                    )
+                )
                 timeline.total_duration = total_duration
                 timeline.end_time = timeline.start_time + timedelta(seconds=total_duration)
                 return timeline

@@ -19,6 +19,7 @@ Mixin组合:
     - 冗余度: 步骤重复、逻辑重复、数据重复
     - 建议: 基于评估结果的改进建议
 """
+
 from types import SimpleNamespace
 from typing import Any
 
@@ -69,37 +70,45 @@ class CaseQualityAnalyzer(
         if isinstance(steps_raw, list):
             for i, s in enumerate(steps_raw):
                 if isinstance(s, dict):
-                    steps.append(SimpleNamespace(
-                        id=i,
-                        action=s.get("action", s.get("description", "")),
-                        target_element=s.get("target_element", ""),
-                        expected_result=s.get("expected_result", s.get("expected", "")),
-                        step_number=i + 1,
-                    ))
+                    steps.append(
+                        SimpleNamespace(
+                            id=i,
+                            action=s.get("action", s.get("description", "")),
+                            target_element=s.get("target_element", ""),
+                            expected_result=s.get("expected_result", s.get("expected", "")),
+                            step_number=i + 1,
+                        )
+                    )
                 elif isinstance(s, str):
-                    steps.append(SimpleNamespace(
-                        id=i,
-                        action=s,
-                        target_element="",
-                        expected_result="",
-                        step_number=i + 1,
-                    ))
+                    steps.append(
+                        SimpleNamespace(
+                            id=i,
+                            action=s,
+                            target_element="",
+                            expected_result="",
+                            step_number=i + 1,
+                        )
+                    )
         elif isinstance(steps_raw, str) and steps_raw.strip():
-            steps.append(SimpleNamespace(
-                id=0,
-                action=steps_raw,
-                target_element="",
-                expected_result="",
-                step_number=1,
-            ))
+            steps.append(
+                SimpleNamespace(
+                    id=0,
+                    action=steps_raw,
+                    target_element="",
+                    expected_result="",
+                    step_number=1,
+                )
+            )
 
         precondition_steps = []
         precondition_raw = case_data.get("precondition", "")
         if precondition_raw:
-            precondition_steps.append(SimpleNamespace(
-                action=str(precondition_raw),
-                step_number=1,
-            ))
+            precondition_steps.append(
+                SimpleNamespace(
+                    action=str(precondition_raw),
+                    step_number=1,
+                )
+            )
 
         complexity = self._analyze_complexity(steps, precondition_steps)
 
@@ -124,14 +133,14 @@ class CaseQualityAnalyzer(
 
 
 __all__ = [
-    'CaseQualityAnalyzer',
-    'ComplexityScore',
-    'RedundancyScore',
-    'CoverageScore',
-    'QualityReport',
-    'ComplexityMixin',
-    'CoverageMixin',
-    'RedundancyMixin',
-    'SuggestionMixin',
-    'AnalyzerMixin',
+    "CaseQualityAnalyzer",
+    "ComplexityScore",
+    "RedundancyScore",
+    "CoverageScore",
+    "QualityReport",
+    "ComplexityMixin",
+    "CoverageMixin",
+    "RedundancyMixin",
+    "SuggestionMixin",
+    "AnalyzerMixin",
 ]

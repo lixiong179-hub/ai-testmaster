@@ -111,9 +111,7 @@ def _format_testid_entries(testids: list[dict[str, Any]]) -> str:
         "以下元素已配置 data-testid，生成自测用例时优先使用这些稳定定位器：",
     ]
     for item in testids:
-        selector = item.get("selector") or (
-            f'[data-testid="{item.get("id", "")}"]' if item.get("id") else ""
-        )
+        selector = item.get("selector") or (f'[data-testid="{item.get("id", "")}"]' if item.get("id") else "")
         if not selector:
             continue
         context = (item.get("context") or "").strip()
@@ -134,11 +132,13 @@ def load_testid_map() -> str:
 
     testids = data.get("testids")
     if not isinstance(testids, list) or not testids:
-        return "\n".join([
-            "## 平台元素定位器映射",
-            "以下元素已配置 data-testid，当前未发现动态映射条目。",
-            SELF_TEST_LOCATOR_MAP_FALLBACK,
-        ])
+        return "\n".join(
+            [
+                "## 平台元素定位器映射",
+                "以下元素已配置 data-testid，当前未发现动态映射条目。",
+                SELF_TEST_LOCATOR_MAP_FALLBACK,
+            ]
+        )
     return _format_testid_entries(testids)
 
 

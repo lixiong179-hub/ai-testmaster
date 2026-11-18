@@ -12,6 +12,7 @@
     `*_sync` 实现并经 `asyncio.to_thread` 转线程，事件循环不被阻塞；
     async 版服务函数保留（services 层测试与 M4 e2e 仍在用）。
 """
+
 import asyncio
 import logging
 from datetime import timedelta
@@ -44,7 +45,9 @@ async def get_metrics_summary(
         since = utcnow() - timedelta(days=days)
         result = await asyncio.to_thread(
             metrics_service.get_dashboard_summary_sync,
-            db, project_id=project_id, since=since,
+            db,
+            project_id=project_id,
+            since=since,
         )
         return create_response(data=result, msg="获取成功")
     except Exception as e:

@@ -3,6 +3,7 @@
 将 ORM 对象（TestPoint / Requirement / UIPrototypeScreen）转换为提示词可用的
 引用/描述字典，并递归收集屏幕导航 ID。依赖 _helpers_text 的去重与 JSON 解析工具。
 """
+
 from typing import Any
 
 from app.models.requirement import Requirement
@@ -30,10 +31,7 @@ def _test_point_entry(point: TestPoint) -> dict[str, Any]:
 
 def _test_point_search_text(points: list[TestPoint]) -> str:
     """拼接测试点的 module/point/ai_prompt 文本，供关键词提取。"""
-    return " ".join(
-        f"{point.module or ''} {point.point or ''} {point.ai_prompt or ''}"
-        for point in points
-    )
+    return " ".join(f"{point.module or ''} {point.point or ''} {point.ai_prompt or ''}" for point in points)
 
 
 def _requirement_ref(requirement: Requirement) -> dict[str, Any]:

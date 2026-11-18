@@ -13,6 +13,7 @@
 ``from app.services import self_test_service as _stm`` 引用本 shim，
 运行时 ``_stm._step_*`` 从本模块属性查找，使上述 patch 装饰器生效。
 """
+
 from app.services.self_test._project_setup import (
     SELF_TEST_PROJECT_NAME,
     _get_project_root,

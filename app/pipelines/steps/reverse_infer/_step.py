@@ -25,7 +25,6 @@ from app.pipelines.steps.reverse_infer_prompts import (
 
 
 class ReverseInfer(PipelineStep):
-
     name: str = "reverse_infer"
     version: str = "1.0"
     requires: list[str] = ["raw_signals"]
@@ -71,9 +70,8 @@ class ReverseInfer(PipelineStep):
         ui_descriptions = raw_signals.get("ui_descriptions", [])
         ui_specs = raw_signals.get("ui_specs", [])
         fingerprints = ctx.get_artifact("history_fingerprints")
-        is_old_project = (
-            (fingerprints is not None and fingerprints.get("total_count", 0) > 0)
-            or raw_signals.get("is_old_project", False)
+        is_old_project = (fingerprints is not None and fingerprints.get("total_count", 0) > 0) or raw_signals.get(
+            "is_old_project", False
         )
         has_ui = bool(ui_descriptions or ui_specs)
 
@@ -116,6 +114,7 @@ class ReverseInfer(PipelineStep):
             )
         except Exception as e:
             from loguru import logger
+
             logger.error("ReverseInfer AI 调用失败: {}", e)
             return StepResult(success=False, error=f"AI 调用失败: {e}")
 
@@ -183,6 +182,7 @@ class ReverseInfer(PipelineStep):
 
     def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         from loguru import logger
+
         logger.error("ReverseInfer fallback: {}", error)
         return StepResult(
             success=False,

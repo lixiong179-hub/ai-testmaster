@@ -20,6 +20,7 @@ CaseQualityAnalyzer 的 async 方法实质上使用 sync_db.query（声明 async
 端点使用 asyncio.to_thread + PrimarySessionLocal + asyncio.run 在独立线程中执行完整逻辑，
 释放事件循环并避免与请求级会话的事务边界互相干扰。
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -165,9 +166,7 @@ class StepEditRequest(BaseModel):
 
 @router.get("/cases/{case_id}/quality", response_model=QualityReportSchema)
 async def analyze_case_quality(
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     def _do_analyze(sync_db: Session):
         analyzer = CaseQualityAnalyzer(sync_db)
@@ -189,9 +188,7 @@ async def analyze_case_quality(
 
 @router.get("/projects/{project_id}/quality", response_model=ProjectQualitySummarySchema)
 async def analyze_project_quality(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     def _do_analyze(sync_db: Session):
         analyzer = CaseQualityAnalyzer(sync_db)
@@ -212,13 +209,12 @@ async def get_case_quality_trend(
     case_id: int,
     days: int = Query(default=30, ge=1, le=365),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     def _do_get_trend(sync_db: Session):
         from app.models.test_case import TestCase
-        test_case = sync_db.query(TestCase).filter(
-            TestCase.id == case_id, TestCase.is_deleted.is_(False)
-        ).first()
+
+        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             return None, None
         analyzer = CaseQualityAnalyzer(sync_db)
@@ -229,12 +225,7 @@ async def get_case_quality_trend(
         project_id, trend = await _run_analyzer(_do_get_trend)
         if project_id is None:
             raise HTTPException(status_code=404, detail="测试用例不存在")
-        return {
-            "case_id": case_id,
-            "project_id": project_id,
-            "days": days,
-            "trend": trend
-        }
+        return {"case_id": case_id, "project_id": project_id, "days": days, "trend": trend}
     except HTTPException:
         raise
     except Exception as e:
@@ -244,51 +235,39 @@ async def get_case_quality_trend(
 
 @router.post("/cases/{case_id}/optimize-locators")
 async def optimize_case_locators(
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     def _do_optimize(sync_db: Session):
         from app.models.test_case import TestCase, TestStep
         from app.models.element_locator import ElementLocator
 
-        test_case = sync_db.query(TestCase).filter(
-            TestCase.id == case_id, TestCase.is_deleted.is_(False)
-        ).first()
+        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             raise HTTPException(status_code=404, detail="测试用例不存在")
 
-        steps = sync_db.query(TestStep).filter(
-            TestStep.test_case_id == case_id
-        ).order_by(TestStep.step_number).all()
+        steps = sync_db.query(TestStep).filter(TestStep.test_case_id == case_id).order_by(TestStep.step_number).all()
 
         analyzer = CaseQualityAnalyzer(sync_db)
-        coverage = analyzer._analyze_coverage(
-            steps, project_id=test_case.project_id, test_case=test_case
-        )
+        coverage = analyzer._analyze_coverage(steps, project_id=test_case.project_id, test_case=test_case)
 
         # P1-4: 批量查询定位器替代循环内逐个查询，消除 N+1
-        step_ids = [s.id for s in steps if hasattr(s, 'id') and s.id]
+        step_ids = [s.id for s in steps if hasattr(s, "id") and s.id]
         existing_locator_step_ids: set = set()
         if step_ids:
-            existing_locators = (
-                sync_db.query(ElementLocator)
-                .filter(ElementLocator.step_id.in_(step_ids))
-                .all()
-            )
-            existing_locator_step_ids = {
-                loc.step_id for loc in existing_locators if loc.step_id is not None
-            }
+            existing_locators = sync_db.query(ElementLocator).filter(ElementLocator.step_id.in_(step_ids)).all()
+            existing_locator_step_ids = {loc.step_id for loc in existing_locators if loc.step_id is not None}
 
         steps_without_locator = []
         for step in steps:
-            step_id = step.id if hasattr(step, 'id') else None
+            step_id = step.id if hasattr(step, "id") else None
             if step_id and step_id not in existing_locator_step_ids:
-                steps_without_locator.append({
-                    "step_id": step_id,
-                    "action": step.action if hasattr(step, 'action') else str(step),
-                    "target_element": step.target_element if hasattr(step, 'target_element') else ""
-                })
+                steps_without_locator.append(
+                    {
+                        "step_id": step_id,
+                        "action": step.action if hasattr(step, "action") else str(step),
+                        "target_element": step.target_element if hasattr(step, "target_element") else "",
+                    }
+                )
 
         return {
             "case_id": case_id,
@@ -298,7 +277,7 @@ async def optimize_case_locators(
             "steps_without_locator": len(steps_without_locator),
             "steps_to_optimize": steps_without_locator,
             "potential_savings": len(steps_without_locator) * 0.8,
-            "message": f"发现{len(steps_without_locator)}个步骤缺少元素定位，补充后可节省{len(steps_without_locator) * 0.8:.1f}单位成本"
+            "message": f"发现{len(steps_without_locator)}个步骤缺少元素定位，补充后可节省{len(steps_without_locator) * 0.8:.1f}单位成本",
         }
 
     try:
@@ -312,9 +291,7 @@ async def optimize_case_locators(
 
 @router.post("/batch-analyze")
 async def batch_analyze_cases(
-    case_ids: list[int],
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    case_ids: list[int], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     def _do_batch_analyze(sync_db: Session):
         analyzer = CaseQualityAnalyzer(sync_db)
@@ -322,33 +299,28 @@ async def batch_analyze_cases(
         for case_id in case_ids:
             try:
                 report = asyncio.run(analyzer.analyze_case_quality(case_id))
-                results.append({
-                    "case_id": case_id,
-                    "case_name": report.case_name,
-                    "overall_score": report.overall_score,
-                    "status": "success"
-                })
+                results.append(
+                    {
+                        "case_id": case_id,
+                        "case_name": report.case_name,
+                        "overall_score": report.overall_score,
+                        "status": "success",
+                    }
+                )
             except Exception:
-                results.append({
-                    "case_id": case_id,
-                    "case_name": "",
-                    "overall_score": 0,
-                    "status": "failed",
-                    "error": "分析失败"
-                })
+                results.append(
+                    {"case_id": case_id, "case_name": "", "overall_score": 0, "status": "failed", "error": "分析失败"}
+                )
 
         success_results = [r for r in results if r["status"] == "success"]
-        avg_score = (
-            sum(r["overall_score"] for r in success_results) / len(success_results)
-            if success_results else 0
-        )
+        avg_score = sum(r["overall_score"] for r in success_results) / len(success_results) if success_results else 0
 
         return {
             "total": len(case_ids),
             "success": len(success_results),
             "failed": len([r for r in results if r["status"] == "failed"]),
             "average_score": round(avg_score, 1),
-            "results": results
+            "results": results,
         }
 
     try:

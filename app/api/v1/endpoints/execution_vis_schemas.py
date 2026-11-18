@@ -10,6 +10,7 @@ Schema概览:
     - ExecutionTimelineItem: 时间线条目模型
     - ScreenshotInfo: 截图信息模型
 """
+
 from pydantic import BaseModel, Field, validator
 
 
@@ -32,10 +33,10 @@ class VisibilityConfigSchema(BaseModel):
     show_ai_analysis: bool = Field(True, description="显示AI分析")
     hidden_fields: list[str] = Field(default_factory=list, description="API响应中隐藏的字段列表")
 
-    @validator('execution_speed')
+    @validator("execution_speed")
     def validate_speed(cls, v: str) -> str:
-        if v not in ('slow', 'normal', 'fast'):
-            raise ValueError('execution_speed must be slow, normal, or fast')
+        if v not in ("slow", "normal", "fast"):
+            raise ValueError("execution_speed must be slow, normal, or fast")
         return v
 
 

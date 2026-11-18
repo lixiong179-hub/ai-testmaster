@@ -1,5 +1,5 @@
-
 """浏览器管理Mixin - 浏览器生命周期管理。"""
+
 from typing import Any
 from loguru import logger
 
@@ -24,10 +24,7 @@ class BrowserMixin:
 
     @handle_precondition_errors
     async def execute_web_precondition(
-        self,
-        headless: bool = False,
-        browser_type: str = "chromium",
-        auto_login: bool = True
+        self, headless: bool = False, browser_type: str = "chromium", auto_login: bool = True
     ) -> BrowserController:
         """执行Web前置条件：启动浏览器、导航到目标URL、自动登录。"""
         if not self._test_object_info:
@@ -39,10 +36,7 @@ class BrowserMixin:
         logger.info(f"开始执行Web前置操作: {info.url}")
 
         config = BrowserConfig(
-            browser_type=BrowserType(browser_type),
-            headless=headless,
-            viewport_width=1920,
-            viewport_height=1080
+            browser_type=BrowserType(browser_type), headless=headless, viewport_width=1920, viewport_height=1080
         )
         self.browser_controller = BrowserController(config)
         await self.browser_controller.initialize()
@@ -59,11 +53,7 @@ class BrowserMixin:
         return self.browser_controller
 
     @handle_precondition_errors
-    async def execute_app_precondition(
-        self,
-        auto_login: bool = True,
-        no_reset: bool = False
-    ) -> Any:
+    async def execute_app_precondition(self, auto_login: bool = True, no_reset: bool = False) -> Any:
         """执行App前置条件（预留接口）。"""
         if not self._test_object_info:
             raise PreconditionConfigError("未读取被测对象信息，请先调用 read_test_object_info")

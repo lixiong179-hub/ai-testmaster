@@ -11,6 +11,7 @@ Pipeline 运行时上下文
     - 产物通过 get_artifact / set_artifact 在 Step 间传递
     - 预算检查通过 ctx.check_budget() 统一入口
 """
+
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -109,6 +110,7 @@ class PipelineContext:
             True 表示预算充足，False 表示超限。
         """
         from app.ai.call_log import check_budget
+
         return check_budget(self.db, self.run.id)
 
     def get_config(self, key: str, default: Any = None) -> Any:
@@ -124,6 +126,7 @@ class PipelineContext:
         if key in self.config:
             return self.config[key]
         from app.services.config_service import get_config
+
         return get_config(self.db, key, default)
 
     def set_confirmation_payload(self, payload: dict[str, Any]) -> None:
@@ -142,12 +145,15 @@ class PipelineContext:
 
     def get_ai_client(self) -> AIClient:
         from app.ai.fallback_client import FallbackAIClient
+
         if isinstance(self.ai_client, FallbackAIClient):
             return self.ai_client
         from app.core.config import settings
+
         fallback_model = getattr(settings, "AI_FALLBACK_MODEL_NAME", "")
         if fallback_model:
             from app.ai.openai_client import OpenAIClient
+
             fallback = OpenAIClient(
                 model=fallback_model,
                 api_key=settings.AI_API_KEY,

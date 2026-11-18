@@ -21,6 +21,7 @@
       with_loader_criteria 据此自动注入 WHERE tenant_id = :current 条件
     - 模型继承 TenantAwareMixin 后无需额外注册，查询过滤自动生效
 """
+
 from contextlib import contextmanager
 from contextvars import ContextVar
 

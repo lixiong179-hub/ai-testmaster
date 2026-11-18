@@ -23,7 +23,7 @@ class DuplicationValidator(BaseValidator):
         text = text.strip()
         if len(text) < n:
             return {text} if text else set()
-        return {text[i:i + n] for i in range(len(text) - n + 1)}
+        return {text[i : i + n] for i in range(len(text) - n + 1)}
 
     def _jaccard_similarity(self, text_a: str, text_b: str) -> float:
         """计算两个文本的Jaccard相似度。"""
@@ -65,10 +65,7 @@ class DuplicationValidator(BaseValidator):
 
         issue = ValidationIssue(
             field="title",
-            message=(
-                f"标题与已有用例相似度≥{threshold:.0%}，"
-                f"相似用例: {similar[:3]}"
-            ),
+            message=(f"标题与已有用例相似度≥{threshold:.0%}，相似用例: {similar[:3]}"),
             severity="pending_review",
         )
         return ValidationResult(status="pending_review", issues=[issue])

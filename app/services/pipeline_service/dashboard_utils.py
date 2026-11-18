@@ -2,6 +2,7 @@
 
 SQL 方言适配与子查询构建，兼容 sync Session 与 AsyncSession。
 """
+
 from sqlalchemy import func, Integer, select, text
 
 from app.models.pipeline import PipelineRun
@@ -33,6 +34,7 @@ def build_run_subquery(db, project_id: int):
     返回 select() 子查询，可用 .in_() 进行过滤。
     """
     from app.models.iteration import Iteration
+
     return (
         select(PipelineRun.id)
         .join(Iteration, PipelineRun.iteration_id == Iteration.id)

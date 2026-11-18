@@ -24,6 +24,7 @@
     - app.utils.browser_controller_v2: 浏览器控制器
     - app.services.precondition.parser_mixin: 数据模型与工具函数
 """
+
 import asyncio
 import os
 import uuid
@@ -40,37 +41,61 @@ from app.services.precondition.utils import solve_captcha_math, recognize_login_
 
 # 用户名输入框选择器列表，按匹配精度从高到低排列
 _USERNAME_SELECTORS = [
-    'input[placeholder*="账号"]', 'input[placeholder*="用户名"]', 'input[placeholder*="用户"]',
-    'input[placeholder*="Account"]', 'input[placeholder*="Username"]',
-    'input[name="username"]', 'input[name="user"]', 'input[name="account"]',
-    'input[id="username"]', 'input[id="user"]', 'input[id="account"]',
+    'input[placeholder*="账号"]',
+    'input[placeholder*="用户名"]',
+    'input[placeholder*="用户"]',
+    'input[placeholder*="Account"]',
+    'input[placeholder*="Username"]',
+    'input[name="username"]',
+    'input[name="user"]',
+    'input[name="account"]',
+    'input[id="username"]',
+    'input[id="user"]',
+    'input[id="account"]',
     'input[type="text"]:first-of-type',
-    'input[type="text"]'
+    'input[type="text"]',
 ]
 
 # 密码输入框选择器列表
 _PASSWORD_SELECTORS = [
     'input[type="password"]',
-    'input[placeholder*="密码"]', 'input[placeholder*="Password"]',
-    'input[name="password"]', 'input[id="password"]'
+    'input[placeholder*="密码"]',
+    'input[placeholder*="Password"]',
+    'input[name="password"]',
+    'input[id="password"]',
 ]
 
 # 验证码输入框选择器列表
 _CAPTCHA_SELECTORS = [
-    'input[placeholder*="验证码"]', 'input[placeholder*="Captcha"]',
-    'input[placeholder*="Code"]', 'input[placeholder*="代码"]',
-    'input[name="captcha"]', 'input[name="code"]', 'input[name="verifyCode"]',
-    'input[id="captcha"]', 'input[id="code"]', 'input[id="verifyCode"]'
+    'input[placeholder*="验证码"]',
+    'input[placeholder*="Captcha"]',
+    'input[placeholder*="Code"]',
+    'input[placeholder*="代码"]',
+    'input[name="captcha"]',
+    'input[name="code"]',
+    'input[name="verifyCode"]',
+    'input[id="captcha"]',
+    'input[id="code"]',
+    'input[id="verifyCode"]',
 ]
 
 # 登录按钮选择器列表，覆盖常见UI框架
 _BUTTON_SELECTORS = [
-    'button:has-text("登录")', 'button:has-text("登入")', 'button:has-text("提交")',
-    'button:has-text("Login")', 'button:has-text("Sign in")', 'button:has-text("Submit")',
-    'button[type="submit"]', 'input[type="submit"]',
-    '.el-button--primary', '.btn-primary', '.login-btn', '.submit-btn',
-    'button.btn-login', 'button.btn-submit',
-    'button'
+    'button:has-text("登录")',
+    'button:has-text("登入")',
+    'button:has-text("提交")',
+    'button:has-text("Login")',
+    'button:has-text("Sign in")',
+    'button:has-text("Submit")',
+    'button[type="submit"]',
+    'input[type="submit"]',
+    ".el-button--primary",
+    ".btn-primary",
+    ".login-btn",
+    ".submit-btn",
+    "button.btn-login",
+    "button.btn-submit",
+    "button",
 ]
 
 
@@ -229,16 +254,16 @@ class LoginStrategyMixin:
                     "x": max(0, captcha_image_location["x"] - cfg.captcha_padding),
                     "y": max(0, captcha_image_location["y"] - cfg.captcha_padding),
                     "width": captcha_image_location["width"] + cfg.captcha_padding * 2,
-                    "height": captcha_image_location["height"] + cfg.captcha_padding * 2
+                    "height": captcha_image_location["height"] + cfg.captcha_padding * 2,
                 }
             )
             captcha_screenshot = await self.browser_controller.take_screenshot(clip_config)
             logger.info(f"验证码区域截图完成，大小: {len(captcha_screenshot)} bytes")
 
             # 保存调试截图
-            debug_dir = os.path.join(os.getcwd(), 'logs', 'debug')
+            debug_dir = os.path.join(os.getcwd(), "logs", "debug")
             os.makedirs(debug_dir, exist_ok=True)
-            captcha_debug_path = os.path.join(debug_dir, f'captcha_debug_{uuid.uuid4().hex[:8]}.png')
+            captcha_debug_path = os.path.join(debug_dir, f"captcha_debug_{uuid.uuid4().hex[:8]}.png")
             with open(captcha_debug_path, "wb") as f:
                 f.write(captcha_screenshot)
             logger.info(f"验证码截图已保存: {captcha_debug_path}")

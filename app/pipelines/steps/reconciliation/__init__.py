@@ -9,4 +9,13 @@ from app.pipelines.steps.reconciliation._merge import (
     ForwardLabel,
 )
 
-__all__ = ["Reconciliation", "MergedAction", "MergedVerdict", "MERGE_MATRIX", "CONFLICT_PAIRS", "merge", "BackwardVerdict", "ForwardLabel"]
+__all__ = [
+    "Reconciliation",
+    "MergedAction",
+    "MergedVerdict",
+    "MERGE_MATRIX",
+    "CONFLICT_PAIRS",
+    "merge",
+    "BackwardVerdict",
+    "ForwardLabel",
+]

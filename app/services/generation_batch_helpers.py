@@ -1,4 +1,5 @@
 import asyncio
+
 """生成批次共享常量与业务工具（R2-3：从 `endpoints/_generation_batch_helpers.py` 下沉）。
 
 职责：状态迁移校验、批次号生成、ORM→响应转换，以及「版本快照 / 用例废弃」两个
@@ -81,6 +82,7 @@ async def _create_case_version_snapshot(
 
     skip_version_snapshot()
     try:
+
         def _sync_snapshot(sync_db):
             return CaseVersionService.create_snapshot(
                 db=sync_db,
@@ -90,15 +92,15 @@ async def _create_case_version_snapshot(
                 change_description=change_description,
                 changed_fields=changed_fields,
             )
+
         await asyncio.to_thread(_sync_snapshot, db)
     finally:
         resume_version_snapshot()
 
 
-async def _deprecate_case(
-    db: Session, case_id: int, actor_id: int, reason: str
-) -> None:
+async def _deprecate_case(db: Session, case_id: int, actor_id: int, reason: str) -> None:
     """通过 lifecycle_service 标记用例为 deprecated（sync 依赖经 asyncio.to_thread 转线程池）。"""
+
     def _sync_lifecycle(sync_db):
         lifecycle_transition(
             db=sync_db,
@@ -107,4 +109,5 @@ async def _deprecate_case(
             actor_id=actor_id,
             reason=reason,
         )
+
     await asyncio.to_thread(_sync_lifecycle, db)

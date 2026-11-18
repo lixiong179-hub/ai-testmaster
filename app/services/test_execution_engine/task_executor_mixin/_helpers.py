@@ -6,7 +6,6 @@ from app.services.test_execution_engine.models import FailureCategory
 
 
 class _HelpersMixin:
-
     def _generate_execution_summary(
         self,
         result: Any,
@@ -16,7 +15,7 @@ class _HelpersMixin:
             "case_id": result.case_id,
             "case_no": test_case.case_no,
             "title": test_case.title,
-            "status": result.status.value if hasattr(result.status, 'value') else str(result.status),
+            "status": result.status.value if hasattr(result.status, "value") else str(result.status),
             "total_steps": result.total_steps,
             "passed_steps": result.passed_steps,
             "failed_steps": result.failed_steps,
@@ -32,19 +31,27 @@ class _HelpersMixin:
     ) -> list[dict[str, Any]]:
         from app.models.test_result import TestResult
 
-        results = self.db.query(TestResult).filter(
-            TestResult.case_id == case_id,
-        ).order_by(TestResult.exec_time.desc()).limit(limit).all()
+        results = (
+            self.db.query(TestResult)
+            .filter(
+                TestResult.case_id == case_id,
+            )
+            .order_by(TestResult.exec_time.desc())
+            .limit(limit)
+            .all()
+        )
 
         history = []
         for r in results:
-            history.append({
-                "id": r.id,
-                "exec_status": r.exec_status,
-                "exec_time": r.exec_time,
-                "error_msg": r.error_msg,
-                "duration_ms": getattr(r, 'duration_ms', None),
-            })
+            history.append(
+                {
+                    "id": r.id,
+                    "exec_status": r.exec_status,
+                    "exec_time": r.exec_time,
+                    "error_msg": r.error_msg,
+                    "duration_ms": getattr(r, "duration_ms", None),
+                }
+            )
         return history
 
     async def _try_save_anchor_snapshot(
@@ -87,24 +94,38 @@ class _HelpersMixin:
     @staticmethod
     def _is_crash_error(error_msg: str) -> bool:
         crash_patterns = (
-            "crash", "segfault", "signal 11", "signal 6",
-            "out of memory", "oom", "stack overflow",
-            "anr", "application not responding",
+            "crash",
+            "segfault",
+            "signal 11",
+            "signal 6",
+            "out of memory",
+            "oom",
+            "stack overflow",
+            "anr",
+            "application not responding",
         )
         return any(p in error_msg for p in crash_patterns)
 
     @staticmethod
     def _is_performance_error(error_msg: str) -> bool:
         perf_patterns = (
-            "slow", "performance", "latency", "response time",
-            "frame drop", "jank", "fps",
+            "slow",
+            "performance",
+            "latency",
+            "response time",
+            "frame drop",
+            "jank",
+            "fps",
         )
         return any(p in error_msg for p in perf_patterns)
 
     @staticmethod
     def _is_device_compatibility_issue(error_msg: str) -> bool:
         compat_patterns = (
-            "compatibility", "not supported", "incompatible",
-            "version mismatch", "api level",
+            "compatibility",
+            "not supported",
+            "incompatible",
+            "version mismatch",
+            "api level",
         )
         return any(p in error_msg for p in compat_patterns)

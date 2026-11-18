@@ -3,6 +3,7 @@
 包含流程摘要构建、导航边计数与流程数据序列化等无副作用纯函数，
 供 UI 原型相关路由处理函数复用；无 DB 访问、无 HTTP 依赖。
 """
+
 from typing import Any
 
 from app.models.project_flow_data import ProjectFlowData
@@ -73,9 +74,7 @@ def _build_flow_summary(merged_flow: Any) -> dict[str, Any]:
     branch_count = sum(
         1
         for flow in flow_list
-        if isinstance(flow, dict)
-        and isinstance(flow.get("condition"), str)
-        and flow.get("condition")
+        if isinstance(flow, dict) and isinstance(flow.get("condition"), str) and flow.get("condition")
     )
     edge_count = len(flow_list) or _count_navigation_edges(nav_map)
 

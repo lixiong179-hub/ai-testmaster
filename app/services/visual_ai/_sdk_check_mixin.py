@@ -3,6 +3,7 @@
 将一站式视觉校验流程（run_visual_check）与 Token 预算预检从 sdk.py 抽出，
 保持 sdk.py 主类聚焦门面编排与基础 CRUD，控制单文件行数。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -130,9 +131,7 @@ class VisualCheckMixin:
 
         # 4. 自动审批
         diff_status = (
-            "auto_approved"
-            if result.diff_percentage < settings.VISUAL_AI_AUTO_APPROVE_THRESHOLD
-            else "pending"
+            "auto_approved" if result.diff_percentage < settings.VISUAL_AI_AUTO_APPROVE_THRESHOLD else "pending"
         )
 
         # 5. DOM 对比报告（可选）

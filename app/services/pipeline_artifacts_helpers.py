@@ -3,6 +3,7 @@
 包含 payload 截断、取消权限校验、版本重跑指标记录等纯工具逻辑，
 供路由处理函数与外部模块复用。保持原 `_` 前缀函数名以兼容既有调用点。
 """
+
 import asyncio
 import json
 from typing import Any
@@ -58,7 +59,9 @@ CANCELLABLE_STATUSES = {"running", "waiting_for_user", "pending"}
 
 
 def _check_cancel_permission(
-    db: Session, run: PipelineRun, current_user: User,
+    db: Session,
+    run: PipelineRun,
+    current_user: User,
 ) -> None:
     """校验当前用户是否有权取消指定 Pipeline 运行。
 
@@ -82,10 +85,20 @@ def _check_cancel_permission(
     project_id = iteration.project_id if iteration else None
 
     if check_pipeline_permission(
-        db, current_user.id, "pipeline", "cancel", "own", project_id=project_id,
+        db,
+        current_user.id,
+        "pipeline",
+        "cancel",
+        "own",
+        project_id=project_id,
     ):
         has_all_scope = check_pipeline_permission(
-            db, current_user.id, "pipeline", "cancel", "all", project_id=project_id,
+            db,
+            current_user.id,
+            "pipeline",
+            "cancel",
+            "all",
+            project_id=project_id,
         )
         if has_all_scope:
             return
@@ -103,6 +116,7 @@ def record_version_rerun_metric(
     """记录 F14 Pipeline 版本升级强制重跑指标（失败不阻塞业务）。"""
     try:
         from app.services.metrics_service import record_metric
+
         record_metric(
             "pipeline_version_rerun",
             iteration_id=iteration_id,

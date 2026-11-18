@@ -19,6 +19,7 @@
     - 版本管理：更新基线时旧版本 status→superseded，新版本 status=active
     - 存储隔离：StorageBackend key 按 project_id 分前缀
 """
+
 from __future__ import annotations
 
 from loguru import logger
@@ -47,9 +48,7 @@ class BaselineService:
         )
     """
 
-    def __init__(
-        self, db: Session | AsyncSession, storage: StorageBackend
-    ) -> None:
+    def __init__(self, db: Session | AsyncSession, storage: StorageBackend) -> None:
         """初始化基线服务。
 
         Args:
@@ -132,10 +131,7 @@ class BaselineService:
         await commit_async(self._db)
         await refresh_async(self._db, baseline)
 
-        logger.info(
-            f"[VisualAI] 基线创建: project={project_id}, name={name}, "
-            f"version={new_version}, key={image_key}"
-        )
+        logger.info(f"[VisualAI] 基线创建: project={project_id}, name={name}, version={new_version}, key={image_key}")
         return baseline
 
     async def get_active_baseline(
@@ -222,10 +218,7 @@ class BaselineService:
 
         # 归档旧基线
         await execute_async(
-            self._db,
-            update(VisualBaseline)
-            .where(VisualBaseline.id == baseline_id)
-            .values(status="superseded")
+            self._db, update(VisualBaseline).where(VisualBaseline.id == baseline_id).values(status="superseded")
         )
 
         # 创建新版本
@@ -243,8 +236,7 @@ class BaselineService:
         )
 
         logger.info(
-            f"[VisualAI] 基线更新: old_id={baseline_id} → new_id={new_baseline.id}, "
-            f"version={new_baseline.version}"
+            f"[VisualAI] 基线更新: old_id={baseline_id} → new_id={new_baseline.id}, version={new_baseline.version}"
         )
         return new_baseline
 
@@ -322,14 +314,11 @@ class BaselineService:
         viewport_height: int,
     ) -> int:
         """查询当前最大版本号。"""
-        stmt = (
-            select(func.max(VisualBaseline.version))
-            .where(
-                VisualBaseline.project_id == project_id,
-                VisualBaseline.page_url == page_url,
-                VisualBaseline.viewport_width == viewport_width,
-                VisualBaseline.viewport_height == viewport_height,
-            )
+        stmt = select(func.max(VisualBaseline.version)).where(
+            VisualBaseline.project_id == project_id,
+            VisualBaseline.page_url == page_url,
+            VisualBaseline.viewport_width == viewport_width,
+            VisualBaseline.viewport_height == viewport_height,
         )
         result = await execute_async(self._db, stmt)
         max_ver = result.scalar()

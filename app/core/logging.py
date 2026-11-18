@@ -4,6 +4,7 @@ loguru日志配置模块
 统一配置loguru日志，包括控制台输出、文件轮转、格式化和级别控制。
 替代Python标准库的logging，提供统一的日志基础设施。
 """
+
 import sys
 import os
 from pathlib import Path
@@ -16,7 +17,7 @@ def setup_logging(
     rotation: str = "50 MB",
     retention: str = "7 days",
     compression: str = "zip",
-    enable_file_logging: bool = True
+    enable_file_logging: bool = True,
 ) -> None:
     """
     初始化loguru日志配置
@@ -76,7 +77,7 @@ def setup_logging(
             enqueue=True,
             backtrace=True,
             diagnose=False,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         error_file = os.path.join(log_dir, "error_{time:YYYY-MM-DD}.log")
@@ -90,7 +91,7 @@ def setup_logging(
             enqueue=True,
             backtrace=True,
             diagnose=False,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
     _redirect_uvicorn_logs()

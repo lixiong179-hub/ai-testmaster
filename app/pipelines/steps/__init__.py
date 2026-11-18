@@ -4,6 +4,7 @@ Pipeline Steps 模块
 本模块包含所有 Pipeline Step 的具体实现。
 每个 Step 实现 PipelineStep Protocol，声明 name/version/requires/produces。
 """
+
 from app.pipelines.steps.signal_gatherer import SignalGatherer
 from app.pipelines.steps.testpoint_alignment import TestPointAlignment
 from app.pipelines.steps.case_generation import CaseGeneration

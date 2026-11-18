@@ -4,6 +4,7 @@ Stagehand在远程Browserbase浏览器上执行操作，
 本地Playwright浏览器状态不会同步更新。
 建议仅在本地AI自愈不可用时作为最后手段使用。
 """
+
 from typing import Any
 from loguru import logger
 
@@ -11,24 +12,16 @@ from app.services.test_execution_engine.models import ActionType
 
 
 class SelfHealingStagehandMixin:
-
     async def _stagehand_self_heal(
-        self,
-        stagehand_client,
-        nl_description: str,
-        action_type: ActionType,
-        action_info: dict[str, Any]
+        self, stagehand_client, nl_description: str, action_type: ActionType, action_info: dict[str, Any]
     ) -> str | None:
         """使用Stagehand云服务进行自愈。"""
         from app.core.config import settings
-        logger.warning(
-            "Stagehand自愈将在远程浏览器执行，本地浏览器状态不会同步更新 | "
-            f"步骤: {nl_description}"
-        )
+
+        logger.warning(f"Stagehand自愈将在远程浏览器执行，本地浏览器状态不会同步更新 | 步骤: {nl_description}")
         try:
             session = await stagehand_client.sessions.start(
-                model_name=settings.STAGEHAND_MODEL,
-                browser={"type": "browserbase"}
+                model_name=settings.STAGEHAND_MODEL, browser={"type": "browserbase"}
             )
             self._stagehand_session_id = session.id
 
@@ -70,6 +63,7 @@ class SelfHealingStagehandMixin:
     async def _get_stagehand(self):
         """懒加载Stagehand客户端实例。"""
         from app.core.config import settings
+
         if not settings.AI_SELF_HEALING_ENABLED:
             self._stagehand_client = None
             return None
@@ -83,6 +77,7 @@ class SelfHealingStagehandMixin:
 
         try:
             from stagehand import AsyncStagehand
+
             self._stagehand_client = AsyncStagehand(
                 browserbase_api_key=settings.BROWSERBASE_API_KEY,
                 browserbase_project_id=settings.BROWSERBASE_PROJECT_ID,

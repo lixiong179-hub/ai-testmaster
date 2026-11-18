@@ -45,6 +45,7 @@ def _safe_json(value: Any) -> Any:
         return value
     if isinstance(value, str):
         import json as _json
+
         try:
             return _json.loads(value)
         except (ValueError, TypeError):

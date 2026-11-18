@@ -12,6 +12,7 @@
 兼容性：SelfTestScheduler 继承 SelfTestExecutorMixin，测试中
 `scheduler._execute_ui_automation(...)` 等调用方式零改动。
 """
+
 import asyncio
 from collections.abc import Iterable
 
@@ -57,18 +58,20 @@ class SelfTestExecutorMixin:
 
         # 查询项目下所有活跃用例
         active_cases = (
-            await db.execute(
-                select(TestCase).where(
-                    TestCase.project_id == project.id,
-                    TestCase.is_deleted.is_(False),
-                    TestCase.test_category == "ui_automation",
+            (
+                await db.execute(
+                    select(TestCase).where(
+                        TestCase.project_id == project.id,
+                        TestCase.is_deleted.is_(False),
+                        TestCase.test_category == "ui_automation",
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if not active_cases:
-            logger.warning(
-                f"自测项目 {project.id} 无活跃 UI 自动化用例，跳过执行"
-            )
+            logger.warning(f"自测项目 {project.id} 无活跃 UI 自动化用例，跳过执行")
             return
 
         case_ids = [tc.id for tc in active_cases]
@@ -104,9 +107,7 @@ class SelfTestExecutorMixin:
             )
 
             try:
-                await run_async_coro_in_thread(
-                    engine.execute_test_task(task_id=task.id, global_headless=True)
-                )
+                await run_async_coro_in_thread(engine.execute_test_task(task_id=task.id, global_headless=True))
             except Exception as exc:
                 logger.error(f"UI 自动化执行失败: {exc}")
         finally:
@@ -114,20 +115,22 @@ class SelfTestExecutorMixin:
 
         # 处理失败结果
         failed_results = (
-            await db.execute(
-                select(TestResult).where(
-                    TestResult.project_id == project.id,
-                    TestResult.task_id == task.id,
-                    TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+            (
+                await db.execute(
+                    select(TestResult).where(
+                        TestResult.project_id == project.id,
+                        TestResult.task_id == task.id,
+                        TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if failed_results:
             failed_case_ids = [r.case_id for r in failed_results]
-            await self._notify_new_failures(
-                db, project, len(failed_results), failed_case_ids
-            )
+            await self._notify_new_failures(db, project, len(failed_results), failed_case_ids)
 
     async def _cleanup_self_test_data(self, db: AsyncSession, task_id: int) -> None:
         """清理指定任务的自测数据：解绑 Bug 关联并删除任务。
@@ -138,34 +141,27 @@ class SelfTestExecutorMixin:
         """
         from app.models.test_task import TestTask
 
-        task = (
-            await db.execute(
-                select(TestTask).where(TestTask.id == task_id)
-            )
-        ).scalars().first()
+        task = (await db.execute(select(TestTask).where(TestTask.id == task_id))).scalars().first()
         if not task:
             return
 
         # 子查询：task_id 关联的 TestResult.id
         from sqlalchemy.orm import selectinload
 
-        result_id_subquery = select(TestResult.id).where(
-            TestResult.task_id == task_id
-        )
+        result_id_subquery = select(TestResult.id).where(TestResult.task_id == task_id)
         bugs = (
-            await db.execute(
-                select(Bug)
-                .options(selectinload(Bug.test_result))
-                .where(Bug.test_result_id.in_(result_id_subquery))
+            (
+                await db.execute(
+                    select(Bug).options(selectinload(Bug.test_result)).where(Bug.test_result_id.in_(result_id_subquery))
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for bug in bugs:
             result = bug.test_result
             if result:
-                bug.reproduction_steps = (
-                    f"错误信息: {result.error_msg or ''}\n"
-                    f"执行日志: {result.exec_log or ''}"
-                )
+                bug.reproduction_steps = f"错误信息: {result.error_msg or ''}\n执行日志: {result.exec_log or ''}"
             bug.test_result_id = None
 
         await db.delete(task)
@@ -187,21 +183,14 @@ class SelfTestExecutorMixin:
             failed_case_ids: 失败用例 ID 列表。
         """
         try:
-            cases = (
-                await db.execute(
-                    select(TestCase).where(
-                        TestCase.id.in_(list(failed_case_ids))
-                    )
-                )
-            ).scalars().all()
+            cases = (await db.execute(select(TestCase).where(TestCase.id.in_(list(failed_case_ids))))).scalars().all()
             message = {
                 "type": "self_test_notification",
                 "project_id": project.id,
                 "project_name": project.name,
                 "failed_count": failed_count,
                 "new_failed_cases": [
-                    {"case_id": case.id, "case_title": case.title, "case_no": case.case_no}
-                    for case in cases
+                    {"case_id": case.id, "case_title": case.title, "case_no": case.case_no} for case in cases
                 ],
             }
             await ws_manager.broadcast(str(project.id), message)

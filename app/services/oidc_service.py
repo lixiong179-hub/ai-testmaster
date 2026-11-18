@@ -28,6 +28,7 @@
     - token 换取 / id_token 解析 → app.services.oidc_token_mixin.OIDCTokenMixin
     - 用户映射 / 自动配置 / 回调 → app.services.oidc_user_mixin.OIDCUserMixin
 """
+
 from __future__ import annotations
 
 import json
@@ -69,6 +70,7 @@ def _get_redis_client():
     """
     try:
         import redis
+
         redis_url = getattr(settings, "REDIS_URL", None)
         if not redis_url:
             return None
@@ -262,10 +264,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         query = urlencode(params)
         auth_url = f"{authorization_endpoint}?{query}"
 
-        logger.info(
-            f"OIDC 授权 URL 已生成: provider={actual_provider} state={state[:8]}... "
-            f"redirect_to={redirect_to}"
-        )
+        logger.info(f"OIDC 授权 URL 已生成: provider={actual_provider} state={state[:8]}... redirect_to={redirect_to}")
         return auth_url, state
 
     def _derive_authorization_endpoint(self, cfg: dict[str, Any]) -> str:
@@ -281,9 +280,11 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         if discovery:
             # 假设 discovery 文档位于 /authorize 子路径，需运行时获取；
             # 此处降级返回 discovery_url 自身（生产建议显式配置 authorization_endpoint）
-            return discovery.replace(
-                "/.well-known/openid-configuration", "/authorize"
-            ) if discovery.endswith("/.well-known/openid-configuration") else discovery
+            return (
+                discovery.replace("/.well-known/openid-configuration", "/authorize")
+                if discovery.endswith("/.well-known/openid-configuration")
+                else discovery
+            )
         issuer = cfg.get("issuer", "").rstrip("/")
         return f"{issuer}/authorize"
 
@@ -294,9 +295,11 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
             return explicit
         discovery = cfg.get("discovery_url")
         if discovery:
-            return discovery.replace(
-                "/.well-known/openid-configuration", "/token"
-            ) if discovery.endswith("/.well-known/openid-configuration") else discovery
+            return (
+                discovery.replace("/.well-known/openid-configuration", "/token")
+                if discovery.endswith("/.well-known/openid-configuration")
+                else discovery
+            )
         issuer = cfg.get("issuer", "").rstrip("/")
         return f"{issuer}/token"
 
@@ -307,9 +310,11 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
             return explicit
         discovery = cfg.get("discovery_url")
         if discovery:
-            return discovery.replace(
-                "/.well-known/openid-configuration", "/userinfo"
-            ) if discovery.endswith("/.well-known/openid-configuration") else discovery
+            return (
+                discovery.replace("/.well-known/openid-configuration", "/userinfo")
+                if discovery.endswith("/.well-known/openid-configuration")
+                else discovery
+            )
         issuer = cfg.get("issuer", "").rstrip("/")
         return f"{issuer}/userinfo"
 

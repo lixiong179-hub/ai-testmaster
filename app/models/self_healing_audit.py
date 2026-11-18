@@ -27,6 +27,7 @@
     2. locator_id 外键 ondelete=SET NULL，定位器被删除时审计记录保留、仅置空引用；
     3. (test_case_id, step_index) 复合索引覆盖按用例步骤维度检索的高频查询。
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -67,6 +68,7 @@ class SelfHealingAudit(Base):
         - 低置信度记录聚合后供人工复核
         - 按 test_case_id/step_index 检索历史自愈痕迹，辅助回归
     """
+
     __tablename__ = "self_healing_audits"
     __table_args__ = (
         # 复合索引：覆盖按用例步骤维度检索自愈记录的高频查询
@@ -74,19 +76,37 @@ class SelfHealingAudit(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="自愈审计记录主键ID")  # 自增主键
-    test_case_id = Column(Integer, ForeignKey("test_cases.id"), nullable=False, index=True, comment="触发自愈的测试用例ID")  # 用例ID，外键关联 test_cases，单列索引辅助按用例筛选
+    test_case_id = Column(
+        Integer, ForeignKey("test_cases.id"), nullable=False, index=True, comment="触发自愈的测试用例ID"
+    )  # 用例ID，外键关联 test_cases，单列索引辅助按用例筛选
     step_index = Column(Integer, nullable=False, comment="触发自愈的步骤序号（0-based）")  # 步骤序号
-    locator_id = Column(Integer, ForeignKey("element_locators.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联的元素定位器ID（外键关联，定位器删除时置 NULL 保留审计记录）")  # 元素定位器ID，单列索引辅助按定位器检索
+    locator_id = Column(
+        Integer,
+        ForeignKey("element_locators.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联的元素定位器ID（外键关联，定位器删除时置 NULL 保留审计记录）",
+    )  # 元素定位器ID，单列索引辅助按定位器检索
 
     old_selector = Column(String(512), nullable=True, comment="自愈前选择器（CSS/XPath 等）")  # 自愈前选择器
     new_selector = Column(String(512), nullable=True, comment="自愈后选择器（CSS/XPath 等）")  # 自愈后选择器
 
-    failure_type = Column(String(32), nullable=False, comment="失败原因: element_gone/dom_changed/load_delay/env_noise")  # 失败原因分类
-    strategy = Column(String(32), nullable=False, comment="自愈策略: mcp/vision/stagehand/rollback/retry/skip")  # 自愈策略
+    failure_type = Column(
+        String(32), nullable=False, comment="失败原因: element_gone/dom_changed/load_delay/env_noise"
+    )  # 失败原因分类
+    strategy = Column(
+        String(32), nullable=False, comment="自愈策略: mcp/vision/stagehand/rollback/retry/skip"
+    )  # 自愈策略
 
-    confidence = Column(Numeric(5, 2), nullable=True, comment="自愈决策置信度（0.00-1.00），NULL 表示策略无需置信度")  # 置信度
-    token_cost = Column(Integer, nullable=False, default=0, comment="本次自愈消耗的LLM Token数（非AI策略为0）")  # Token消耗
-    low_confidence = Column(Boolean, nullable=False, default=False, comment="是否低于置信度阈值（人工复核标记）")  # 低置信度标记
+    confidence = Column(
+        Numeric(5, 2), nullable=True, comment="自愈决策置信度（0.00-1.00），NULL 表示策略无需置信度"
+    )  # 置信度
+    token_cost = Column(
+        Integer, nullable=False, default=0, comment="本次自愈消耗的LLM Token数（非AI策略为0）"
+    )  # Token消耗
+    low_confidence = Column(
+        Boolean, nullable=False, default=False, comment="是否低于置信度阈值（人工复核标记）"
+    )  # 低置信度标记
 
     created_at = Column(DateTime, default=utcnow, comment="记录创建时间（UTC）")  # 创建时间
 

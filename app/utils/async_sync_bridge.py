@@ -21,6 +21,7 @@
       仅适用于使用 sync Session（PrimarySessionLocal）的场景。
     - 传入的 coro 中如已捕获异常，应通过返回值或 raise 传递到主线程。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,6 +49,7 @@ async def run_async_coro_in_thread(coro: Coroutine[Any, Any, T]) -> T:
     Raises:
         协程内抛出的任何异常都会传递到调用方
     """
+
     def _runner() -> T:
         return asyncio.run(coro)
 
@@ -82,6 +84,7 @@ async def iter_async_gen_in_thread(
 
     def _producer() -> None:
         """在独立线程中创建事件循环并迭代 async generator。"""
+
         async def _consume() -> None:
             agen = agen_factory()
             try:

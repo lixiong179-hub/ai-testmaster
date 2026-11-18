@@ -16,6 +16,7 @@
     - VisualTokenEstimator : 纯函数估算器，无副作用
     - VisualTokenBudgetGuard: 继承 BaseTokenBudgetGuard，绑定 VISUAL_AI_* 配置
 """
+
 from __future__ import annotations
 
 import math
@@ -111,9 +112,7 @@ class VisualTokenEstimator:
         base64_size = int(len(image_bytes) * self._BASE64_EXPANSION_RATIO)
         return max(1, base64_size // self._CHARS_PER_TOKEN)
 
-    def estimate_image_vision_tokens(
-        self, width: int, height: int
-    ) -> int:
+    def estimate_image_vision_tokens(self, width: int, height: int) -> int:
         """估算图片在 Vision 模型（如 GPT-4o）中的 Token 数。
 
         按 512x512 tile 计费，每 tile 85 tokens。

@@ -5,26 +5,21 @@ from app.models.test_case import TestCase
 
 
 class _SnapshotMixin:
-
-    async def _save_anchor_snapshot(
-        self, case: TestCase, anchor_step: int
-    ) -> bool:
-        is_mobile = getattr(self, '_mobile_device_id', None) is not None
+    async def _save_anchor_snapshot(self, case: TestCase, anchor_step: int) -> bool:
+        is_mobile = getattr(self, "_mobile_device_id", None) is not None
 
         if is_mobile:
             return await self._save_mobile_snapshot(case, anchor_step)
         return await self._save_web_snapshot(case, anchor_step)
 
-    async def _save_web_snapshot(
-        self, case: TestCase, anchor_step: int
-    ) -> bool:
-        if not self.browser or not getattr(self.browser, '_page', None):
+    async def _save_web_snapshot(self, case: TestCase, anchor_step: int) -> bool:
+        if not self.browser or not getattr(self.browser, "_page", None):
             logger.warning("浏览器未初始化，无法保存Web快照")
             return False
 
         try:
             page = self.browser._page
-            context = getattr(self.browser, '_context', None)
+            context = getattr(self.browser, "_context", None)
             snapshot: dict[str, Any] = {
                 "type": "web",
                 "url": page.url,
@@ -49,15 +44,13 @@ class _SnapshotMixin:
             logger.warning(f"Web快照保存失败: {e}")
             return False
 
-    async def _save_mobile_snapshot(
-        self, case: TestCase, anchor_step: int
-    ) -> bool:
-        mobile_executor = getattr(self, '_mobile_executor', None)
+    async def _save_mobile_snapshot(self, case: TestCase, anchor_step: int) -> bool:
+        mobile_executor = getattr(self, "_mobile_executor", None)
         if not mobile_executor:
             logger.warning("移动端执行器未初始化，无法保存Mobile快照")
             return False
 
-        adb = getattr(mobile_executor, 'adb', None)
+        adb = getattr(mobile_executor, "adb", None)
         if not adb:
             logger.warning("ADB控制器未初始化，无法保存Mobile快照")
             return False
@@ -78,30 +71,25 @@ class _SnapshotMixin:
                 "case_no": getattr(case, "case_no", None),
             }
 
-            project = getattr(self, '_current_project', None)
+            project = getattr(self, "_current_project", None)
             if project:
-                snapshot["app_package"] = getattr(project, 'test_object_app_package', None)
-                snapshot["app_activity"] = getattr(project, 'test_object_app_activity', None)
+                snapshot["app_package"] = getattr(project, "test_object_app_package", None)
+                snapshot["app_activity"] = getattr(project, "test_object_app_activity", None)
 
             snapshot_keys = self._snapshot_keys_for_case(case, anchor_step)
             for snapshot_key in snapshot_keys:
                 self._anchor_snapshots[snapshot_key] = snapshot
             snapshot_key = snapshot_keys[0] if snapshot_keys else f"{case.title}_{anchor_step}"
-            logger.info(
-                f"Mobile快照已保存: key={snapshot_key}, "
-                f"activity={current_activity}"
-            )
+            logger.info(f"Mobile快照已保存: key={snapshot_key}, activity={current_activity}")
             return True
 
         except Exception as e:
             logger.warning(f"Mobile快照保存失败: {e}")
             return False
 
-    async def _capture_mobile_ui_summary(
-        self, mobile_executor: Any
-    ) -> list[dict[str, str]]:
+    async def _capture_mobile_ui_summary(self, mobile_executor: Any) -> list[dict[str, str]]:
         try:
-            uiautomator = getattr(mobile_executor, 'uiautomator', None)
+            uiautomator = getattr(mobile_executor, "uiautomator", None)
             if not uiautomator:
                 return []
 
@@ -126,6 +114,7 @@ class _SnapshotMixin:
     async def _capture_screenshot_hash(self, adb: Any) -> str | None:
         try:
             import hashlib
+
             screenshot_bytes = await adb.take_screenshot()
             if screenshot_bytes:
                 return hashlib.md5(screenshot_bytes).hexdigest()
@@ -133,11 +122,9 @@ class _SnapshotMixin:
             pass
         return None
 
-    async def _restore_anchor_snapshot(
-        self, case: TestCase
-    ) -> bool:
-        depends_on = getattr(case, 'depends_on', None)
-        anchor_step = getattr(case, 'anchor_step', None)
+    async def _restore_anchor_snapshot(self, case: TestCase) -> bool:
+        depends_on = getattr(case, "depends_on", None)
+        anchor_step = getattr(case, "anchor_step", None)
         if not depends_on or anchor_step is None:
             return False
 
@@ -157,16 +144,14 @@ class _SnapshotMixin:
             return await self._restore_mobile_snapshot(snapshot)
         return await self._restore_web_snapshot(snapshot)
 
-    async def _restore_web_snapshot(
-        self, snapshot: dict[str, Any]
-    ) -> bool:
-        if not self.browser or not getattr(self.browser, '_page', None):
+    async def _restore_web_snapshot(self, snapshot: dict[str, Any]) -> bool:
+        if not self.browser or not getattr(self.browser, "_page", None):
             logger.warning("浏览器未初始化，无法恢复Web快照")
             return False
 
         try:
             page = self.browser._page
-            context = getattr(self.browser, '_context', None)
+            context = getattr(self.browser, "_context", None)
 
             target_url = snapshot.get("url", "")
             if not target_url:
@@ -199,15 +184,13 @@ class _SnapshotMixin:
             logger.warning(f"Web快照恢复失败: {e}，将尝试降级导航")
             return False
 
-    async def _restore_mobile_snapshot(
-        self, snapshot: dict[str, Any]
-    ) -> bool:
-        mobile_executor = getattr(self, '_mobile_executor', None)
+    async def _restore_mobile_snapshot(self, snapshot: dict[str, Any]) -> bool:
+        mobile_executor = getattr(self, "_mobile_executor", None)
         if not mobile_executor:
             logger.warning("移动端执行器未初始化，无法恢复Mobile快照")
             return False
 
-        adb = getattr(mobile_executor, 'adb', None)
+        adb = getattr(mobile_executor, "adb", None)
         if not adb:
             logger.warning("ADB控制器未初始化，无法恢复Mobile快照")
             return False
@@ -238,6 +221,7 @@ class _SnapshotMixin:
                     return False
 
                 import asyncio
+
                 await asyncio.sleep(1.0)
 
                 ui_match = await self._verify_mobile_ui(snapshot, mobile_executor)
@@ -264,7 +248,7 @@ class _SnapshotMixin:
             return True
 
         try:
-            uiautomator = getattr(mobile_executor, 'uiautomator', None)
+            uiautomator = getattr(mobile_executor, "uiautomator", None)
             if not uiautomator:
                 return True
 
@@ -280,19 +264,14 @@ class _SnapshotMixin:
                         break
 
             match_ratio = matched / len(expected_elements) if expected_elements else 0
-            logger.info(
-                f"UI元素匹配: {matched}/{len(expected_elements)} "
-                f"({match_ratio:.0%})"
-            )
+            logger.info(f"UI元素匹配: {matched}/{len(expected_elements)} ({match_ratio:.0%})")
             return match_ratio >= 0.5
 
         except Exception:
             return False
 
     @staticmethod
-    def _element_matches(
-        expected: dict[str, str], current: Any
-    ) -> bool:
+    def _element_matches(expected: dict[str, str], current: Any) -> bool:
         match_count = 0
         total_fields = 0
         if expected.get("resource_id") and current.resource_id:

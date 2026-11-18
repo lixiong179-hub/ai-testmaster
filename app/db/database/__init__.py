@@ -42,18 +42,23 @@ from app.db.database._init import (
 def __getattr__(name: str):
     if name == "secondary_engine":
         from app.db.database._engine import get_secondary_engine
+
         return get_secondary_engine() or primary_engine
     if name == "SecondarySessionLocal":
         from app.db.database._engine import get_secondary_session_local
+
         return get_secondary_session_local()
     if name == "secondary_scoped_session":
         from app.db.database._engine import get_secondary_scoped_session
+
         return get_secondary_scoped_session()
     if name == "async_secondary_engine":
         from app.db.database._engine import get_async_secondary_engine
+
         return get_async_secondary_engine() or async_primary_engine
     if name == "AsyncSecondarySessionLocal":
         from app.db.database._engine import get_async_secondary_session_local
+
         return get_async_secondary_session_local()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

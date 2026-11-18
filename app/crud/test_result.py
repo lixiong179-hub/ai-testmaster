@@ -29,6 +29,7 @@
     - 2: 执行失败
     - 3: 阻塞
 """
+
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.test_result import TestResult
@@ -44,7 +45,7 @@ def create_test_result(
     exec_status: int,
     exec_log: str | None = None,
     error_msg: str | None = None,
-    screenshot_url: str | None = None
+    screenshot_url: str | None = None,
 ) -> TestResult:
     """
     创建执行结果
@@ -74,7 +75,7 @@ def create_test_result(
         exec_status=exec_status,
         exec_log=exec_log,
         error_msg=error_msg,
-        screenshot_url=screenshot_url
+        screenshot_url=screenshot_url,
     )
     db.add(test_result)
     db.commit()
@@ -82,11 +83,7 @@ def create_test_result(
     return test_result
 
 
-def get_test_results_by_task(
-    db: Session,
-    task_id: int,
-    project_id: int
-) -> list[TestResult]:
+def get_test_results_by_task(db: Session, task_id: int, project_id: int) -> list[TestResult]:
     """
     获取任务的执行结果列表
 
@@ -105,18 +102,15 @@ def get_test_results_by_task(
         此查询未加分页，适用于单任务用例数量可控的场景。
         若单任务用例可能较多，建议增加分页参数。
     """
-    return db.query(TestResult).filter(
-        TestResult.task_id == task_id,
-        TestResult.project_id == project_id
-    ).order_by(TestResult.create_time).all()
+    return (
+        db.query(TestResult)
+        .filter(TestResult.task_id == task_id, TestResult.project_id == project_id)
+        .order_by(TestResult.create_time)
+        .all()
+    )
 
 
-def get_test_result_by_case(
-    db: Session,
-    task_id: int,
-    case_id: int,
-    project_id: int
-) -> TestResult | None:
+def get_test_result_by_case(db: Session, task_id: int, case_id: int, project_id: int) -> TestResult | None:
     """
     获取指定任务和用例的执行结果
 
@@ -135,11 +129,11 @@ def get_test_result_by_case(
         同一用例在不同任务中可能有不同的执行结果，
         因此需要task_id+case_id联合定位。
     """
-    return db.query(TestResult).filter(
-        TestResult.task_id == task_id,
-        TestResult.case_id == case_id,
-        TestResult.project_id == project_id
-    ).first()
+    return (
+        db.query(TestResult)
+        .filter(TestResult.task_id == task_id, TestResult.case_id == case_id, TestResult.project_id == project_id)
+        .first()
+    )
 
 
 def update_test_result(
@@ -149,7 +143,7 @@ def update_test_result(
     exec_status: int | None = None,
     exec_log: str | None = None,
     error_msg: str | None = None,
-    screenshot_url: str | None = None
+    screenshot_url: str | None = None,
 ) -> TestResult | None:
     """
     更新执行结果
@@ -173,10 +167,7 @@ def update_test_result(
         使用 `is not None` 判断每个字段是否需要更新，
         因为0（待执行）和空字符串都是有效值。
     """
-    test_result = db.query(TestResult).filter(
-        TestResult.id == result_id,
-        TestResult.project_id == project_id
-    ).first()
+    test_result = db.query(TestResult).filter(TestResult.id == result_id, TestResult.project_id == project_id).first()
 
     if not test_result:
         return None
@@ -202,12 +193,7 @@ def update_test_result(
     return test_result
 
 
-def get_test_results_count(
-    db: Session,
-    task_id: int,
-    project_id: int,
-    exec_status: int | None = None
-) -> int:
+def get_test_results_count(db: Session, task_id: int, project_id: int, exec_status: int | None = None) -> int:
     """
     获取执行结果数量
 
@@ -222,10 +208,7 @@ def get_test_results_count(
     Returns:
         int: 符合条件的结果数量
     """
-    query = db.query(TestResult).filter(
-        TestResult.task_id == task_id,
-        TestResult.project_id == project_id
-    )
+    query = db.query(TestResult).filter(TestResult.task_id == task_id, TestResult.project_id == project_id)
 
     if exec_status is not None:
         query = query.filter(TestResult.exec_status == exec_status)
@@ -252,10 +235,9 @@ def delete_test_results_by_task(db: Session, task_id: int, project_id: int) -> i
         此函数应在删除测试任务（delete_test_task）之前调用，
         确保关联数据被正确清理，避免孤立记录。
     """
-    deleted = db.query(TestResult).filter(
-        TestResult.task_id == task_id,
-        TestResult.project_id == project_id
-    ).delete()  # 批量删除：单次SQL DELETE语句，无需逐条查询
+    deleted = (
+        db.query(TestResult).filter(TestResult.task_id == task_id, TestResult.project_id == project_id).delete()
+    )  # 批量删除：单次SQL DELETE语句，无需逐条查询
     db.commit()
     return deleted
 
@@ -269,7 +251,7 @@ async def create_test_result_async(
     exec_status: int,
     exec_log: str | None = None,
     error_msg: str | None = None,
-    screenshot_url: str | None = None
+    screenshot_url: str | None = None,
 ) -> TestResult:
     """
     创建执行结果（异步版本）
@@ -298,7 +280,7 @@ async def create_test_result_async(
         exec_status=exec_status,
         exec_log=exec_log,
         error_msg=error_msg,
-        screenshot_url=screenshot_url
+        screenshot_url=screenshot_url,
     )
     db.add(test_result)
     await db.commit()

@@ -19,6 +19,7 @@
     - app.utils.ai_client: AI客户端工具
     - app.core.config: 配置管理
 """
+
 from sqlalchemy.orm import Session
 
 from app.services.test_data.constants import (

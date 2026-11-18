@@ -6,6 +6,7 @@
 原私有模块已删除；`app/services/history_asset/` 为同名域包（分类/助手），
 本模块与它同域但职责单一（仅解析），故独立成模块而非塞进包内。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -71,17 +72,21 @@ def _parse_excel_cases(file_path: str) -> list[dict[str, Any]]:
                 title = str(row.get("用例描述", row.get("标题", ""))).strip()
                 if not title:
                     continue
-                cases.append({
-                    "title": title,
-                    "module": current_module,
-                    "precondition": str(row.get("前置条件", "")).strip(),
-                    "expected_result": str(row.get("期望结果", row.get("预期结果", ""))).strip(),
-                    "priority": 2,
-                    "steps": [{
-                        "action": str(row.get("操作步骤", row.get("步骤描述", ""))).strip(),
+                cases.append(
+                    {
+                        "title": title,
+                        "module": current_module,
+                        "precondition": str(row.get("前置条件", "")).strip(),
                         "expected_result": str(row.get("期望结果", row.get("预期结果", ""))).strip(),
-                    }],
-                })
+                        "priority": 2,
+                        "steps": [
+                            {
+                                "action": str(row.get("操作步骤", row.get("步骤描述", ""))).strip(),
+                                "expected_result": str(row.get("期望结果", row.get("预期结果", ""))).strip(),
+                            }
+                        ],
+                    }
+                )
     except Exception as e:
         logger.error(f"Excel 解析失败: {e}")
         raise ValueError(f"Excel 解析失败: {e}") from e
@@ -98,12 +103,14 @@ def _parse_xmind_cases(file_path: str) -> list[dict[str, Any]]:
         raise ValueError(f"XMind 解析失败: {e}") from e
     cases: list[dict[str, Any]] = []
     for point in raw_points:
-        cases.append({
-            "title": point.get("name", ""),
-            "module": point.get("module", ""),
-            "precondition": "",
-            "expected_result": point.get("expected", ""),
-            "priority": 2,
-            "steps": point.get("steps", []),
-        })
+        cases.append(
+            {
+                "title": point.get("name", ""),
+                "module": point.get("module", ""),
+                "precondition": "",
+                "expected_result": point.get("expected", ""),
+                "priority": 2,
+                "steps": point.get("steps", []),
+            }
+        )
     return cases

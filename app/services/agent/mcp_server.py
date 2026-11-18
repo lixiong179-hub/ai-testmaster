@@ -8,6 +8,7 @@
     - 依赖注入：handler 接收 (db, user, arguments)，由端点注入
     - 单例模式：get_mcp_server() 返回进程级唯一实例，工具模块级注册
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,10 +26,8 @@ from app.models.test_case import TestCase
 from app.models.test_result import TestResult
 from app.models.test_task import TestTask
 from app.models.user import User
-from app.services.agent.agents import (
-    CreateTestCaseTool, ValidateTestCaseSyntaxTool)
-from app.services.agent.artifacts import (
-    ProjectContextArtifact, UserIntentArtifact)
+from app.services.agent.agents import CreateTestCaseTool, ValidateTestCaseSyntaxTool
+from app.services.agent.artifacts import ProjectContextArtifact, UserIntentArtifact
 from app.services.agent.audit_service import AgentAuditService
 from app.services.agent.runtime import AgentRuntime
 from app.services.agent.session_service import SessionService
@@ -82,8 +81,11 @@ class MCPServer:
         ]
 
     async def call_tool(
-        self, name: str, arguments: dict[str, Any],
-        db: Session | AsyncSession, user: User,
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        db: Session | AsyncSession,
+        user: User,
     ) -> dict[str, Any]:
         """调用指定 MCP 工具。
 
@@ -105,7 +107,9 @@ class MCPServer:
 
 
 async def _ensure_project_access(
-    db: Session | AsyncSession, project_id: int, user: User,
+    db: Session | AsyncSession,
+    project_id: int,
+    user: User,
 ) -> None:
     """校验用户对指定项目的访问权限，超级管理员绕过。
 
@@ -116,11 +120,14 @@ async def _ensure_project_access(
     if user.is_superuser:
         return
     from app.api.v1.endpoints.pipeline_deps import verify_project_access_async
+
     await verify_project_access_async(db, project_id, user)
 
 
 async def _generate_test_case_handler(
-    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession,
+    user: User,
+    arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """generate_test_case - 创建 TestGenerationAgent 会话并执行。
 
@@ -133,7 +140,8 @@ async def _generate_test_case_handler(
     context: dict[str, Any] = arguments.get("context") or {}
 
     intent_artifact = UserIntentArtifact(
-        natural_language_request=user_intent, origin="mcp",
+        natural_language_request=user_intent,
+        origin="mcp",
         priority=context.get("priority", "normal"),
         constraints=context.get("constraints") or [],
     )
@@ -147,14 +155,16 @@ async def _generate_test_case_handler(
     # 为每次调用构造独立 ToolRegistry，避免跨请求状态污染
     tool_registry = ToolRegistry()
     tool_registry.register(CreateTestCaseTool(), agent_types=["test_generation"])
-    tool_registry.register(
-        ValidateTestCaseSyntaxTool(), agent_types=["test_generation"])
+    tool_registry.register(ValidateTestCaseSyntaxTool(), agent_types=["test_generation"])
     runtime = AgentRuntime(
-        db=db, session_service=SessionService(),
-        audit_service=AgentAuditService(), tool_registry=tool_registry,
+        db=db,
+        session_service=SessionService(),
+        audit_service=AgentAuditService(),
+        tool_registry=tool_registry,
     )
     session = await runtime.run(
-        agent_type="test_generation", project_id=project_id,
+        agent_type="test_generation",
+        project_id=project_id,
         initial_artifacts=[intent_artifact, project_artifact],
         created_by=user.id,
     )
@@ -162,30 +172,43 @@ async def _generate_test_case_handler(
 
 
 async def _query_test_case_handler(
-    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession,
+    user: User,
+    arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_test_case - 按 ID 查询测试用例。"""
     test_case_id: int = arguments["test_case_id"]
-    result = await execute_async(db,
-        select(TestCase).where(
-            TestCase.id == test_case_id, TestCase.is_deleted.is_(False)))
+    result = await execute_async(
+        db, select(TestCase).where(TestCase.id == test_case_id, TestCase.is_deleted.is_(False))
+    )
     tc = result.scalar_one_or_none()
     if tc is None:
         return {"test_case": None, "message": f"用例不存在: id={test_case_id}"}
     await _ensure_project_access(db, tc.project_id, user)
-    return {"test_case": {
-        "id": tc.id, "case_no": tc.case_no, "project_id": tc.project_id,
-        "module": tc.module, "title": tc.title, "case_type": tc.case_type,
-        "priority": tc.priority, "precondition": tc.precondition,
-        "steps_json": tc.steps_json, "expected_result": tc.expected_result,
-        "review_status": tc.review_status, "lifecycle_status": tc.lifecycle_status,
-        "generate_status": tc.generate_status,
-        "create_time": tc.create_time.isoformat() if tc.create_time else None,
-    }}
+    return {
+        "test_case": {
+            "id": tc.id,
+            "case_no": tc.case_no,
+            "project_id": tc.project_id,
+            "module": tc.module,
+            "title": tc.title,
+            "case_type": tc.case_type,
+            "priority": tc.priority,
+            "precondition": tc.precondition,
+            "steps_json": tc.steps_json,
+            "expected_result": tc.expected_result,
+            "review_status": tc.review_status,
+            "lifecycle_status": tc.lifecycle_status,
+            "generate_status": tc.generate_status,
+            "create_time": tc.create_time.isoformat() if tc.create_time else None,
+        }
+    }
 
 
 async def _run_test_case_handler(
-    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession,
+    user: User,
+    arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """run_test_case - 当前降级返回 REST API 提示。
 
@@ -201,29 +224,40 @@ async def _run_test_case_handler(
 
 
 async def _query_execution_result_handler(
-    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession,
+    user: User,
+    arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_execution_result - 按 task_id 查询测试结果列表。"""
     task_id: int = arguments["task_id"]
-    task_result = await execute_async(db,
-        select(TestTask).where(TestTask.id == task_id))
+    task_result = await execute_async(db, select(TestTask).where(TestTask.id == task_id))
     task = task_result.scalar_one_or_none()
     if task is None:
         return {"result": []}
     await _ensure_project_access(db, task.project_id, user)
-    result = await execute_async(db,
-        select(TestResult).where(TestResult.task_id == task_id))
+    result = await execute_async(db, select(TestResult).where(TestResult.task_id == task_id))
     rows = result.scalars().all()
-    return {"result": [{
-        "id": r.id, "task_id": r.task_id, "case_id": r.case_id,
-        "case_no": r.case_no, "exec_status": r.exec_status,
-        "error_msg": r.error_msg, "screenshot_url": r.screenshot_url,
-        "exec_time": r.exec_time.isoformat() if r.exec_time else None,
-    } for r in rows]}
+    return {
+        "result": [
+            {
+                "id": r.id,
+                "task_id": r.task_id,
+                "case_id": r.case_id,
+                "case_no": r.case_no,
+                "exec_status": r.exec_status,
+                "error_msg": r.error_msg,
+                "screenshot_url": r.screenshot_url,
+                "exec_time": r.exec_time.isoformat() if r.exec_time else None,
+            }
+            for r in rows
+        ]
+    }
 
 
 async def _query_self_healing_audit_handler(
-    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession,
+    user: User,
+    arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_self_healing_audit - 分页查询自愈审计记录。
 
@@ -232,21 +266,14 @@ async def _query_self_healing_audit_handler(
     """
     limit: int = arguments.get("limit", 10)
     offset: int = arguments.get("offset", 0)
-    stmt = (
-        select(SelfHealingAudit)
-        .order_by(SelfHealingAudit.id.desc())
-        .offset(offset).limit(limit)
-    )
+    stmt = select(SelfHealingAudit).order_by(SelfHealingAudit.id.desc()).offset(offset).limit(limit)
     count_stmt = select(func.count(SelfHealingAudit.id))
     if not user.is_superuser:
         accessible_case_ids = (
-            select(TestCase.id)
-            .join(Project, Project.id == TestCase.project_id)
-            .where(Project.user_id == user.id)
+            select(TestCase.id).join(Project, Project.id == TestCase.project_id).where(Project.user_id == user.id)
         )
         stmt = stmt.where(SelfHealingAudit.test_case_id.in_(accessible_case_ids))
-        count_stmt = count_stmt.where(
-            SelfHealingAudit.test_case_id.in_(accessible_case_ids))
+        count_stmt = count_stmt.where(SelfHealingAudit.test_case_id.in_(accessible_case_ids))
     result = await execute_async(db, stmt)
     audits = result.scalars().all()
     count_result = await execute_async(db, count_stmt)

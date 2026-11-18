@@ -1,5 +1,5 @@
-"""链接UI Mixin - 从Figma/蓝湖等设计工具链接提取UI原型数据。
-"""
+"""链接UI Mixin - 从Figma/蓝湖等设计工具链接提取UI原型数据。"""
+
 from typing import Any
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -8,10 +8,7 @@ from app.utils.db_time import utcnow
 
 class LinkFetcherUIMixin:
     def fetch_and_parse_ui_mockup(
-        self,
-        url: str,
-        auth_type: str = "none",
-        auth_config: dict[str, Any] | None = None
+        self, url: str, auth_type: str = "none", auth_config: dict[str, Any] | None = None
     ) -> tuple[bool, dict[str, Any], str]:
         success, content, content_type = self.fetch_content(url, auth_type, auth_config)
         if not success:
@@ -23,28 +20,28 @@ class LinkFetcherUIMixin:
             "title": "",
             "pages": [],
             "elements": [],
-            "summary": ""
+            "summary": "",
         }
         if content_type == "html":
             try:
-                soup = BeautifulSoup(content, 'html.parser')
-                title_tag = soup.find('title')
+                soup = BeautifulSoup(content, "html.parser")
+                title_tag = soup.find("title")
                 if title_tag:
                     description["title"] = title_tag.get_text(strip=True)
-                nav_links = soup.find_all('a')
+                nav_links = soup.find_all("a")
                 page_list = []
                 for link in nav_links[:20]:
-                    href = link.get('href', '')
+                    href = link.get("href", "")
                     text = link.get_text(strip=True)
                     if href and text:
                         page_list.append({"text": text, "href": href})
                 description["pages"] = page_list
-                tables = soup.find_all('table')
+                tables = soup.find_all("table")
                 table_data = []
                 for table in tables[:5]:
                     rows = []
-                    for row in table.find_all('tr')[:10]:
-                        cells = [cell.get_text(strip=True) for cell in row.find_all(['th', 'td'])]
+                    for row in table.find_all("tr")[:10]:
+                        cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
                         if cells:
                             rows.append(cells)
                     if rows:
@@ -76,10 +73,7 @@ class LinkFetcherUIMixin:
         return " | ".join(summary_parts)
 
     def validate_link_access(
-        self,
-        url: str,
-        auth_type: str = "none",
-        auth_config: dict[str, Any] | None = None
+        self, url: str, auth_type: str = "none", auth_config: dict[str, Any] | None = None
     ) -> tuple[bool, str]:
         success, content, message = self.fetch_content(url, auth_type, auth_config)
         if success:
@@ -89,24 +83,20 @@ class LinkFetcherUIMixin:
 
     def extract_auth_config_from_form(self, html_content: str, form_index: int = 0) -> dict[str, Any] | None:
         try:
-            soup = BeautifulSoup(html_content, 'html.parser')
-            forms = soup.find_all('form')
+            soup = BeautifulSoup(html_content, "html.parser")
+            forms = soup.find_all("form")
             if form_index >= len(forms):
                 return None
             form = forms[form_index]
-            action = form.get('action', '')
+            action = form.get("action", "")
             inputs = {}
-            for inp in form.find_all('input'):
-                name = inp.get('name', '')
-                inp_type = inp.get('type', 'text')
-                value = inp.get('value', '')
-                if name and inp_type != 'submit' and inp_type != 'button':
+            for inp in form.find_all("input"):
+                name = inp.get("name", "")
+                inp_type = inp.get("type", "text")
+                value = inp.get("value", "")
+                if name and inp_type != "submit" and inp_type != "button":
                     inputs[name] = value
-            return {
-                "form_action": action,
-                "form_method": form.get('method', 'get').upper(),
-                "fields": inputs
-            }
+            return {"form_action": action, "form_method": form.get("method", "get").upper(), "fields": inputs}
         except Exception as e:
             logger.warning(f"表单提取失败: {str(e)}")
             return None

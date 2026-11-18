@@ -12,6 +12,7 @@
     - 注册即生效：AgentRegistry.register(definition) 后即可被 AgentRuntime.run(agent_type) 调用
     - 子类最少实现：通常只需实现 definition() 类方法，run() 默认委托 AgentRuntime
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

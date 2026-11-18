@@ -16,6 +16,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 import json
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum, Boolean
 from sqlalchemy.orm import relationship
@@ -44,17 +45,18 @@ class DataType(StrEnum):
         ID_CARD   : 身份证号类型，符合18位身份证格式
         BANK_CARD : 银行卡号类型，符合银行卡号格式
     """
-    TEXT = "text"           # 文本
-    NUMBER = "number"       # 数字
-    DATE = "date"           # 日期
-    DATETIME = "datetime"   # 日期时间
-    EMAIL = "email"         # 邮箱
-    PHONE = "phone"         # 手机号
-    ENUM = "enum"           # 枚举
-    BOOLEAN = "boolean"     # 布尔值
-    URL = "url"             # URL
-    ID_CARD = "id_card"     # 身份证号
-    BANK_CARD = "bank_card" # 银行卡号
+
+    TEXT = "text"  # 文本
+    NUMBER = "number"  # 数字
+    DATE = "date"  # 日期
+    DATETIME = "datetime"  # 日期时间
+    EMAIL = "email"  # 邮箱
+    PHONE = "phone"  # 手机号
+    ENUM = "enum"  # 枚举
+    BOOLEAN = "boolean"  # 布尔值
+    URL = "url"  # URL
+    ID_CARD = "id_card"  # 身份证号
+    BANK_CARD = "bank_card"  # 银行卡号
 
 
 class GenerationRule(StrEnum):
@@ -72,13 +74,15 @@ class GenerationRule(StrEnum):
         EMPTY         : 空值，测试空值处理逻辑
         CUSTOM        : 自定义，用户手动指定数据值
     """
-    RANDOM = "random"           # 随机生成
-    BOUNDARY_MIN = "boundary_min"   # 边界值-最小
-    BOUNDARY_MAX = "boundary_max"   # 边界值-最大
-    BOUNDARY_OVER = "boundary_over" # 边界值-超长
-    SPECIAL_CHARS = "special_chars" # 特殊字符
-    EMPTY = "empty"             # 空值
-    CUSTOM = "custom"           # 自定义
+
+    RANDOM = "random"  # 随机生成
+    BOUNDARY_MIN = "boundary_min"  # 边界值-最小
+    BOUNDARY_MAX = "boundary_max"  # 边界值-最大
+    BOUNDARY_OVER = "boundary_over"  # 边界值-超长
+    SPECIAL_CHARS = "special_chars"  # 特殊字符
+    EMPTY = "empty"  # 空值
+    CUSTOM = "custom"  # 自定义
+
 
 class TestData(Base):
     """
@@ -95,39 +99,46 @@ class TestData(Base):
         - 按生成规则自动生成测试数据
         - 边界值和特殊字符测试数据准备
     """
+
     __test__ = False
     __tablename__ = "test_data"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 数据主键ID
-    step_id = Column(Integer, ForeignKey("test_steps.id", ondelete="CASCADE"), nullable=False, comment="关联的测试步骤ID")  # 步骤ID，级联删除
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 数据主键ID
+    step_id = Column(
+        Integer, ForeignKey("test_steps.id", ondelete="CASCADE"), nullable=False, comment="关联的测试步骤ID"
+    )  # 步骤ID，级联删除
 
     # 数据基本信息
-    field_name = Column(String(100), nullable=False, comment="字段名称")                               # 对应页面表单字段的名称
+    field_name = Column(String(100), nullable=False, comment="字段名称")  # 对应页面表单字段的名称
     field_type = Column(SQLEnum(DataType, length=20), nullable=False, default=DataType.TEXT, comment="字段类型")  # type: ignore  # 字段数据类型，默认文本
-    data_value = Column(Text, nullable=True, comment="数据值")                                         # 实际数据值
+    data_value = Column(Text, nullable=True, comment="数据值")  # 实际数据值
 
     # 生成规则
-    generation_rule = Column(SQLEnum(GenerationRule, length=20), nullable=False, default=GenerationRule.RANDOM, comment="生成规则")  # type: ignore  # 数据生成策略，默认随机
-    rule_config = Column(Text, nullable=True, comment="生成规则配置(JSON格式)")                         # 生成规则的额外配置，如正则表达式、格式模板等
+    generation_rule = Column(
+        SQLEnum(GenerationRule, length=20), nullable=False, default=GenerationRule.RANDOM, comment="生成规则"
+    )  # type: ignore  # 数据生成策略，默认随机
+    rule_config = Column(
+        Text, nullable=True, comment="生成规则配置(JSON格式)"
+    )  # 生成规则的额外配置，如正则表达式、格式模板等
 
     # 约束条件
-    min_length = Column(Integer, nullable=True, comment="最小长度")                                    # 文本类型的最小长度约束
-    max_length = Column(Integer, nullable=True, comment="最大长度")                                    # 文本类型的最大长度约束
-    min_value = Column(Integer, nullable=True, comment="最小值(数字类型)")                              # 数字类型的最小值约束
-    max_value = Column(Integer, nullable=True, comment="最大值(数字类型)")                              # 数字类型的最大值约束
-    enum_values = Column(Text, nullable=True, comment="枚举值列表(JSON数组)")                           # ENUM类型的可选值列表
+    min_length = Column(Integer, nullable=True, comment="最小长度")  # 文本类型的最小长度约束
+    max_length = Column(Integer, nullable=True, comment="最大长度")  # 文本类型的最大长度约束
+    min_value = Column(Integer, nullable=True, comment="最小值(数字类型)")  # 数字类型的最小值约束
+    max_value = Column(Integer, nullable=True, comment="最大值(数字类型)")  # 数字类型的最大值约束
+    enum_values = Column(Text, nullable=True, comment="枚举值列表(JSON数组)")  # ENUM类型的可选值列表
 
     # 元数据
-    description = Column(String(500), nullable=True, comment="数据描述")                               # 字段用途说明
-    is_required = Column(Boolean, default=True, comment="是否必填")                                    # 字段是否必填，默认True
-    sort_order = Column(Integer, default=0, comment="排序顺序")                                        # 同一步骤内字段的显示顺序
+    description = Column(String(500), nullable=True, comment="数据描述")  # 字段用途说明
+    is_required = Column(Boolean, default=True, comment="是否必填")  # 字段是否必填，默认True
+    sort_order = Column(Integer, default=0, comment="排序顺序")  # 同一步骤内字段的显示顺序
 
     # 时间信息
-    created_at = Column(DateTime, default=utcnow, comment="创建时间")                                  # 创建时间，UTC时区
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, comment="更新时间")                  # 更新时间
+    created_at = Column(DateTime, default=utcnow, comment="创建时间")  # 创建时间，UTC时区
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, comment="更新时间")  # 更新时间
 
     # 关联关系
-    step = relationship("TestStep", back_populates="test_data")                                       # 所属测试步骤
+    step = relationship("TestStep", back_populates="test_data")  # 所属测试步骤
 
     def __repr__(self) -> str:
         """返回测试数据的字符串表示，便于调试和日志输出。"""
@@ -159,5 +170,5 @@ class TestData(Base):
             "is_required": bool(self.is_required),
             "sort_order": self.sort_order,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

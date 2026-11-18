@@ -52,7 +52,7 @@ def _parse_case_response(content: str) -> list[dict[str, Any]] | None:
         except json.JSONDecodeError:
             pass
 
-    json_match = re.search(r'\[[\s\S]*\]', content)
+    json_match = re.search(r"\[[\s\S]*\]", content)
     if json_match:
         array_content = json_match.group()
         fixed_array = clean_json_string(array_content)
@@ -74,7 +74,8 @@ def _validate_test_data(case: dict[str, Any]) -> None:
     if not isinstance(td, dict):
         logger.warning(
             "test_data 类型非法 ({}), 使用空对象兜底, title={}",
-            type(td).__name__, case.get("title", "")[:30],
+            type(td).__name__,
+            case.get("title", "")[:30],
         )
         case["test_data"] = {}
         return
@@ -91,14 +92,13 @@ def _validate_test_data(case: dict[str, Any]) -> None:
         if not isinstance(td[key], dict):
             logger.warning(
                 "test_data['{}'] 非dict类型，已重置, title={}",
-                key, case.get("title", "")[:30],
+                key,
+                case.get("title", "")[:30],
             )
             td[key] = {}
 
 
-def _enrich_case_data(
-    parsed: list[dict[str, Any]], tp: dict[str, Any], has_ui: bool
-) -> list[dict[str, Any]]:
+def _enrich_case_data(parsed: list[dict[str, Any]], tp: dict[str, Any], has_ui: bool) -> list[dict[str, Any]]:
     tp_module = tp.get("module", "")
     tp_point = tp.get("point", "")
     tp_id = tp.get("id")
@@ -146,9 +146,7 @@ def _fill_depends_on(parsed: list[dict[str, Any]]) -> None:
                     case["fallback_steps"] = _build_fallback_steps(main_steps, anchor)
 
 
-def _infer_anchor_step(
-    case: dict[str, Any], main_steps: list[dict[str, Any]]
-) -> int | None:
+def _infer_anchor_step(case: dict[str, Any], main_steps: list[dict[str, Any]]) -> int | None:
     """根据分支/异常用例的前置条件和标题推断 anchor_step。
 
     匹配策略：
@@ -177,9 +175,7 @@ def _infer_anchor_step(
         best_score = 0
         for idx, step in enumerate(main_steps):
             step_text = (
-                (step.get("action", "") or step.get("description", ""))
-                + " "
-                + (step.get("expected_result", "") or "")
+                (step.get("action", "") or step.get("description", "")) + " " + (step.get("expected_result", "") or "")
             ).lower()
             score = sum(1 for kw in action_keywords if kw in step_text)
             if score > best_score:
@@ -201,11 +197,12 @@ def _extract_page_name(precond: str) -> str | None:
     匹配模式："已处于XX页"、"在XX页面"、"处于XX页"
     """
     import re
+
     patterns = [
-        r'已处于(.+?页)',
-        r'处于(.+?页)',
-        r'在(.+?页面)',
-        r'在(.+?页)',
+        r"已处于(.+?页)",
+        r"处于(.+?页)",
+        r"在(.+?页面)",
+        r"在(.+?页)",
     ]
     for pattern in patterns:
         m = re.search(pattern, precond)
@@ -217,17 +214,25 @@ def _extract_page_name(precond: str) -> str | None:
 def _extract_action_keywords(text: str) -> list[str]:
     """从文本中提取操作关键词用于匹配。"""
     keywords = []
-    for kw in ["提交订单", "确认支付", "立即购买", "使用优惠券",
-               "点击购买", "点击提交", "点击支付", "支付失败",
-               "库存不足", "登录", "注册"]:
+    for kw in [
+        "提交订单",
+        "确认支付",
+        "立即购买",
+        "使用优惠券",
+        "点击购买",
+        "点击提交",
+        "点击支付",
+        "支付失败",
+        "库存不足",
+        "登录",
+        "注册",
+    ]:
         if kw in text:
             keywords.append(kw)
     return keywords
 
 
-def _build_fallback_steps(
-    main_steps: list[dict[str, Any]], anchor_step: int
-) -> list[dict[str, Any]]:
+def _build_fallback_steps(main_steps: list[dict[str, Any]], anchor_step: int) -> list[dict[str, Any]]:
     """从主干用例步骤中提取到 anchor_step 为止的导航步骤子集。
 
     作为快照不可用时的降级方案，执行引擎可以用这些步骤
@@ -251,13 +256,15 @@ def _build_fallback_steps(
             continue
         if num > anchor_step:
             break
-        fallback.append({
-            "step": num,
-            "action": step.get("action", "") or step.get("description", ""),
-            "action_type": step.get("action_type", "click"),
-            "target_element": step.get("target_element", ""),
-            "input_value": step.get("input_value", ""),
-        })
+        fallback.append(
+            {
+                "step": num,
+                "action": step.get("action", "") or step.get("description", ""),
+                "action_type": step.get("action_type", "click"),
+                "target_element": step.get("target_element", ""),
+                "input_value": step.get("input_value", ""),
+            }
+        )
     return fallback
 
 
@@ -267,10 +274,7 @@ def _enrich_case_data_with_task(
     has_ui: bool,
 ) -> list[dict[str, Any]]:
     tp_module = task.get("candidate_module", task.get("module", ""))
-    tp_point = (
-        task.get("candidate_description", "")
-        or task.get("modification_hint", "")
-    )
+    tp_point = task.get("candidate_description", "") or task.get("modification_hint", "")
     task_id = task.get("task_id")
     task_type = task.get("task_type", "")
     case_id = task.get("case_id")

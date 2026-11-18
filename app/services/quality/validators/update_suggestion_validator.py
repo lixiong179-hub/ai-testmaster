@@ -30,36 +30,45 @@ class UpdateSuggestionValidator(BaseValidator):
 
         diff_fields = case_data.get("diff_fields")
         if not diff_fields:
-            issues.append(ValidationIssue(
-                field="diff_fields",
-                message="UPDATE_CASE 操作的 diff_fields 不能为空",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="diff_fields",
+                    message="UPDATE_CASE 操作的 diff_fields 不能为空",
+                    severity="rejected",
+                )
+            )
         elif isinstance(diff_fields, (list, dict)) and len(diff_fields) == 0:
-            issues.append(ValidationIssue(
-                field="diff_fields",
-                message="UPDATE_CASE 操作的 diff_fields 不能为空列表",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="diff_fields",
+                    message="UPDATE_CASE 操作的 diff_fields 不能为空列表",
+                    severity="rejected",
+                )
+            )
 
         history_case_id = case_data.get("history_case_id")
         existing_ids = ctx.get("existing_case_ids") or set()
         if not history_case_id:
-            issues.append(ValidationIssue(
-                field="history_case_id",
-                message="UPDATE_CASE 操作必须指定 history_case_id",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="history_case_id",
+                    message="UPDATE_CASE 操作必须指定 history_case_id",
+                    severity="rejected",
+                )
+            )
         elif existing_ids and history_case_id not in existing_ids:
-            issues.append(ValidationIssue(
-                field="history_case_id",
-                message=f"history_case_id={history_case_id} 在项目中不存在",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="history_case_id",
+                    message=f"history_case_id={history_case_id} 在项目中不存在",
+                    severity="rejected",
+                )
+            )
 
         worst = "passed"
         for issue in issues:
             from app.services.quality.validators.base import Severity
+
             if Severity[issue.severity].value > Severity[worst].value:
                 worst = issue.severity
 

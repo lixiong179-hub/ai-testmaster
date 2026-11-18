@@ -10,6 +10,7 @@ app.services.test_case_view 子包的各Mixin模块中。
     - 视图配置方法 -> view_config_mixin.py
     - Excel导入导出 -> excel_mixin.py
 """
+
 from app.services.test_case_view import (
     TestCaseViewService,
     BusinessStepView,
@@ -19,9 +20,9 @@ from app.services.test_case_view import (
 )
 
 __all__ = [
-    'TestCaseViewService',
-    'BusinessStepView',
-    'TechnicalStepView',
-    'BusinessTestCaseView',
-    'TechnicalTestCaseView',
+    "TestCaseViewService",
+    "BusinessStepView",
+    "TechnicalStepView",
+    "BusinessTestCaseView",
+    "TechnicalTestCaseView",
 ]

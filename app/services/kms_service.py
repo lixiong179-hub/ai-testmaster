@@ -24,6 +24,7 @@
 依赖：
     cryptography==46.0.6（已在 requirements.txt 中）
 """
+
 from __future__ import annotations
 
 import base64
@@ -80,10 +81,7 @@ class KMSService:
         if self._enabled:
             self._kek = self._load_kek()
             if self._kek is None:
-                logger.warning(
-                    "[KMS] KEK 加载失败，信封加密降级为禁用模式。"
-                    "生产环境必须配置 KMS_LOCAL_KEK。"
-                )
+                logger.warning("[KMS] KEK 加载失败，信封加密降级为禁用模式。生产环境必须配置 KMS_LOCAL_KEK。")
                 self._enabled = False
 
     @property
@@ -109,9 +107,7 @@ class KMSService:
             try:
                 kek = base64.b64decode(kek_b64)
                 if len(kek) != _KEY_LENGTH:
-                    logger.error(
-                        f"[KMS] KEK 长度不正确: 期望 {_KEY_LENGTH} 字节, 实际 {len(kek)} 字节"
-                    )
+                    logger.error(f"[KMS] KEK 长度不正确: 期望 {_KEY_LENGTH} 字节, 实际 {len(kek)} 字节")
                     return None
                 return kek
             except Exception as e:

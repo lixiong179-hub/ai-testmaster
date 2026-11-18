@@ -12,6 +12,7 @@ ModuleFailureFeedbackMixin / CoverageEnhancementMixin（见同目录
 _batch_orchestrator_failure_feedback.py / _batch_orchestrator_coverage.py），
 本文件作为 thin wrapper 通过多继承组合并保留主流程编排与公开 API。
 """
+
 import asyncio
 import copy
 from typing import Any
@@ -63,6 +64,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
     # ── 并发控制 ──
     def _get_ai_generation_concurrency(self) -> int:
         from app.core.config import settings
+
         value = int(getattr(settings, "AI_CASE_GENERATION_CONCURRENCY", self._DEFAULT_AI_CONCURRENCY))
         return max(1, value)
 
@@ -77,7 +79,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
         ui_screen_ids: list[int] | None = None,
         test_point_page: int = 1,
         test_point_page_size: int = 100,
-        case_type: str | None = None
+        case_type: str | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """批量生成测试用例（流式输出）。
 
@@ -102,17 +104,24 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
             ui_screen_ids=ui_screen_ids,
             test_point_ids=test_point_ids,
             test_point_page=test_point_page,
-            test_point_page_size=test_point_page_size
+            test_point_page_size=test_point_page_size,
         )
 
-        if hasattr(self._context_builder, 'enrich_context_with_trust_and_scoring'):
+        if hasattr(self._context_builder, "enrich_context_with_trust_and_scoring"):
             self._context_builder.enrich_context_with_trust_and_scoring(context, project_id)
 
         context_stats = context.get("context_stats", {})
         warnings = context.get("warnings", [])
         evidence_refs = context.get("evidence_refs", {})
 
-        yield {"progress": 5, "message": "获取上下文信息", "status": "running", "context_stats": context_stats, "warnings": warnings, "evidence_refs": evidence_refs}
+        yield {
+            "progress": 5,
+            "message": "获取上下文信息",
+            "status": "running",
+            "context_stats": context_stats,
+            "warnings": warnings,
+            "evidence_refs": evidence_refs,
+        }
 
         if warnings:
             for warning in warnings[:3]:
@@ -138,7 +147,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
             "message": f"开始生成{total}个测试用例",
             "status": "running",
             "total": total,
-            "pagination": pagination
+            "pagination": pagination,
         }
 
         created_cases = []
@@ -161,10 +170,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
                         point_context, point, project_id, module_failures=module_failures
                     )
                     generated = await self._ai_generator.generate_test_case_for_point(
-                        context=point_context,
-                        test_point=point,
-                        project_id=project_id,
-                        case_type=case_type
+                        context=point_context, test_point=point, project_id=project_id, case_type=case_type
                     )
                     return {
                         "index": index,
@@ -191,8 +197,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
         }
 
         generation_tasks = [
-            asyncio.create_task(_generate_one(i, test_point))
-            for i, test_point in enumerate(test_points)
+            asyncio.create_task(_generate_one(i, test_point)) for i, test_point in enumerate(test_points)
         ]
 
         for completed, task in enumerate(asyncio.as_completed(generation_tasks), 1):
@@ -230,7 +235,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
                             project_id=project_id,
                             generated_case=candidate_case,
                             test_point=test_point,
-                            requirement_file_id=primary_requirement_file_id
+                            requirement_file_id=primary_requirement_file_id,
                         )
                         created_cases.append(saved_case)
                         saved_cases_for_point.append(saved_case)
@@ -246,7 +251,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
                     case_payload = {
                         "id": first_saved.id,
                         "title": ContentSanitizer.sanitize_for_log(first_saved.title),
-                        "module": first_saved.module
+                        "module": first_saved.module,
                     }
                 yield {
                     "progress": progress,
@@ -256,7 +261,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
                     "total": total,
                     "case": case_payload,
                     "saved_count": len(saved_cases_for_point),
-                    "skipped_count": skipped_count
+                    "skipped_count": skipped_count,
                 }
 
             except Exception as e:
@@ -267,7 +272,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
                     "message": f"生成第{i + 1}个用例失败",
                     "status": "running",
                     "error": True,
-                    "failed_count": failed_count
+                    "failed_count": failed_count,
                 }
 
         yield {
@@ -278,10 +283,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
             "created": len(created_cases),
             "failed": failed_count,
             "pagination": pagination,
-            "cases": [
-                {"id": c.id, "title": ContentSanitizer.sanitize_for_log(c.title)}
-                for c in created_cases
-            ]
+            "cases": [{"id": c.id, "title": ContentSanitizer.sanitize_for_log(c.title)} for c in created_cases],
         }
 
 

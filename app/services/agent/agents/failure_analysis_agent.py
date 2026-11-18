@@ -5,6 +5,7 @@
     分析失败根因并分类（element_gone / dom_changed / load_delay / env_noise），
     为 LocatorHealingAgent 提供决策依据。
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

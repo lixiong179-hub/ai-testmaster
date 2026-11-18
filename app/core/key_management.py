@@ -1,4 +1,5 @@
 """密钥管理模块 - 密钥生成、缓存与安全校验"""
+
 import json
 import logging
 import os
@@ -10,10 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 _logger = logging.getLogger(__name__)
 
-_DEFAULT_PATTERNS = [
-    'your-', 'your_', 'here', 'password', 'changeme',
-    'example', 'test1234', 'secret', 'xxx'
-]
+_DEFAULT_PATTERNS = ["your-", "your_", "here", "password", "changeme", "example", "test1234", "secret", "xxx"]
 
 
 def _log_key_source(key_name: str, source: str, auto_generated: bool = False) -> None:
@@ -28,9 +26,7 @@ def _log_key_source(key_name: str, source: str, auto_generated: bool = False) ->
     注意：不记录密钥值本身，避免日志泄露。
     """
     if auto_generated:
-        _logger.warning(
-            f"[KEY_AUDIT] key={key_name} source={source} AUTO_GENERATED"
-        )
+        _logger.warning(f"[KEY_AUDIT] key={key_name} source={source} AUTO_GENERATED")
     else:
         _logger.info(f"[KEY_AUDIT] key={key_name} source={source}")
 
@@ -101,10 +97,7 @@ def ensure_secret_keys(settings_instance) -> None:
         )
 
     if settings_instance.DATABASE_URL.startswith("sqlite"):
-        raise ValueError(
-            "禁止使用 SQLite 数据库！请配置 MySQL 连接字符串。"
-            "项目要求必须使用 MySQL。"
-        )
+        raise ValueError("禁止使用 SQLite 数据库！请配置 MySQL 连接字符串。项目要求必须使用 MySQL。")
 
     if not settings_instance.AI_API_KEY and settings_instance.DEEPSEEK_API_KEY:
         settings_instance.AI_API_KEY = settings_instance.DEEPSEEK_API_KEY
@@ -125,51 +118,47 @@ def ensure_secret_keys(settings_instance) -> None:
             raise ValueError(
                 "生产环境JWT_SECRET_KEY使用了弱默认值模式（包含 your-/changeme/secret 等关键字）！"
                 "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
         if len(settings_instance.JWT_SECRET_KEY) < 32:
             raise ValueError(
                 "生产环境JWT_SECRET_KEY长度不足（至少32字符）！"
-                "请使用强随机密钥。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '请使用强随机密钥。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
         if is_default_value(settings_instance.ENCRYPTION_KEY):
             raise ValueError(
                 "生产环境ENCRYPTION_KEY使用了弱默认值模式！"
                 "请通过环境变量 ENCRYPTION_KEY 设置强随机密钥。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
         if len(settings_instance.ENCRYPTION_KEY) < 32:
             raise ValueError(
                 "生产环境ENCRYPTION_KEY长度不足（至少32字符）！"
-                "请使用强随机密钥。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '请使用强随机密钥。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
         if is_default_value(settings_instance.ENCRYPTION_SALT):
             raise ValueError(
                 "生产环境ENCRYPTION_SALT使用了弱默认值模式！"
                 "请通过环境变量 ENCRYPTION_SALT 设置强随机盐值。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
         if len(settings_instance.ENCRYPTION_SALT) < 32:
             raise ValueError(
                 "生产环境ENCRYPTION_SALT长度不足（至少32字符）！"
-                "请使用强随机盐值。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                '请使用强随机盐值。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
             )
     else:
         if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):
             warnings.warn(
                 "⚠️  DEEPSEEK_API_KEY 未配置或可能使用了默认值，AI功能可能无法正常工作。"
                 "请在 .env 中配置真实的 API 密钥。",
-                UserWarning
+                UserWarning,
             )
         # 非生产环境对 JWT/加密密钥弱默认值发出警告，便于开发者发现配置错误
         for _key_name in ("JWT_SECRET_KEY", "ENCRYPTION_KEY", "ENCRYPTION_SALT"):
             _val = getattr(settings_instance, _key_name, "")
             if _val and is_default_value(_val):
-                warnings.warn(
-                    f"⚠️  {_key_name} 检测到弱默认值模式，生产环境将拒绝启动。"
-                    "请使用强随机密钥。",
-                    UserWarning
-                )
+                warnings.warn(f"⚠️  {_key_name} 检测到弱默认值模式，生产环境将拒绝启动。请使用强随机密钥。", UserWarning)
 
     if settings_instance.JWT_SECRET_KEY:
         _log_key_source("JWT_SECRET_KEY", "env")
@@ -182,7 +171,7 @@ def ensure_secret_keys(settings_instance) -> None:
                 raise ValueError(
                     "生产环境未设置JWT_SECRET_KEY，禁止自动生成！"
                     "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
-                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
                 )
             settings_instance.JWT_SECRET_KEY = generate_secret_key()
             save_cached_key("jwt_secret_key", settings_instance.JWT_SECRET_KEY, _key_cache_file)
@@ -199,7 +188,7 @@ def ensure_secret_keys(settings_instance) -> None:
                 raise ValueError(
                     "生产环境未设置ENCRYPTION_KEY，禁止自动生成！"
                     "请通过环境变量 ENCRYPTION_KEY 设置加密密钥。"
-                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
                 )
             settings_instance.ENCRYPTION_KEY = generate_secret_key()
             save_cached_key("encryption_key", settings_instance.ENCRYPTION_KEY, _key_cache_file)
@@ -216,21 +205,22 @@ def ensure_secret_keys(settings_instance) -> None:
                 raise ValueError(
                     "生产环境未设置ENCRYPTION_SALT，禁止自动生成！"
                     "请通过环境变量 ENCRYPTION_SALT 设置加密盐值。"
-                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
                 )
             settings_instance.ENCRYPTION_SALT = generate_secret_key()
             save_cached_key("encryption_salt", settings_instance.ENCRYPTION_SALT, _key_cache_file)
             _log_key_source("ENCRYPTION_SALT", "auto-generated", auto_generated=True)
 
-    if settings_instance.ENVIRONMENT == "prod" and (not settings_instance.CORS_ORIGINS or settings_instance.CORS_ORIGINS == "*"):
+    if settings_instance.ENVIRONMENT == "prod" and (
+        not settings_instance.CORS_ORIGINS or settings_instance.CORS_ORIGINS == "*"
+    ):
         raise ValueError(
             "生产环境必须配置 CORS_ORIGINS！禁止使用 '*' 通配符。"
             "请在 .env 中设置允许的域名，例如: CORS_ORIGINS=https://yourdomain.com"
         )
 
     if settings_instance.ENVIRONMENT == "prod" and (
-        not settings_instance.CORS_ALLOW_HEADERS
-        or settings_instance.CORS_ALLOW_HEADERS.strip() == "*"
+        not settings_instance.CORS_ALLOW_HEADERS or settings_instance.CORS_ALLOW_HEADERS.strip() == "*"
     ):
         raise ValueError(
             "生产环境必须配置 CORS_ALLOW_HEADERS！禁止使用 '*' 通配符。"

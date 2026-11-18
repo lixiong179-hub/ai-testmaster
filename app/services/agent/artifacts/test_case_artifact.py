@@ -3,6 +3,7 @@
 承载 Agent 生成或查询的测试用例上下文，是 TestGenerationAgent 与
 FailureAnalysisAgent 的核心输入/输出载体。
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

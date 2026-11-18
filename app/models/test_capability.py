@@ -15,6 +15,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
@@ -39,6 +40,7 @@ class TestCapability(TenantAwareMixin, Base):
         - 多对一 → Project（所属项目，级联删除）
         - 一对多 → TestPoint（关联测试点，SET NULL）
     """
+
     __test__ = False
     __tablename__ = "test_capabilities"
 
@@ -48,7 +50,7 @@ class TestCapability(TenantAwareMixin, Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="关联项目ID，多项目隔离核心"
+        comment="关联项目ID，多项目隔离核心",
     )
 
     # 租户隔离：所属租户ID（冗余，加速按租户过滤）
@@ -60,39 +62,17 @@ class TestCapability(TenantAwareMixin, Base):
         comment="所属租户ID（冗余，加速按租户过滤）",
     )
 
-    key = Column(
-        String(100),
-        nullable=False,
-        comment="能力唯一标识，同项目内唯一，如 'user_management'"
-    )
-    title = Column(
-        String(255),
-        nullable=False,
-        comment="能力显示名称，如 '用户管理'"
-    )
-    description = Column(
-        Text,
-        nullable=True,
-        comment="能力描述，说明该能力涵盖的业务范围"
-    )
+    key = Column(String(100), nullable=False, comment="能力唯一标识，同项目内唯一，如 'user_management'")
+    title = Column(String(255), nullable=False, comment="能力显示名称，如 '用户管理'")
+    description = Column(Text, nullable=True, comment="能力描述，说明该能力涵盖的业务范围")
     status = Column(
         String(20),
         nullable=False,
         default=CapabilityStatus.ACTIVE.value,
-        comment="能力状态：active/deprecated/archived"
+        comment="能力状态：active/deprecated/archived",
     )
-    created_at = Column(
-        DateTime,
-        default=utcnow,
-        nullable=False,
-        comment="创建时间"
-    )
-    updated_at = Column(
-        DateTime,
-        default=utcnow,
-        onupdate=utcnow,
-        comment="更新时间"
-    )
+    created_at = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, comment="更新时间")
 
     __table_args__ = (
         UniqueConstraint("project_id", "key", name="uq_test_capability_project_key"),

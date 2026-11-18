@@ -49,17 +49,11 @@ def _build_ui_text(
                 all_items = list(components) + list(elements)
                 if all_items:
                     item_names = [
-                        (i.get("name") or i.get("type") or str(i))
-                        for i in all_items[:10]
-                        if isinstance(i, dict)
+                        (i.get("name") or i.get("type") or str(i)) for i in all_items[:10] if isinstance(i, dict)
                     ]
                     parts.append(f"- [{screen_name}]: {', '.join(item_names[:10])}")
             elif isinstance(ui_spec, list):
-                item_names = [
-                    (i.get("name") or i.get("type") or str(i))
-                    for i in ui_spec[:10]
-                    if isinstance(i, dict)
-                ]
+                item_names = [(i.get("name") or i.get("type") or str(i)) for i in ui_spec[:10] if isinstance(i, dict)]
                 parts.append(f"- [{screen_name}]: {', '.join(item_names[:10])}")
 
     text = "\n".join(parts)
@@ -108,7 +102,7 @@ def _parse_infer_response(content: str) -> dict[str, Any] | None:
     except (json.JSONDecodeError, TypeError):
         pass
 
-    m = re.search(r'\{[\s\S]*\}', content)
+    m = re.search(r"\{[\s\S]*\}", content)
     if m:
         try:
             parsed = json.loads(m.group())

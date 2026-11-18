@@ -2,6 +2,7 @@
 
 根据配置开关触发后验质量评分，评分失败不阻断主流程。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -31,6 +32,7 @@ def _trigger_posterior_scoring(
     enable_posterior = ctx.get_config("ENABLE_POSTERIOR_SCORING", False)
     if not enable_posterior:
         from app.models.pipeline_config import PipelineConfig
+
         config_row = ctx.db.query(PipelineConfig).first()
         if config_row and getattr(config_row, "enable_posterior_scoring", False):
             enable_posterior = True
@@ -40,6 +42,7 @@ def _trigger_posterior_scoring(
 
     try:
         from app.services.posterior_quality_service import compute_and_persist_posterior
+
         posterior_result = compute_and_persist_posterior(ctx.db, project_id)
         logger.info(
             "后验评分已触发: project_id={}, score={}",

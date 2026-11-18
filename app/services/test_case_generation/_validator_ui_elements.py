@@ -5,6 +5,7 @@
 
 被 validator.py 的 CaseValidator 通过多继承组合，不单独对外暴露。
 """
+
 import re
 from typing import Any
 
@@ -21,14 +22,36 @@ class UIElementValidationMixin:
 
     # ── UI 元素可执行性校验常量（合并自 _ui_validation_mixin） ──
     _MIN_UI_ELEMENT_HIT_RATE = 0.8
-    _UI_ELEMENT_KEYS = frozenset({
-        "id", "key", "name", "label", "text", "title", "placeholder",
-        "content", "value", "aria_label", "element_name", "selector",
-    })
-    _GENERIC_UI_WORDS = frozenset({
-        "按钮", "输入框", "文本框", "链接", "页面", "弹窗", "菜单", "选项",
-        "入口", "控件",
-    })
+    _UI_ELEMENT_KEYS = frozenset(
+        {
+            "id",
+            "key",
+            "name",
+            "label",
+            "text",
+            "title",
+            "placeholder",
+            "content",
+            "value",
+            "aria_label",
+            "element_name",
+            "selector",
+        }
+    )
+    _GENERIC_UI_WORDS = frozenset(
+        {
+            "按钮",
+            "输入框",
+            "文本框",
+            "链接",
+            "页面",
+            "弹窗",
+            "菜单",
+            "选项",
+            "入口",
+            "控件",
+        }
+    )
 
     @staticmethod
     def _normalize_ui_element_name(value: Any) -> str:
@@ -151,6 +174,4 @@ class UIElementValidationMixin:
             seen.add(normalized)
             unique_missing.append(item)
         missing_text = "、".join(unique_missing[:5])
-        return [
-            f"UI元素命中率 {hit_rate:.0%} 低于 {cls._MIN_UI_ELEMENT_HIT_RATE:.0%}，未匹配元素: {missing_text}"
-        ]
+        return [f"UI元素命中率 {hit_rate:.0%} 低于 {cls._MIN_UI_ELEMENT_HIT_RATE:.0%}，未匹配元素: {missing_text}"]

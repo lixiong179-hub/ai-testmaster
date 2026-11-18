@@ -1,5 +1,5 @@
-"""定位查询Mixin - 查询步骤的元素定位信息。
-"""
+"""定位查询Mixin - 查询步骤的元素定位信息。"""
+
 from typing import Any
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -10,7 +10,6 @@ from app.utils.db_time import utcnow
 
 
 class LocatorQueryMixin:
-
     @contextmanager
     def transaction(self) -> Generator[None, None, None]:
         try:
@@ -22,9 +21,7 @@ class LocatorQueryMixin:
             raise
 
     def get_locator(self, step_id: int) -> ElementLocator | None:
-        return self.db.query(ElementLocator).filter(
-            ElementLocator.step_id == step_id
-        ).first()
+        return self.db.query(ElementLocator).filter(ElementLocator.step_id == step_id).first()
 
     def has_locator(self, step_id: int) -> bool:
         return self.get_locator(step_id) is not None
@@ -44,11 +41,7 @@ class LocatorQueryMixin:
             logger.debug(f"步骤 {step_id}: 记录定位失败")
 
     def update_locator(
-        self,
-        step_id: int,
-        css_selector: str | None = None,
-        xpath: str | None = None,
-        element_id: str | None = None
+        self, step_id: int, css_selector: str | None = None, xpath: str | None = None, element_id: str | None = None
     ) -> bool:
         locator = self.get_locator(step_id)
         if not locator:
@@ -89,5 +82,5 @@ class LocatorQueryMixin:
             "fail_count": locator.fail_count,
             "success_rate": locator.success_rate,
             "last_used_at": locator.last_used_at,
-            "priority_order": locator.priority_order
+            "priority_order": locator.priority_order,
         }

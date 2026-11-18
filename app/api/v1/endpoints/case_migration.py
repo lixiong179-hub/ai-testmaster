@@ -1,4 +1,5 @@
 """跨设备用例迁移API端点。"""
+
 import asyncio
 import os
 import tempfile
@@ -38,6 +39,7 @@ class BatchMigrationCommitRequest(BaseModel):
     target_device: str = Field(..., description="目标设备类型")
     items: list[dict] = Field(..., min_length=1, description="预览项")
 
+
 _ai_client_instance = None
 _ai_client_lock = threading.Lock()
 
@@ -56,6 +58,7 @@ def _get_ai_client():
             return _ai_client_instance
         try:
             from app.ai.openai_client import OpenAIClient
+
             _ai_client_instance = OpenAIClient()
             return _ai_client_instance
         except Exception as exc:
@@ -81,9 +84,7 @@ def _validate_device_pair(source_device: str, target_device: str) -> None:
         )
 
 
-def _verify_target_project(
-    db: Session, target_project_id: int, current_user: User
-) -> None:
+def _verify_target_project(db: Session, target_project_id: int, current_user: User) -> None:
     stmt = select(Project).where(
         Project.id == target_project_id,
         Project.user_id == current_user.id,
@@ -131,6 +132,7 @@ async def normalize_excel(
         def _do_normalize(sync_db):
             service = TestCaseViewService(sync_db)
             return service.normalize_excel(temp_path)
+
         sync_db = PrimarySessionLocal()
         try:
             result = await asyncio.to_thread(_do_normalize, sync_db)
@@ -184,13 +186,19 @@ async def import_excel(
             imported_ids: list = []
             if functional_result.get("valid"):
                 imported_ids = service.import_functional_excel(
-                    temp_path, project_id, target_device=target_device, iteration_id=iteration_id,
+                    temp_path,
+                    project_id,
+                    target_device=target_device,
+                    iteration_id=iteration_id,
                 )
             else:
                 standard_result = service.validate_excel_format(temp_path)
                 if standard_result.get("valid"):
                     case_id = service.import_from_excel(
-                        temp_path, project_id, target_device=target_device, iteration_id=iteration_id,
+                        temp_path,
+                        project_id,
+                        target_device=target_device,
+                        iteration_id=iteration_id,
                     )
                     imported_ids = [case_id] if case_id else []
                 else:
@@ -211,10 +219,12 @@ async def import_excel(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="导入失败，未成功导入任何用例",
             )
-        return create_response(data={
-            "imported_count": len(imported_ids),
-            "imported_case_ids": imported_ids,
-        })
+        return create_response(
+            data={
+                "imported_count": len(imported_ids),
+                "imported_case_ids": imported_ids,
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:

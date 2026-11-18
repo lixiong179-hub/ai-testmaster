@@ -24,6 +24,7 @@ from loguru import logger
 
 try:
     from rapidocr_onnxruntime import RapidOCR
+
     _ocr_available = True
 except ImportError:
     _ocr_available = False
@@ -31,6 +32,7 @@ except ImportError:
 
 class OCRExtractorError(Exception):
     """OCR提取器异常基类"""
+
     pass
 
 
@@ -153,12 +155,7 @@ class OCRExtractor:
                 confidence = float(item[2])
                 x = int(box[0][0])
                 y = int(box[0][1])
-                items.append({
-                    "text": text,
-                    "x": x,
-                    "y": y,
-                    "confidence": confidence
-                })
+                items.append({"text": text, "x": x, "y": y, "confidence": confidence})
             logger.info(f"OCR带位置文本提取完成，共识别 {len(items)} 个文本区域")
             return items
         except OCRExtractorError:

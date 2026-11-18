@@ -3,6 +3,7 @@
 定义覆盖率条目、代码变更、影响范围等核心数据结构。
 所有数据结构为 dataclass，纯数据无副作用，便于序列化与测试。
 """
+
 from dataclasses import dataclass, field
 
 
@@ -13,6 +14,7 @@ class CoverageEntry:
     业务用途：建立"测试用例 ↔ 代码"映射，供影响分析查询。
     边界场景：line_start > line_end 时视为无效条目，采集器应过滤。
     """
+
     test_case_id: int
     file_path: str  # 相对项目根目录的路径，如 app/services/foo.py
     line_start: int  # 起始行号（1-based）
@@ -22,10 +24,7 @@ class CoverageEntry:
     def is_valid(self) -> bool:
         """校验条目有效性。"""
         return (
-            self.test_case_id > 0
-            and bool(self.file_path)
-            and self.line_start > 0
-            and self.line_end >= self.line_start
+            self.test_case_id > 0 and bool(self.file_path) and self.line_start > 0 and self.line_end >= self.line_start
         )
 
     def covers_line(self, line: int) -> bool:
@@ -43,6 +42,7 @@ class CodeChange:
 
     业务用途：标识哪些文件哪些行范围发生了变更，供影响映射查询。
     """
+
     file_path: str
     added_lines: set[int] = field(default_factory=set)  # 新增行号集合
     deleted_lines: set[int] = field(default_factory=set)  # 删除行号集合
@@ -62,6 +62,7 @@ class CodeChange:
 @dataclass(frozen=True)
 class ImpactRange:
     """影响范围：单个测试用例受影响的代码区域。"""
+
     test_case_id: int
     impacted_files: list[str] = field(default_factory=list)
     impacted_line_count: int = 0
@@ -75,6 +76,7 @@ class ImpactRange:
 @dataclass(frozen=True)
 class ImpactResult:
     """TIA 分析结果：受影响的测试用例集合与调度建议。"""
+
     impacted_test_ids: list[int] = field(default_factory=list)
     total_test_count: int = 0  # 全量测试用例数
     impacted_files: list[str] = field(default_factory=list)

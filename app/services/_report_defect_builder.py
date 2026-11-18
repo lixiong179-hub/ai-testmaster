@@ -3,6 +3,7 @@
 包含缺陷概览、缺陷明细、缺陷分布、隐性缺陷、安全发现、覆盖评估等
 缺陷维度数据的构建逻辑。所有方法为静态方法，通过 ReportService 继承暴露。
 """
+
 import json
 from typing import Any
 
@@ -253,11 +254,13 @@ class _ReportDefectDimensionBuilder:
                 except (TypeError, ValueError):
                     evidence_str = str(bug.test_result.defect_evidence)
 
-            findings.append({
-                "type": sec_type,
-                "description": bug.title,
-                "evidence": evidence_str,
-            })
+            findings.append(
+                {
+                    "type": sec_type,
+                    "description": bug.title,
+                    "evidence": evidence_str,
+                }
+            )
         return findings
 
     @staticmethod

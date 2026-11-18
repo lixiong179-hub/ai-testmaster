@@ -1,5 +1,5 @@
-"""可见模式配置 - 配置合并器
-"""
+"""可见模式配置 - 配置合并器"""
+
 from app.services.visibility_config.models import VisibilityConfig
 
 
@@ -10,9 +10,17 @@ class VisibilityConfigMerger:
     def merge(base: VisibilityConfig, override: VisibilityConfig) -> VisibilityConfig:
         merged = VisibilityConfig()
         config_fields = [
-            'headless', 'record_video', 'video_resolution', 'video_fps',
-            'take_screenshot', 'screenshot_on_failure', 'screenshot_on_success',
-            'execution_speed', 'action_delay_ms', 'highlight_elements', 'show_ai_analysis'
+            "headless",
+            "record_video",
+            "video_resolution",
+            "video_fps",
+            "take_screenshot",
+            "screenshot_on_failure",
+            "screenshot_on_success",
+            "execution_speed",
+            "action_delay_ms",
+            "highlight_elements",
+            "show_ai_analysis",
         ]
 
         for field_name in config_fields:

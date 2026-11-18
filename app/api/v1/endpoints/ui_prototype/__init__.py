@@ -18,6 +18,7 @@ UI原型管理子包
     - _ensure_upload_dir: 确保上传目录存在
     - _build_screen_response: 构建页面响应数据
 """
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.ui_prototype.project_endpoints import router as project_router
@@ -34,8 +35,8 @@ router.include_router(screen_manage_router)
 router.include_router(parse_router)
 
 __all__: list[str] = [
-    'router',
-    'UPLOAD_DIR',
-    '_ensure_upload_dir',
-    '_build_screen_response',
+    "router",
+    "UPLOAD_DIR",
+    "_ensure_upload_dir",
+    "_build_screen_response",
 ]

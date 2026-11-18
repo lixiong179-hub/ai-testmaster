@@ -16,9 +16,7 @@ from app.schemas.user import PermissionCreate, PermissionUpdate
 class PermissionServiceAsyncMixin:
     """``*_async`` 方法 = sync 静态方法 + ``asyncio.to_thread``（``self.db`` 为 Session）。"""
 
-    async def create_permission_async(
-        self, permission_in: PermissionCreate | dict
-    ) -> Permission:
+    async def create_permission_async(self, permission_in: PermissionCreate | dict) -> Permission:
         """创建新权限（异步桥接），含编码唯一性校验。"""
         return await asyncio.to_thread(self.create_permission, self.db, permission_in)
 
@@ -26,9 +24,7 @@ class PermissionServiceAsyncMixin:
         """根据权限ID查询权限（异步桥接）。"""
         return await asyncio.to_thread(self.get_permission_by_id, self.db, perm_id)
 
-    async def update_permission_async(
-        self, perm_id: int, perm_in: PermissionUpdate | dict
-    ) -> Permission:
+    async def update_permission_async(self, perm_id: int, perm_in: PermissionUpdate | dict) -> Permission:
         """更新权限信息（异步桥接），仅修改传入字段。"""
         return await asyncio.to_thread(self.update_permission, self.db, perm_id, perm_in)
 
@@ -36,8 +32,6 @@ class PermissionServiceAsyncMixin:
         """删除权限（异步桥接）。"""
         return await asyncio.to_thread(self.delete_permission, self.db, perm_id)
 
-    async def get_permissions_async(
-        self, skip: int = 0, limit: int = 100
-    ) -> list[Permission]:
+    async def get_permissions_async(self, skip: int = 0, limit: int = 100) -> list[Permission]:
         """分页查询权限列表（异步桥接）。"""
         return await asyncio.to_thread(self.get_permissions, self.db, skip, limit)

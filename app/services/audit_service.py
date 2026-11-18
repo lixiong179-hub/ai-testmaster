@@ -11,6 +11,7 @@
 依赖关系：
     - app.models.audit_log : AuditLog
 """
+
 from loguru import logger
 from datetime import datetime
 
@@ -73,10 +74,7 @@ def log_action(
         ValueError: action 不在合法枚举中。
     """
     if action not in VALID_ACTIONS:
-        raise ValueError(
-            f"Invalid audit action: '{action}'. "
-            f"Valid actions: {sorted(VALID_ACTIONS)}"
-        )
+        raise ValueError(f"Invalid audit action: '{action}'. Valid actions: {sorted(VALID_ACTIONS)}")
 
     # G-1：写入时即接入 hash chain（prev_hash 取上一条记录的 hash，首条为创世 hash）。
     # 延迟导入避免与 audit_chain_service 形成模块级循环依赖。
@@ -198,17 +196,14 @@ def count_logs(
     """
     filters = _build_filters(target_kind, target_id, actor_id, action, since, until)
 
-    return (
-        db.query(AuditLog)
-        .filter(and_(*filters) if filters else True)
-        .count()
-    )
+    return db.query(AuditLog).filter(and_(*filters) if filters else True).count()
 
 
 def _record_audit_failure_metric(action: str, error_snippet: str) -> None:
     """记录 F15 审计日志写入失败指标（失败不阻塞业务）。"""
     try:
         from app.services.metrics_service import record_metric
+
         record_metric(
             "audit_log_write_failure",
             detail={"action": action, "error": error_snippet},

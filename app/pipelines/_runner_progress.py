@@ -3,6 +3,7 @@
 从 runner.py 拆分而来，负责通过 WebSocket 向前端推送 Pipeline 执行进度。
 推送采用 fire-and-forget 策略，失败不影响业务流程。
 """
+
 import asyncio
 import logging
 
@@ -30,6 +31,7 @@ def _push_pipeline_progress(
     """
     try:
         from app.services.push_service import get_push_service
+
         push_service = get_push_service()
         data = {
             "type": "pipeline_progress",

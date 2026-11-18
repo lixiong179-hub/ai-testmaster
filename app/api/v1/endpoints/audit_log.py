@@ -1,4 +1,4 @@
-﻿"""
+"""
 审计日志端点模块
 
 本模块定义审计日志查询的API端点，仅管理员可访问。
@@ -11,6 +11,7 @@
 
 权限要求: Bearer令牌认证 + Pipeline admin 角色
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -30,17 +31,16 @@ router = APIRouter(prefix="/audit-log", tags=["审计日志"])
 def _get_current_user():
     """延迟导入避免循环依赖。"""
     from app.api.v1.endpoints.auth import get_current_user
+
     return get_current_user
 
 
 def _require_admin(db: Session, user_id: int) -> None:
     """验证当前用户是否为 Pipeline 管理员（在 run_sync 上下文内调用）。"""
     from app.services.pipeline_permission_service import check_pipeline_permission
+
     if not check_pipeline_permission(db, user_id, "config", "read", "all"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="仅管理员可访问审计日志"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可访问审计日志")
 
 
 @router.get("/logs", response_model=ApiResponse)
@@ -110,7 +110,7 @@ async def get_audit_logs(
                 "page": page,
                 "page_size": page_size,
             },
-            msg="获取成功"
+            msg="获取成功",
         )
     except HTTPException:
         raise

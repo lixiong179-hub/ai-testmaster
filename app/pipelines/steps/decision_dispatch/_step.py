@@ -22,7 +22,6 @@ _PENDING_REVIEW = "pending_review"
 
 
 class DecisionDispatch(PipelineStep):
-
     name: ClassVar[str] = "decision_dispatch"
     version: ClassVar[str] = "1.0"
     requires: ClassVar[list[str]] = [
@@ -46,9 +45,9 @@ class DecisionDispatch(PipelineStep):
         if merged is None:
             return hashlib.sha256(f"{self.name}:{self.version}:empty".encode()).hexdigest()
         verdicts = merged.get("verdicts", [])
-        verdict_hash = hashlib.sha256(
-            json.dumps(verdicts, sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()[:16]
+        verdict_hash = hashlib.sha256(json.dumps(verdicts, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[
+            :16
+        ]
         raw = f"{self.name}:{self.version}:verdicts={verdict_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
@@ -134,6 +133,7 @@ class DecisionDispatch(PipelineStep):
         if skip_tasks:
             try:
                 from app.services.review_service import create_review, add_decision, start_review
+
                 review = create_review(db=ctx.db, iteration_id=ctx.iteration_id, kind="merged")
                 review_id = review.id
                 start_review(db=ctx.db, review_id=review_id)
@@ -178,10 +178,9 @@ class DecisionDispatch(PipelineStep):
                 "budget_exhausted": budget_exhausted,
             },
             pause_for_confirmation=budget_exhausted,
-            confirmation_reason=(
-                f"Token 预算耗尽，已生成 {len(generation_tasks)} 条任务，"
-                "剩余裁决未处理，等待用户确认"
-            ) if budget_exhausted else None,
+            confirmation_reason=(f"Token 预算耗尽，已生成 {len(generation_tasks)} 条任务，剩余裁决未处理，等待用户确认")
+            if budget_exhausted
+            else None,
             confirmation_payload=payload if budget_exhausted else None,
         )
 
@@ -197,8 +196,13 @@ class DecisionDispatch(PipelineStep):
         if not isinstance(stats, dict):
             return False
         required_stats = [
-            "keep_count", "modify_count", "create_count",
-            "locator_fix_count", "deprecate_count", "skip_count", "conflict_count",
+            "keep_count",
+            "modify_count",
+            "create_count",
+            "locator_fix_count",
+            "deprecate_count",
+            "skip_count",
+            "conflict_count",
         ]
         return all(k in stats for k in required_stats)
 

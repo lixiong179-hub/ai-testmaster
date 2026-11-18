@@ -50,28 +50,31 @@ class MaterialConflictValidator(BaseValidator):
                 referenced_ui_screens.append(screen)
 
         if referenced_req_keywords and not referenced_ui_screens:
-            issues.append(ValidationIssue(
-                field="material_conflict",
-                message=(
-                    f"用例引用了需求关键词 {referenced_req_keywords[:3]} "
-                    f"但未匹配到任何UI界面名称，可能存在资料冲突"
-                ),
-                severity="pending_review",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="material_conflict",
+                    message=(
+                        f"用例引用了需求关键词 {referenced_req_keywords[:3]} 但未匹配到任何UI界面名称，可能存在资料冲突"
+                    ),
+                    severity="pending_review",
+                )
+            )
 
         if referenced_ui_screens and not referenced_req_keywords:
-            issues.append(ValidationIssue(
-                field="material_conflict",
-                message=(
-                    f"用例引用了UI界面 {referenced_ui_screens[:3]} "
-                    f"但未匹配到任何需求关键词，可能存在资料冲突"
-                ),
-                severity="warning",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="material_conflict",
+                    message=(
+                        f"用例引用了UI界面 {referenced_ui_screens[:3]} 但未匹配到任何需求关键词，可能存在资料冲突"
+                    ),
+                    severity="warning",
+                )
+            )
 
         worst = "passed"
         for issue in issues:
             from app.services.quality.validators.base import Severity
+
             if Severity[issue.severity].value > Severity[worst].value:
                 worst = issue.severity
 

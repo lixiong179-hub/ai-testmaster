@@ -1,5 +1,5 @@
-"""验证码验证动作执行Mixin - 处理验证码识别与自动填写。
-"""
+"""验证码验证动作执行Mixin - 处理验证码识别与自动填写。"""
+
 import json
 import asyncio
 import re
@@ -7,7 +7,8 @@ from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
-    StepExecutionError, VerificationError,
+    StepExecutionError,
+    VerificationError,
 )
 from app.utils.ai_client_parser import parse_ai_json_object
 
@@ -16,22 +17,21 @@ CAPTCHA_MAX_RETRIES = 2
 
 
 class ActionExecutorVerifyCaptchaMixin:
-
     @staticmethod
     def _eval_math_expression(expr: str) -> str | None:
-        cleaned = re.sub(r'[=?\s]', '', expr)
-        match = re.match(r'^([\d.]+)([+\-*/])([\d.]+)$', cleaned)
+        cleaned = re.sub(r"[=?\s]", "", expr)
+        match = re.match(r"^([\d.]+)([+\-*/])([\d.]+)$", cleaned)
         if not match:
             return None
         try:
             a, op, b = float(match.group(1)), match.group(2), float(match.group(3))
-            if op == '+':
+            if op == "+":
                 result = a + b
-            elif op == '-':
+            elif op == "-":
                 result = a - b
-            elif op == '*':
+            elif op == "*":
                 result = a * b
-            elif op == '/':
+            elif op == "/":
                 if b == 0:
                     return None
                 result = a / b
@@ -43,7 +43,7 @@ class ActionExecutorVerifyCaptchaMixin:
 
     @staticmethod
     def _extract_captcha_text(response: str) -> str | None:
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        json_match = re.search(r"\{.*\}", response, re.DOTALL)
         if not json_match:
             return None
         try:
@@ -60,15 +60,13 @@ class ActionExecutorVerifyCaptchaMixin:
             math_result = ActionExecutorVerifyCaptchaMixin._eval_math_expression(captcha_original)
             if math_result:
                 return math_result
-            digits = re.findall(r'\d+', captcha_original)
+            digits = re.findall(r"\d+", captcha_original)
             if digits and len(digits[0]) >= 2:
                 return digits[0]
 
         return None
 
-    async def _call_vision_model_with_timeout(
-        self, screenshot: bytes, prompt: str
-    ) -> str:
+    async def _call_vision_model_with_timeout(self, screenshot: bytes, prompt: str) -> str:
         loop = asyncio.get_running_loop()
         return await asyncio.wait_for(
             loop.run_in_executor(
@@ -135,9 +133,7 @@ class ActionExecutorVerifyCaptchaMixin:
                     if attempt < CAPTCHA_MAX_RETRIES:
                         await asyncio.sleep(1)
             except TimeoutError:
-                last_error = StepExecutionError(
-                    f"验证码识别超时({CAPTCHA_RECOGNIZE_TIMEOUT}秒)，第{attempt}次尝试"
-                )
+                last_error = StepExecutionError(f"验证码识别超时({CAPTCHA_RECOGNIZE_TIMEOUT}秒)，第{attempt}次尝试")
                 logger.warning(f"验证码识别超时(第{attempt}次)")
                 if attempt < CAPTCHA_MAX_RETRIES:
                     await asyncio.sleep(1)
@@ -178,7 +174,8 @@ class ActionExecutorVerifyCaptchaMixin:
         y = captcha_input.get("y", 0) + captcha_input.get("height", 0) // 2
         await self.browser.click(x, y)
         await asyncio.sleep(0.3)
-        await self.browser.execute_javascript("""
+        await self.browser.execute_javascript(
+            """
             (function() {
                 var el = document.activeElement;
                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
@@ -205,7 +202,9 @@ class ActionExecutorVerifyCaptchaMixin:
                 }
                 return false;
             })()
-        """, captcha_text)
+        """,
+            captcha_text,
+        )
         logger.info(f"验证码输入完成(坐标方式): {captcha_text}")
 
     async def _execute_verify(self, action_info: dict[str, Any], step_id: int | None) -> None:
@@ -239,7 +238,7 @@ class ActionExecutorVerifyCaptchaMixin:
             except Exception as e:
                 raise VerificationError(f"AI验证请求失败: {str(e)}")
 
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 raw_json = json_match.group()
                 result = parse_ai_json_object(raw_json)

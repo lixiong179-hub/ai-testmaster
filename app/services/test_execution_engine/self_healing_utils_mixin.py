@@ -7,6 +7,7 @@
     - _update_locator_after_healing: 自愈后回写定位器（乐观锁）
     - get_self_healing_summary: 自愈统计摘要
 """
+
 from typing import Any
 from loguru import logger
 from sqlalchemy import text as sql_text
@@ -15,28 +16,24 @@ from app.models.element_locator import ElementLocator
 
 
 class SelfHealingUtilsMixin:
-
     async def _get_nl_description(self, step_id: int) -> str:
         """获取步骤的自然语言描述。"""
         from app.models.test_case import TestStep
+
         try:
-            test_step = self.db.query(TestStep).filter(
-                TestStep.id == step_id
-            ).first()
+            test_step = self.db.query(TestStep).filter(TestStep.id == step_id).first()
 
             if test_step:
                 parts = []
                 if test_step.action:
                     parts.append(test_step.action)
-                if hasattr(test_step, 'input_value') and test_step.input_value:
+                if hasattr(test_step, "input_value") and test_step.input_value:
                     parts.append(test_step.input_value)
                 desc = " ".join(parts).strip()
                 if desc:
                     return desc
 
-            locator = self.db.query(ElementLocator).filter(
-                ElementLocator.step_id == step_id
-            ).first()
+            locator = self.db.query(ElementLocator).filter(ElementLocator.step_id == step_id).first()
 
             if locator and locator.element_description:
                 return locator.element_description
@@ -51,6 +48,7 @@ class SelfHealingUtilsMixin:
     def _sanitize_css_identifier(value: str) -> str:
         """清理CSS标识符中的特殊字符，防止选择器注入。"""
         import re as _re
+
         sanitized = _re.sub(r"[^a-zA-Z0-9_\-]", "", value)
         sanitized = _re.sub(r"-{2,}", "-", sanitized)
         sanitized = sanitized.strip("-_")
@@ -101,10 +99,7 @@ class SelfHealingUtilsMixin:
         return None
 
     async def _update_locator_after_healing(
-        self,
-        locator_record_id: int,
-        new_selector: str,
-        old_selector: str | None = None
+        self, locator_record_id: int, new_selector: str, old_selector: str | None = None
     ) -> bool:
         """自愈成功后回写新定位器到数据库（含乐观锁 + 审计历史）。"""
         if not new_selector:
@@ -112,9 +107,7 @@ class SelfHealingUtilsMixin:
             return False
 
         try:
-            locator = self.db.query(ElementLocator).filter(
-                ElementLocator.id == locator_record_id
-            ).first()
+            locator = self.db.query(ElementLocator).filter(ElementLocator.id == locator_record_id).first()
 
             if not locator:
                 logger.warning(f"定位器记录不存在: {locator_record_id}")
@@ -123,16 +116,15 @@ class SelfHealingUtilsMixin:
             current_version = locator.version
             old_css = locator.css_selector
 
-            result = self.db.execute(sql_text(
-                "UPDATE element_locators SET css_selector = :new_selector, "
-                "source = 'ai_self_healing', "
-                "updated_at = UTC_TIMESTAMP(), version = version + 1 "
-                "WHERE id = :id AND version = :version"
-            ), {
-                "new_selector": new_selector,
-                "id": locator_record_id,
-                "version": current_version
-            })
+            result = self.db.execute(
+                sql_text(
+                    "UPDATE element_locators SET css_selector = :new_selector, "
+                    "source = 'ai_self_healing', "
+                    "updated_at = UTC_TIMESTAMP(), version = version + 1 "
+                    "WHERE id = :id AND version = :version"
+                ),
+                {"new_selector": new_selector, "id": locator_record_id, "version": current_version},
+            )
             self.db.commit()
 
             if result.rowcount > 0:
@@ -175,6 +167,7 @@ class SelfHealingUtilsMixin:
             layer_hits[layer] = layer_hits.get(layer, 0) + 1
             try:
                 from app.services.self_healing.metrics import record_layer_hit
+
                 record_layer_hit(layer)
             except Exception:
                 logger.debug("上报自愈层级命中指标失败", exc_info=True)
@@ -188,6 +181,7 @@ class SelfHealingUtilsMixin:
             - `avg_healing_duration_seconds`：单次自愈平均耗时（秒）
         """
         from app.core.config import settings
+
         success_rate = 0.0
         if self._self_healing_attempts > 0:
             success_rate = self._self_healing_successes / self._self_healing_attempts
@@ -200,10 +194,7 @@ class SelfHealingUtilsMixin:
         }
 
         total_duration = float(getattr(self, "_self_healing_total_duration", 0.0) or 0.0)
-        avg_duration = (
-            total_duration / self._self_healing_attempts
-            if self._self_healing_attempts > 0 else 0.0
-        )
+        avg_duration = total_duration / self._self_healing_attempts if self._self_healing_attempts > 0 else 0.0
 
         return {
             "self_healing_attempts": self._self_healing_attempts,
@@ -214,5 +205,5 @@ class SelfHealingUtilsMixin:
             "healing_layer_hit_distribution": layer_distribution,
             "avg_healing_duration_seconds": round(avg_duration, 4),
             "self_healing_enabled": settings.AI_SELF_HEALING_ENABLED,
-            "stagehand_available": bool(settings.BROWSERBASE_API_KEY and settings.BROWSERBASE_PROJECT_ID)
+            "stagehand_available": bool(settings.BROWSERBASE_API_KEY and settings.BROWSERBASE_PROJECT_ID),
         }

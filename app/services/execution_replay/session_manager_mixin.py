@@ -1,5 +1,5 @@
-"""会话管理Mixin - 管理回放会话的创建、销毁和超时清理。
-"""
+"""会话管理Mixin - 管理回放会话的创建、销毁和超时清理。"""
+
 import asyncio
 import uuid
 from loguru import logger
@@ -9,7 +9,6 @@ from app.utils.db_time import utcnow
 
 
 class SessionManagerMixin:
-
     async def create_replay_session(self, execution_id: int) -> str:
         timeline = await self._load_execution_timeline(execution_id)
         if not timeline:

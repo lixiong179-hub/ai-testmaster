@@ -9,6 +9,7 @@
     - _build_linear_prompt_data: 构建线性模式所需的Prompt数据
     - _format_case_response: 格式化生成的测试用例为响应数据
 """
+
 import json
 from datetime import datetime
 from typing import Any
@@ -21,9 +22,7 @@ from app.utils.test_case_helpers import convert_steps_to_response
 from app.utils.db_time import utcnow
 
 
-def _prepare_test_point(
-    context: dict[str, Any], description: str, priority: int
-) -> dict[str, Any]:
+def _prepare_test_point(context: dict[str, Any], description: str, priority: int) -> dict[str, Any]:
     """从上下文中提取或构造测试点信息。"""
     raw_test_points = context.get("test_points", [])
     test_points = raw_test_points if isinstance(raw_test_points, list) else []
@@ -35,7 +34,8 @@ def _prepare_test_point(
     if test_point.get("id") and test_points:
         matched_point = next(
             (
-                point for point in test_points
+                point
+                for point in test_points
                 if isinstance(point, dict) and str(point.get("id")) == str(test_point.get("id"))
             ),
             None,
@@ -64,6 +64,7 @@ def _build_ui_specs_text(ui_specs: list[dict[str, Any]]) -> str:
     if not ui_specs:
         return ""
     from app.services.prompt_builder import format_ui_spec_for_prompt
+
     spec_parts = []
     for spec_item in ui_specs:
         screen_name = spec_item.get("screen_name", "未命名页面")
@@ -75,12 +76,15 @@ def _build_ui_specs_text(ui_specs: list[dict[str, Any]]) -> str:
 
 def _build_graph_prompt_data(
     flow_sort_data: FlowSortDataSchema,
-    context: dict[str, Any], description: str, priority: int,
+    context: dict[str, Any],
+    description: str,
+    priority: int,
     case_type: str | None = None,
 ) -> dict[str, Any]:
     """构建流程图模式所需的Prompt数据。"""
     from app.services.prompt_builder import PromptBuilder
     from app.services.flow_validation import validate_flow_structure
+
     nodes_list = [n.model_dump() for n in flow_sort_data.nodes]
     edges_list = [e.model_dump() for e in flow_sort_data.edges]
 
@@ -100,10 +104,14 @@ def _build_graph_prompt_data(
     history_cases = context.get("history_cases")
     requirement_content = context.get("requirement_content") or context.get("requirement") or ""
     graph_prompt = PromptBuilder.build_graph_prompt(
-        nodes=nodes_list, edges=edges_list, module_info=module_info,
+        nodes=nodes_list,
+        edges=edges_list,
+        module_info=module_info,
         requirement_content=requirement_content,
-        test_point_json=test_point_json, ui_specs_text=ui_specs_text,
-        history_cases=history_cases, case_type=case_type,
+        test_point_json=test_point_json,
+        ui_specs_text=ui_specs_text,
+        history_cases=history_cases,
+        case_type=case_type,
     )
     extra_requirements = (context.get("extra_requirements") or "").strip()
     if extra_requirements:
@@ -114,7 +122,8 @@ def _build_graph_prompt_data(
         "requirement_content": requirement_content,
         "ui_description": "",
         "ui_spec": ui_specs[0].get("ui_spec", {}) if ui_specs else {},
-        "ui_specs": ui_specs, "test_point": test_point,
+        "ui_specs": ui_specs,
+        "test_point": test_point,
         "test_points": [test_point] if test_point else [],
         "case_type": case_type or context.get("case_type"),
         "exec_mode": context.get("exec_mode", "all"),
@@ -126,8 +135,11 @@ def _build_graph_prompt_data(
 
 
 def _build_linear_prompt_data(
-    context: dict[str, Any], description: str, priority: int,
-    case_type: str | None, exec_mode: str,
+    context: dict[str, Any],
+    description: str,
+    priority: int,
+    case_type: str | None,
+    exec_mode: str,
 ) -> dict[str, Any]:
     """构建线性模式所需的Prompt数据。"""
     test_point = _prepare_test_point(context, description, priority)
@@ -140,9 +152,11 @@ def _build_linear_prompt_data(
         "requirement_content": requirement_content,
         "ui_description": raw_ui_desc,
         "ui_spec": ui_specs[0].get("ui_spec", {}) if ui_specs else {},
-        "ui_specs": ui_specs, "test_point": test_point,
+        "ui_specs": ui_specs,
+        "test_point": test_point,
         "test_points": [test_point] if test_point else [],
-        "case_type": case_type, "exec_mode": exec_mode,
+        "case_type": case_type,
+        "exec_mode": exec_mode,
         "project_config": context.get("project_config"),
         "extra_requirements": extra_requirements,
         "history_cases": context.get("history_cases"),
@@ -150,19 +164,21 @@ def _build_linear_prompt_data(
 
 
 def _format_case_response(
-    generated_case: dict[str, Any], project_id: int,
-    description: str, priority: int, case_type: str | None,
+    generated_case: dict[str, Any],
+    project_id: int,
+    description: str,
+    priority: int,
+    case_type: str | None,
 ) -> dict[str, Any]:
     """格式化生成的测试用例为响应数据。"""
     if not isinstance(generated_case, dict):
-        raise TypeError(
-            f"_format_case_response 期望 generated_case 为 dict，实际类型: {type(generated_case).__name__}"
-        )
+        raise TypeError(f"_format_case_response 期望 generated_case 为 dict，实际类型: {type(generated_case).__name__}")
     ai_priority = generated_case.get("priority")
     priority = normalize_priority(ai_priority) if ai_priority is not None else priority
     steps_data = convert_steps_to_response(generated_case.get("steps", []))
     return {
-        "id": 0, "project_id": project_id,
+        "id": 0,
+        "project_id": project_id,
         "case_no": f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         "module": generated_case.get("module", "AI生成"),
         "title": generated_case.get("title", description[:50]),

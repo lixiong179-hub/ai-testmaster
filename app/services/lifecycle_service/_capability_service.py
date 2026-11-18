@@ -4,6 +4,7 @@ Capability 生命周期服务
 提供 TestCapability 状态流转与审计日志记录。
 状态变更必须通过本模块，禁止直接 SQL UPDATE status 字段。
 """
+
 import logging
 
 from sqlalchemy.orm import Session
@@ -54,9 +55,7 @@ def transition_capability(
         ValueError: capability 不存在。
         IllegalCapabilityTransition: 状态流转不合法。
     """
-    capability = db.query(TestCapability).filter(
-        TestCapability.id == capability_id
-    ).first()
+    capability = db.query(TestCapability).filter(TestCapability.id == capability_id).first()
     if capability is None:
         raise ValueError(f"TestCapability id={capability_id} not found")
 
@@ -108,6 +107,7 @@ def _write_capability_audit_log(
 
     try:
         from app.services.audit_service import log_action
+
         log_action(
             db=db,
             action=action,
@@ -118,7 +118,10 @@ def _write_capability_audit_log(
         )
     except Exception as e:
         logger.error(
-            "Failed to write audit log for %s: "
-            "capability_id=%d, %s -> %s, error=%s",
-            action, capability_id, oldStatus, newStatus, e,
+            "Failed to write audit log for %s: capability_id=%d, %s -> %s, error=%s",
+            action,
+            capability_id,
+            oldStatus,
+            newStatus,
+            e,
         )

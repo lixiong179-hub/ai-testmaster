@@ -8,6 +8,7 @@
 
 依赖：app.services.impact_analysis.{coverage_collector, change_analyzer, impact_mapper}
 """
+
 import logging
 from dataclasses import dataclass, field
 
@@ -26,6 +27,7 @@ class ImpactSchedulePlan:
     业务用途：Pipeline 执行器读取此计划决定执行范围。
     边界场景：fallback=True 时执行全量用例，TIA 分析失败兜底。
     """
+
     test_case_ids: list[int] = field(default_factory=list)
     is_full_run: bool = False  # 是否全量执行
     fallback_reason: str = ""  # 降级原因（is_full_run=True 时填写）
@@ -117,9 +119,7 @@ class ImpactScheduler:
 
         # 4. 降级策略：缩减比例过低
         if result.reduction_ratio < 0.2 and total_test_count > 0:
-            logger.info(
-                f"TIA 缩减比例过低 ({result.reduction_ratio:.2%})，回退全量执行"
-            )
+            logger.info(f"TIA 缩减比例过低 ({result.reduction_ratio:.2%})，回退全量执行")
             return ImpactSchedulePlan(
                 is_full_run=True,
                 fallback_reason=f"缩减比例过低 ({result.reduction_ratio:.2%})",

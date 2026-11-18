@@ -14,6 +14,7 @@
     - 纯函数 + 显式依赖：所有函数通过参数接收 db/storage，无全局状态
     - 异常容忍：DOM 加载失败不阻断主流程，仅记录日志
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -62,9 +63,7 @@ async def load_baseline_dom(
         return compare_doms(baseline_dom, current_dom)
     except Exception as exc:
         # DOM 加载/解析失败不阻断视觉校验主流程，仅记录警告
-        logger.warning(
-            f"[VisualAI SDK] 基线 DOM 加载或对比失败，跳过 DOM 报告: {exc}"
-        )
+        logger.warning(f"[VisualAI SDK] 基线 DOM 加载或对比失败，跳过 DOM 报告: {exc}")
         return None
 
 
@@ -134,10 +133,7 @@ async def persist_diff_image(
         diff_pixel_count: 差异像素数（用于 key 区分）
     """
     url_hash = hashlib.md5(page_url.encode("utf-8")).hexdigest()[:12]
-    diff_key = (
-        f"visual-ai/diffs/{project_id}/{url_hash}/"
-        f"{baseline_id}_{diff_pixel_count}.png"
-    )
+    diff_key = f"visual-ai/diffs/{project_id}/{url_hash}/{baseline_id}_{diff_pixel_count}.png"
     try:
         await storage.save(diff_key, diff_image, content_type="image/png")
         diff_record.diff_image_key = diff_key

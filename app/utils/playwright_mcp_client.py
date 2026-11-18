@@ -8,7 +8,6 @@ from loguru import logger
 
 
 class PlaywrightMCPClient:
-
     def __init__(self, server_command: str | None = None, port: int | None = None):
         self._server_command = server_command or "npx"
         self._server_args = ["@playwright/mcp@latest"]
@@ -31,11 +30,14 @@ class PlaywrightMCPClient:
                 logger.error(f"MCP Server启动失败，退出码: {self._process.returncode}")
                 return False
             self._connected = True
-            init_result = await self._send_request("initialize", {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "ai-testmaster", "version": "1.0.0"}
-            })
+            init_result = await self._send_request(
+                "initialize",
+                {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "ai-testmaster", "version": "1.0.0"},
+                },
+            )
             if init_result:
                 await self._send_notification("notifications/initialized", {})
                 logger.info("Playwright MCP Server启动成功")
@@ -68,12 +70,7 @@ class PlaywrightMCPClient:
             logger.error("MCP Server未运行")
             return None
         self._request_id += 1
-        request = {
-            "jsonrpc": "2.0",
-            "id": self._request_id,
-            "method": method,
-            "params": params
-        }
+        request = {"jsonrpc": "2.0", "id": self._request_id, "method": method, "params": params}
         try:
             message = json.dumps(request) + "\n"
             self._process.stdin.write(message.encode())
@@ -81,9 +78,7 @@ class PlaywrightMCPClient:
             target_id = self._request_id
             for _ in range(20):
                 try:
-                    response_line = await asyncio.wait_for(
-                        self._process.stdout.readline(), timeout=30
-                    )
+                    response_line = await asyncio.wait_for(self._process.stdout.readline(), timeout=30)
                 except TimeoutError:
                     logger.error(f"MCP请求超时: {method}")
                     return None
@@ -117,11 +112,7 @@ class PlaywrightMCPClient:
     async def _send_notification(self, method: str, params: dict[str, Any]):
         if not self._process or self._process.returncode is not None:
             return
-        notification = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params
-        }
+        notification = {"jsonrpc": "2.0", "method": method, "params": params}
         try:
             message = json.dumps(notification) + "\n"
             self._process.stdin.write(message.encode())
@@ -130,10 +121,7 @@ class PlaywrightMCPClient:
             logger.error(f"MCP通知发送异常: {e}")
 
     async def _call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any | None:
-        result = await self._send_request("tools/call", {
-            "name": tool_name,
-            "arguments": arguments
-        })
+        result = await self._send_request("tools/call", {"name": tool_name, "arguments": arguments})
         if result and "content" in result:
             contents = result["content"]
             if isinstance(contents, list) and len(contents) > 0:
@@ -236,8 +224,8 @@ async def get_mcp_client() -> PlaywrightMCPClient:
 
 
 __all__ = [
-    'PlaywrightMCPClient',
-    'get_mcp_client',
+    "PlaywrightMCPClient",
+    "get_mcp_client",
 ]
 
 
@@ -247,5 +235,6 @@ def _cleanup_mcp_client():
             _mcp_client._process.terminate()
         except Exception:
             logger.debug("atexit清理MCP进程失败", exc_info=True)
+
 
 atexit.register(_cleanup_mcp_client)

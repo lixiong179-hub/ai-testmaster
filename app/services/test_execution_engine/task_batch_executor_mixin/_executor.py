@@ -7,13 +7,15 @@ from app.models.enums import ExecStatus
 from app.utils.db_time import utcnow
 
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ExecutionError, handle_execution_errors,
-    TestExecutionResult, FailureCategory,
+    ExecutionStatus,
+    ExecutionError,
+    handle_execution_errors,
+    TestExecutionResult,
+    FailureCategory,
 )
 
 
 class _ExecutorMixin:
-
     @handle_execution_errors
     async def execute_test_task(
         self,
@@ -24,7 +26,7 @@ class _ExecutorMixin:
         skip_init: bool = False,
         execution_mode: str = "smart",
         mobile_device_id: str | None = None,
-        use_mcp: bool | None = None
+        use_mcp: bool | None = None,
     ) -> dict[str, Any]:
         from app.models.test_task import TestTask, TaskStatus
         from app.models.test_result import TestResult
@@ -42,6 +44,7 @@ class _ExecutorMixin:
 
         from app.services.visibility_config import VisibilityConfigService
         from app.services.visibility_config.merger import VisibilityConfigMerger
+
         try:
             vis_service = VisibilityConfigService()
             project_config = vis_service.get_project_config(self.db, project.id)
@@ -59,18 +62,16 @@ class _ExecutorMixin:
         owns_precondition_service = False
 
         try:
-            if (
-                not self.precondition_service
-                and execution_mode not in ("mobile_realtime", "mobile_smart")
-            ):
+            if not self.precondition_service and execution_mode not in ("mobile_realtime", "mobile_smart"):
                 from app.services.precondition_service import PreconditionService
+
                 self.precondition_service = PreconditionService()
                 await self.precondition_service.initialize()
                 owns_precondition_service = True
 
             if self.precondition_service:
                 env_config = {}
-                raw_web_cfg = getattr(project, 'web_env_configs', None)
+                raw_web_cfg = getattr(project, "web_env_configs", None)
                 resolved_web_cfg = None
                 if raw_web_cfg:
                     if isinstance(raw_web_cfg, dict):
@@ -96,7 +97,9 @@ class _ExecutorMixin:
                             env_config = resolved_web_cfg.get(fallback_env, {})
                             logger.warning(f"目标环境 '{target_env}' 不存在，回退到 '{fallback_env}'")
 
-                await self.precondition_service.read_test_object_info(project, env_config=env_config if env_config else None)
+                await self.precondition_service.read_test_object_info(
+                    project, env_config=env_config if env_config else None
+                )
 
                 headless = global_headless if global_headless is not None else True
                 browser = await self.precondition_service.execute_web_precondition(
@@ -109,9 +112,12 @@ class _ExecutorMixin:
                     from app.services.element_locator_service import ElementLocatorService
                     from app.utils.unified_vision_model import create_vision_model
                     from app.core.config import settings
+
                     try:
                         vision_model = create_vision_model()
-                        effective_use_mcp = use_mcp if use_mcp is not None else getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
+                        effective_use_mcp = (
+                            use_mcp if use_mcp is not None else getattr(settings, "PLAYWRIGHT_MCP_ENABLED", False)
+                        )
                         self.locator_service = ElementLocatorService.create_locator_service(
                             db=self.db, browser=self.browser, vision_model=vision_model, use_mcp=effective_use_mcp
                         )
@@ -158,13 +164,13 @@ class _ExecutorMixin:
                     logger.info(f"用例 {test_case.case_no} 因依赖失败标记为 BLOCKED")
                     test_result.exec_status = ExecStatus.BLOCKED
                     test_result.exec_time = utcnow()
-                    depends_on_title = getattr(test_case, 'depends_on', '') or ''
+                    depends_on_title = getattr(test_case, "depends_on", "") or ""
                     test_result.exec_log = f"[上游阻塞] 依赖的主干用例 '{depends_on_title}' 执行失败，本用例无法执行（非产品Bug，需先修复上游）"
                     blocked_cases += 1
                     self.db.commit()
                     continue
 
-                depends_on = getattr(test_case, 'depends_on', None)
+                depends_on = getattr(test_case, "depends_on", None)
                 nav_level_used: str | None = None
                 nav_failed = False
                 if depends_on:
@@ -176,9 +182,11 @@ class _ExecutorMixin:
 
                 try:
                     result = await self.execute_test_case(
-                        test_case=test_case, project_id=project.id,
-                        skip_precondition=False, execution_mode=execution_mode,
-                        mobile_device_id=mobile_device_id
+                        test_case=test_case,
+                        project_id=project.id,
+                        skip_precondition=False,
+                        execution_mode=execution_mode,
+                        mobile_device_id=mobile_device_id,
                     )
 
                     if nav_level_used:
@@ -234,11 +242,14 @@ class _ExecutorMixin:
             task.end_time = utcnow()
             self.db.commit()
 
-            logger.info(f"测试任务执行完成: {task_id}, 通过: {passed_cases}, 失败: {failed_cases}, 阻塞: {blocked_cases}")
+            logger.info(
+                f"测试任务执行完成: {task_id}, 通过: {passed_cases}, 失败: {failed_cases}, 阻塞: {blocked_cases}"
+            )
 
         except Exception as e:
             logger.error(f"测试任务执行失败: {e}")
             from app.models.test_task import TaskStatus
+
             task.status = TaskStatus.FAILED
             task.error_message = f"任务执行异常中断：{e}"
             task.end_time = utcnow()
@@ -270,7 +281,7 @@ class _ExecutorMixin:
         has_evidence = False
 
         for step in result.steps:
-            evidence = getattr(step, 'defect_evidence', None)
+            evidence = getattr(step, "defect_evidence", None)
             if not evidence or not isinstance(evidence, dict):
                 continue
             has_evidence = True

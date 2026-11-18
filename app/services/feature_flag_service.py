@@ -16,6 +16,7 @@
           ``await asyncio.to_thread(service.xxx, ...)`` 释放事件循环；
         - 保持 ``commit + refresh`` 语义（原 async 试点修复的持久化 bug 不回退）。
 """
+
 import hashlib
 
 from sqlalchemy import func, select
@@ -112,12 +113,7 @@ class FeatureFlagService:
         total = total_result.scalar_one()
 
         skip = (page - 1) * page_size
-        result = self.db.execute(
-            select(FeatureFlag)
-            .order_by(FeatureFlag.key)
-            .offset(skip)
-            .limit(page_size)
-        )
+        result = self.db.execute(select(FeatureFlag).order_by(FeatureFlag.key).offset(skip).limit(page_size))
         return result.scalars().all(), total
 
     def create_flag(

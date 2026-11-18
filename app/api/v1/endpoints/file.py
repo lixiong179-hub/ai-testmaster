@@ -14,6 +14,7 @@
 
 所有端点均需要Bearer令牌认证。
 """
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.file_upload import router as upload_router

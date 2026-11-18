@@ -31,16 +31,31 @@ def _execute_task_based(
         try:
             if task_type == "create":
                 cases = _generate_create_case(
-                    ctx, task, prd_content, ui_description, ui_specs, has_ui,
+                    ctx,
+                    task,
+                    prd_content,
+                    ui_description,
+                    ui_specs,
+                    has_ui,
                     history_cases=history_cases,
                 )
             elif task_type == "modify":
                 cases = _generate_modify_case(
-                    ctx, task, prd_content, ui_description, ui_specs, has_ui,
+                    ctx,
+                    task,
+                    prd_content,
+                    ui_description,
+                    ui_specs,
+                    has_ui,
                 )
             elif task_type == "locator_fix":
                 cases = _generate_locator_fix(
-                    ctx, task, prd_content, ui_description, ui_specs, has_ui,
+                    ctx,
+                    task,
+                    prd_content,
+                    ui_description,
+                    ui_specs,
+                    has_ui,
                 )
             else:
                 continue
@@ -58,46 +73,58 @@ def _execute_task_based(
                         "priority": task.get("candidate_priority", 3),
                     }
                     supplemental = _generate_supplemental(
-                        ctx=ctx, tp=tp_info, prd_content=prd_content,
-                        ui_description=ui_description, ui_specs=ui_specs,
+                        ctx=ctx,
+                        tp=tp_info,
+                        prd_content=prd_content,
+                        ui_description=ui_description,
+                        ui_specs=ui_specs,
                         missing_types=coverage_gap,
                         existing_titles=[c.get("title", "") for c in enriched],
                         has_ui=has_ui,
                     )
                     if supplemental:
                         supplemental = _enrich_case_data_with_task(
-                            supplemental, task, has_ui,
+                            supplemental,
+                            task,
+                            has_ui,
                         )
                         supplemental = _dedup_cases_by_title(
                             enriched + supplemental,
-                        )[len(enriched):]
+                        )[len(enriched) :]
                         enriched.extend(supplemental)
                         coverage_gap = _check_type_coverage(enriched)
 
-                generated_cases.append({
-                    "task": task,
-                    "status": "success",
-                    "case_data": enriched,
-                    "coverage_gap": coverage_gap,
-                })
+                generated_cases.append(
+                    {
+                        "task": task,
+                        "status": "success",
+                        "case_data": enriched,
+                        "coverage_gap": coverage_gap,
+                    }
+                )
             else:
                 failed_count += 1
-                generated_cases.append({
-                    "task": task,
-                    "status": "failed",
-                    "error": "生成结果为空",
-                })
+                generated_cases.append(
+                    {
+                        "task": task,
+                        "status": "failed",
+                        "error": "生成结果为空",
+                    }
+                )
         except Exception as e:
             failed_count += 1
             logger.error(
                 "用例生成失败 task_id={}: {}",
-                task.get("task_id"), e,
+                task.get("task_id"),
+                e,
             )
-            generated_cases.append({
-                "task": task,
-                "status": "failed",
-                "error": str(e),
-            })
+            generated_cases.append(
+                {
+                    "task": task,
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
 
     return generated_cases, failed_count
 
@@ -126,7 +153,8 @@ def _execute_legacy(
                 "ui_match": None,
                 "alignment_status": "no_ui_input",
             }
-            for tp in raw_tps if tp is not None
+            for tp in raw_tps
+            if tp is not None
         ]
 
     for entry in aligned_tps:
@@ -180,14 +208,13 @@ def _execute_legacy(
 
             if not parsed:
                 failed_count += 1
-                generated_cases.append({
-                    "test_point": tp,
-                    "status": "failed",
-                    "error": (
-                        f"{last_error}（重试后仍失败）"
-                        if last_error else "生成失败"
-                    ),
-                })
+                generated_cases.append(
+                    {
+                        "test_point": tp,
+                        "status": "failed",
+                        "error": (f"{last_error}（重试后仍失败）" if last_error else "生成失败"),
+                    }
+                )
                 continue
 
             case_data = _enrich_case_data(parsed, tp, has_ui)
@@ -196,11 +223,15 @@ def _execute_legacy(
             if coverage_gap:
                 logger.info(
                     "测试点 tp_id={} 缺少覆盖类型: {}，追加生成中",
-                    tp.get("id"), coverage_gap,
+                    tp.get("id"),
+                    coverage_gap,
                 )
                 supplemental = _generate_supplemental(
-                    ctx=ctx, tp=tp, prd_content=prd_content,
-                    ui_description=ui_description, ui_specs=ui_specs,
+                    ctx=ctx,
+                    tp=tp,
+                    prd_content=prd_content,
+                    ui_description=ui_description,
+                    ui_specs=ui_specs,
                     missing_types=coverage_gap,
                     existing_titles=[c.get("title", "") for c in case_data],
                     has_ui=has_ui,
@@ -209,27 +240,32 @@ def _execute_legacy(
                     supplemental = _enrich_case_data(supplemental, tp, has_ui)
                     supplemental = _dedup_cases_by_title(
                         case_data + supplemental,
-                    )[len(case_data):]
+                    )[len(case_data) :]
                     case_data.extend(supplemental)
                     coverage_gap = _check_type_coverage(case_data)
 
-            generated_cases.append({
-                "test_point": tp,
-                "status": "success",
-                "case_data": case_data,
-                "degraded": degraded,
-                "coverage_gap": coverage_gap,
-            })
+            generated_cases.append(
+                {
+                    "test_point": tp,
+                    "status": "success",
+                    "case_data": case_data,
+                    "degraded": degraded,
+                    "coverage_gap": coverage_gap,
+                }
+            )
         except Exception as e:
             failed_count += 1
             logger.error(
                 "用例生成失败 tp_id={}: {}",
-                tp.get("id") if tp else "N/A", e,
+                tp.get("id") if tp else "N/A",
+                e,
             )
-            generated_cases.append({
-                "test_point": tp,
-                "status": "failed",
-                "error": str(e),
-            })
+            generated_cases.append(
+                {
+                    "test_point": tp,
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
 
     return generated_cases, failed_count

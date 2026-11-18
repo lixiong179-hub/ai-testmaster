@@ -69,9 +69,7 @@ def delete_ui_screen(db: Session, screen_id: int) -> bool:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return False
-    db.query(UIScreenTestCaseLink).filter(
-        UIScreenTestCaseLink.screen_id == screen_id
-    ).delete()
+    db.query(UIScreenTestCaseLink).filter(UIScreenTestCaseLink.screen_id == screen_id).delete()
     db.delete(screen)
     db.commit()
     return True

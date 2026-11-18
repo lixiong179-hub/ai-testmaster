@@ -3,6 +3,7 @@
 承载被测应用的当前页面状态，用于 LocatorHealingAgent 与
 VisualValidationAgent 感知「页面在哪、DOM 长什么样、视口多大」。
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

@@ -14,6 +14,7 @@ Phase 2 模块导出：
 
 设计参考：Applitools Visual AI 三层 Match Level + Mabl Visual Regression。
 """
+
 from app.services.visual_ai.match_level import (
     IgnoreColorsMatchLevel,
     LayoutMatchLevel,

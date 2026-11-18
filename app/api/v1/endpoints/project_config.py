@@ -19,6 +19,7 @@
     - 被测对象信息与Web环境配置关联存储
     - 设备配置以JSON格式存储
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -35,6 +36,7 @@ from app.core.exception import create_response
 from loguru import logger
 import json
 import contextlib
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -63,9 +65,9 @@ def _parse_web_env_configs(project: Project) -> dict | None:
             configs = dict(project.web_env_configs)
         else:
             configs = json.loads(project.web_env_configs)
-        for env_name in ['test', 'staging', 'prod']:
-            if env_name in configs and configs[env_name].get('password'):
-                configs[env_name]['password'] = mask_password(configs[env_name]['password'])
+        for env_name in ["test", "staging", "prod"]:
+            if env_name in configs and configs[env_name].get("password"):
+                configs[env_name]["password"] = mask_password(configs[env_name]["password"])
         return configs
     except (TypeError, json.JSONDecodeError):
         return None
@@ -93,9 +95,7 @@ def _parse_device_config(project: Project) -> dict | None:
 
 @router.get("/{project_id}/config", response_model=ApiResponse)
 async def get_project_config(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     获取项目配置
@@ -116,12 +116,7 @@ async def get_project_config(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
@@ -129,9 +124,9 @@ async def get_project_config(
             data={
                 "project_type": project.project_type,
                 "web_env_configs": _parse_web_env_configs(project),
-                "device_config": _parse_device_config(project)
+                "device_config": _parse_device_config(project),
             },
-            msg="获取成功"
+            msg="获取成功",
         )
     except HTTPException:
         raise
@@ -145,7 +140,7 @@ async def update_project_config(
     project_id: int,
     config_data: ProjectConfigUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     更新项目配置
@@ -167,12 +162,7 @@ async def update_project_config(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
@@ -185,12 +175,16 @@ async def update_project_config(
                 if project.web_env_configs:
                     with contextlib.suppress(json.JSONDecodeError):
                         existing_configs = json.loads(project.web_env_configs)
-                for env_name in ['test', 'staging', 'prod']:
+                for env_name in ["test", "staging", "prod"]:
                     if env_name in web_configs_input and web_configs_input[env_name]:
-                        env_data = web_configs_input[env_name].copy() if isinstance(web_configs_input[env_name], dict) else web_configs_input[env_name]
-                        password = env_data.get('password') if isinstance(env_data, dict) else None
-                        if password and not password.startswith('gAAAAA'):
-                            env_data['password'] = encrypt_password(password)
+                        env_data = (
+                            web_configs_input[env_name].copy()
+                            if isinstance(web_configs_input[env_name], dict)
+                            else web_configs_input[env_name]
+                        )
+                        password = env_data.get("password") if isinstance(env_data, dict) else None
+                        if password and not password.startswith("gAAAAA"):
+                            env_data["password"] = encrypt_password(password)
                         existing_configs[env_name] = env_data
                 project.web_env_configs = json.dumps(existing_configs)
             else:
@@ -207,9 +201,9 @@ async def update_project_config(
             data={
                 "project_type": project.project_type,
                 "web_env_configs": _parse_web_env_configs(project),
-                "device_config": _parse_device_config(project)
+                "device_config": _parse_device_config(project),
             },
-            msg="更新成功"
+            msg="更新成功",
         )
     except HTTPException:
         raise
@@ -221,9 +215,7 @@ async def update_project_config(
 
 @router.get("/{project_id}/test-object", response_model=ApiResponse)
 async def get_test_object(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     获取被测对象信息
@@ -244,12 +236,7 @@ async def get_test_object(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
@@ -261,24 +248,24 @@ async def get_test_object(
                     configs = project.web_env_configs
                 else:
                     configs = json.loads(project.web_env_configs)
-                test_cfg = configs.get('test', {})
+                test_cfg = configs.get("test", {})
                 if test_cfg:
                     web_env = {
-                        "url": test_cfg.get('url'),
-                        "username": test_cfg.get('username'),
-                        "password": mask_password(test_cfg['password']) if test_cfg.get('password') else None
+                        "url": test_cfg.get("url"),
+                        "username": test_cfg.get("username"),
+                        "password": mask_password(test_cfg["password"]) if test_cfg.get("password") else None,
                     }
             except (TypeError, json.JSONDecodeError, KeyError):
                 pass
         return create_response(
             data={
                 "type": project.project_type,
-                "url": web_env.get('url') if web_env else None,
-                "username": web_env.get('username') if web_env else None,
-                "password": web_env.get('password') if web_env else None,
-                "device_info": _parse_device_config(project)
+                "url": web_env.get("url") if web_env else None,
+                "username": web_env.get("username") if web_env else None,
+                "password": web_env.get("password") if web_env else None,
+                "device_info": _parse_device_config(project),
             },
-            msg="获取成功"
+            msg="获取成功",
         )
     except HTTPException:
         raise
@@ -292,7 +279,7 @@ async def update_test_object(
     project_id: int,
     obj_data: TestObjectInfoUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     更新被测对象信息
@@ -315,12 +302,7 @@ async def update_test_object(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
@@ -338,18 +320,18 @@ async def update_test_object(
                 pass
         # 更新测试环境连接信息
         if obj_data.url or obj_data.username or obj_data.password:
-            test_cfg = existing_configs.get('test', {})
+            test_cfg = existing_configs.get("test", {})
             if obj_data.url:
-                test_cfg['url'] = obj_data.url
+                test_cfg["url"] = obj_data.url
             if obj_data.username:
-                test_cfg['username'] = obj_data.username
+                test_cfg["username"] = obj_data.username
             if obj_data.password:
                 password = obj_data.password
                 # 仅加密非已加密的密码
-                if not password.startswith('gAAAAA'):
+                if not password.startswith("gAAAAA"):
                     password = encrypt_password(password)
-                test_cfg['password'] = password
-            existing_configs['test'] = test_cfg
+                test_cfg["password"] = password
+            existing_configs["test"] = test_cfg
             project.web_env_configs = json.dumps(existing_configs)
         # 更新设备配置
         if obj_data.device_info:
@@ -357,12 +339,12 @@ async def update_test_object(
         # 更新App包名（合并到设备配置中）
         if obj_data.app_package:
             dev_cfg = _parse_device_config(project) or {}
-            dev_cfg['app_package'] = obj_data.app_package
+            dev_cfg["app_package"] = obj_data.app_package
             project.device_config = json.dumps(dev_cfg)
         # 更新App Activity（合并到设备配置中）
         if obj_data.app_activity:
             dev_cfg = _parse_device_config(project) or {}
-            dev_cfg['app_activity'] = obj_data.app_activity
+            dev_cfg["app_activity"] = obj_data.app_activity
             project.device_config = json.dumps(dev_cfg)
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, project)

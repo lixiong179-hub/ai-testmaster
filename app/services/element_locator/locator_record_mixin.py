@@ -1,5 +1,5 @@
-"""定位记录Mixin - 记录和更新元素定位结果。
-"""
+"""定位记录Mixin - 记录和更新元素定位结果。"""
+
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
@@ -8,13 +8,8 @@ from app.models.test_case import TestStep, TestCasePreconditionStep
 
 
 class LocatorRecordMixin:
-
     async def record_locator(
-        self,
-        step_id: int,
-        action_description: str,
-        screenshot: bytes | None = None,
-        source: str = "ai"
+        self, step_id: int, action_description: str, screenshot: bytes | None = None, source: str = "ai"
     ) -> ElementLocator | None:
         logger.info(f"开始记录步骤 {step_id} 的元素定位信息")
 
@@ -49,7 +44,7 @@ class LocatorRecordMixin:
             element_text=element_attrs.get("text"),
             ai_coordinate=coordinate,
             ai_confidence=element_info.get("confidence", 0),
-            source=source
+            source=source,
         )
 
         self.db.add(locator)
@@ -70,7 +65,7 @@ class LocatorRecordMixin:
         precondition_step_id: int,
         action_description: str,
         action_type: str | None = None,
-        screenshot: bytes | None = None
+        screenshot: bytes | None = None,
     ) -> ElementLocator | None:
         logger.info(f"开始记录前置条件步骤 {precondition_step_id} 的元素定位信息")
 
@@ -100,16 +95,16 @@ class LocatorRecordMixin:
             element_text=element_attrs.get("text"),
             ai_coordinate=coordinate,
             ai_confidence=element_info.get("confidence", 0),
-            source="ai"
+            source="ai",
         )
 
         self.db.add(locator)
         self.db.commit()
         self.db.refresh(locator)
 
-        pc_step = self.db.query(TestCasePreconditionStep).filter(
-            TestCasePreconditionStep.id == precondition_step_id
-        ).first()
+        pc_step = (
+            self.db.query(TestCasePreconditionStep).filter(TestCasePreconditionStep.id == precondition_step_id).first()
+        )
         if pc_step:
             pc_step.has_locator = 1
             pc_step.locator_status = LocatorStatus.RECORDED.value

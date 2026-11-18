@@ -22,6 +22,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
@@ -47,38 +48,46 @@ class CodeReview(Base):
         - AI辅助代码审查
         - 审查结果跟踪和统计
     """
+
     __tablename__ = "code_reviews"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 审查主键ID
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 审查主键ID
 
     # 基本信息
-    title = Column(String(255), nullable=False, comment="审查标题")                                     # 审查标题
-    description = Column(Text, nullable=True, comment="审查描述")                                      # 审查描述
+    title = Column(String(255), nullable=False, comment="审查标题")  # 审查标题
+    description = Column(Text, nullable=True, comment="审查描述")  # 审查描述
 
     # 仓库信息
-    repository = Column(String(255), nullable=False, comment="代码仓库地址")                            # Git仓库URL
-    branch = Column(String(100), nullable=False, comment="分支名称")                                   # 审查的Git分支
-    commit_id = Column(String(100), nullable=True, comment="提交ID（commit hash）")                    # 具体审查的commit
+    repository = Column(String(255), nullable=False, comment="代码仓库地址")  # Git仓库URL
+    branch = Column(String(100), nullable=False, comment="分支名称")  # 审查的Git分支
+    commit_id = Column(String(100), nullable=True, comment="提交ID（commit hash）")  # 具体审查的commit
 
     # 人员
-    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="审查人ID")          # 审查人
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="作者ID")              # 代码作者
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="审查人ID")  # 审查人
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="作者ID")  # 代码作者
 
     # 状态和类型
-    status = Column(SQLEnum('pending', 'in_progress', 'completed', 'cancelled', name='review_status'), nullable=True, default='pending', comment="审查状态")  # pending=待审查，in_progress=审查中，completed=已完成，cancelled=已取消
-    review_type = Column(SQLEnum('full', 'quick', 'security', name='review_type'), nullable=True, comment="审查类型: full/quick/security")  # full=全量审查，quick=快速审查，security=安全审查
+    status = Column(
+        SQLEnum("pending", "in_progress", "completed", "cancelled", name="review_status"),
+        nullable=True,
+        default="pending",
+        comment="审查状态",
+    )  # pending=待审查，in_progress=审查中，completed=已完成，cancelled=已取消
+    review_type = Column(
+        SQLEnum("full", "quick", "security", name="review_type"), nullable=True, comment="审查类型: full/quick/security"
+    )  # full=全量审查，quick=快速审查，security=安全审查
 
     # 时间信息
-    created_at = Column(DateTime, nullable=True, default=utcnow)                                      # 创建时间
-    updated_at = Column(DateTime, nullable=True, onupdate=utcnow)                                     # 更新时间
-    completed_at = Column(DateTime, nullable=True, comment="完成时间")                                 # 审查完成时间
+    created_at = Column(DateTime, nullable=True, default=utcnow)  # 创建时间
+    updated_at = Column(DateTime, nullable=True, onupdate=utcnow)  # 更新时间
+    completed_at = Column(DateTime, nullable=True, comment="完成时间")  # 审查完成时间
 
     # 关联关系
-    reviewer = relationship("User", foreign_keys=[reviewer_id])                                       # 审查人
-    author = relationship("User", foreign_keys=[author_id])                                           # 代码作者
+    reviewer = relationship("User", foreign_keys=[reviewer_id])  # 审查人
+    author = relationship("User", foreign_keys=[author_id])  # 代码作者
     review_items = relationship("ReviewItem", back_populates="review", cascade="all, delete-orphan")  # 问题项，级联删除
-    comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan")   # 评论，级联删除
-    metrics = relationship("ReviewMetric", back_populates="review", cascade="all, delete-orphan")     # 指标，级联删除
+    comments = relationship("ReviewComment", back_populates="review", cascade="all, delete-orphan")  # 评论，级联删除
+    metrics = relationship("ReviewMetric", back_populates="review", cascade="all, delete-orphan")  # 指标，级联删除
 
     def __repr__(self) -> str:
         """返回代码审查的字符串表示，便于调试和日志输出。"""
@@ -100,34 +109,48 @@ class ReviewItem(Base):
         - 记录代码审查发现的问题
         - 问题状态跟踪和修复确认
     """
+
     __tablename__ = "review_items"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 问题项主键ID
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 问题项主键ID
 
     # 关联
-    review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True)  # 审查ID，级联删除
+    review_id = Column(
+        Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True
+    )  # 审查ID，级联删除
 
     # 文件位置
-    file_path = Column(String(500), nullable=False, comment="文件路径")                                # 问题所在文件路径
-    line_start = Column(Integer, nullable=False, comment="起始行号")                                   # 问题起始行号
-    line_end = Column(Integer, nullable=False, comment="结束行号")                                     # 问题结束行号
+    file_path = Column(String(500), nullable=False, comment="文件路径")  # 问题所在文件路径
+    line_start = Column(Integer, nullable=False, comment="起始行号")  # 问题起始行号
+    line_end = Column(Integer, nullable=False, comment="结束行号")  # 问题结束行号
 
     # 问题详情
-    severity = Column(SQLEnum('critical', 'major', 'minor', 'suggestion', name='issue_severity'), nullable=True, comment="严重程度")  # critical=致命，major=严重，minor=一般，suggestion=建议
-    issue_type = Column(String(100), nullable=False, comment="问题类型: bug/style/performance/security/documentation")  # bug=缺陷，style=风格，performance=性能，security=安全，documentation=文档
-    description = Column(Text, nullable=False, comment="问题描述")                                     # 问题描述
-    recommendation = Column(Text, nullable=True, comment="修复建议")                                  # 修复建议
+    severity = Column(
+        SQLEnum("critical", "major", "minor", "suggestion", name="issue_severity"), nullable=True, comment="严重程度"
+    )  # critical=致命，major=严重，minor=一般，suggestion=建议
+    issue_type = Column(
+        String(100), nullable=False, comment="问题类型: bug/style/performance/security/documentation"
+    )  # bug=缺陷，style=风格，performance=性能，security=安全，documentation=文档
+    description = Column(Text, nullable=False, comment="问题描述")  # 问题描述
+    recommendation = Column(Text, nullable=True, comment="修复建议")  # 修复建议
 
     # 状态
-    status = Column(SQLEnum('open', 'acknowledged', 'fixed', 'wontfix', name='item_status'), nullable=True, default='open', comment="处理状态")  # open=待处理，acknowledged=已确认，fixed=已修复，wontfix=不修复
+    status = Column(
+        SQLEnum("open", "acknowledged", "fixed", "wontfix", name="item_status"),
+        nullable=True,
+        default="open",
+        comment="处理状态",
+    )  # open=待处理，acknowledged=已确认，fixed=已修复，wontfix=不修复
 
     # 时间信息
-    created_at = Column(DateTime, default=utcnow)                                                     # 创建时间
-    updated_at = Column(DateTime, onupdate=utcnow, default=utcnow)                                    # 更新时间
+    created_at = Column(DateTime, default=utcnow)  # 创建时间
+    updated_at = Column(DateTime, onupdate=utcnow, default=utcnow)  # 更新时间
 
     # 关联关系
-    review = relationship("CodeReview", back_populates="review_items")                                # 所属审查
-    comments = relationship("ReviewComment", back_populates="review_item", cascade="all, delete-orphan")  # 评论，级联删除
+    review = relationship("CodeReview", back_populates="review_items")  # 所属审查
+    comments = relationship(
+        "ReviewComment", back_populates="review_item", cascade="all, delete-orphan"
+    )  # 评论，级联删除
 
     def __repr__(self) -> str:
         """返回问题项的字符串表示，便于调试和日志输出。"""
@@ -149,25 +172,30 @@ class ReviewComment(Base):
         - 审查人对代码的讨论和反馈
         - 问题项的修复讨论
     """
+
     __tablename__ = "review_comments"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 评论主键ID
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 评论主键ID
 
     # 关联
-    review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True)  # 审查ID，级联删除
-    review_item_id = Column(Integer, ForeignKey("review_items.id", ondelete="SET NULL"), nullable=True, comment="关联的问题项ID")  # 问题项ID，SET NULL保留评论
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="评论者ID")              # 评论者
+    review_id = Column(
+        Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True
+    )  # 审查ID，级联删除
+    review_item_id = Column(
+        Integer, ForeignKey("review_items.id", ondelete="SET NULL"), nullable=True, comment="关联的问题项ID"
+    )  # 问题项ID，SET NULL保留评论
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="评论者ID")  # 评论者
 
     # 评论内容
-    content = Column(Text, nullable=False, comment="评论内容")                                         # 评论正文
+    content = Column(Text, nullable=False, comment="评论内容")  # 评论正文
 
     # 时间信息
-    created_at = Column(DateTime, default=utcnow)                                                     # 创建时间
+    created_at = Column(DateTime, default=utcnow)  # 创建时间
 
     # 关联关系
-    review = relationship("CodeReview", back_populates="comments")                                    # 所属审查
-    review_item = relationship("ReviewItem", back_populates="comments")                               # 关联问题项
-    user = relationship("User")                                                                       # 评论者
+    review = relationship("CodeReview", back_populates="comments")  # 所属审查
+    review_item = relationship("ReviewItem", back_populates="comments")  # 关联问题项
+    user = relationship("User")  # 评论者
 
     def __repr__(self) -> str:
         """返回评论的字符串表示，便于调试和日志输出。"""
@@ -188,22 +216,27 @@ class ReviewMetric(Base):
         - 代码质量指标统计和趋势分析
         - 审查报告中的指标展示
     """
+
     __tablename__ = "review_metrics"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 指标主键ID
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 指标主键ID
 
     # 关联
-    review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True)  # 审查ID，级联删除
+    review_id = Column(
+        Integer, ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False, index=True
+    )  # 审查ID，级联删除
 
     # 指标数据
-    metric_name = Column(String(100), nullable=False, comment="指标名称: total_issues/coverage_score/complexity_avg")  # 指标名称
-    metric_value = Column(String(255), nullable=False, comment="指标值")                               # 指标值，字符串格式存储
+    metric_name = Column(
+        String(100), nullable=False, comment="指标名称: total_issues/coverage_score/complexity_avg"
+    )  # 指标名称
+    metric_value = Column(String(255), nullable=False, comment="指标值")  # 指标值，字符串格式存储
 
     # 时间
-    created_at = Column(DateTime, default=utcnow)                                                     # 创建时间
+    created_at = Column(DateTime, default=utcnow)  # 创建时间
 
     # 关联关系
-    review = relationship("CodeReview", back_populates="metrics")                                     # 所属审查
+    review = relationship("CodeReview", back_populates="metrics")  # 所属审查
 
     def __repr__(self) -> str:
         """返回指标的字符串表示，便于调试和日志输出。"""

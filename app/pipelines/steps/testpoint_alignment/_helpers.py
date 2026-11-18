@@ -11,10 +11,7 @@ def _extract_inferred_capabilities(inferred: Any | None) -> list[dict[str, Any]]
     if not caps:
         change_summary = parsed.get("change_summary", {})
         if isinstance(change_summary, dict):
-            caps = (
-                change_summary.get("new_capabilities", [])
-                + change_summary.get("modified_capabilities", [])
-            )
+            caps = change_summary.get("new_capabilities", []) + change_summary.get("modified_capabilities", [])
             if not isinstance(caps, list):
                 caps = []
     return [c for c in caps if isinstance(c, dict)]
@@ -29,9 +26,7 @@ def _extract_scenario_candidates(candidates: Any | None) -> list[dict[str, Any]]
     return [c for c in cands if isinstance(c, dict)]
 
 
-def _find_matching_screens(
-    tp: dict[str, Any], ui_specs: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _find_matching_screens(tp: dict[str, Any], ui_specs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     tp_module = (tp.get("module") or "").lower().strip()
     tp_point = (tp.get("point") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
@@ -67,18 +62,18 @@ def _find_matching_screens(
                         break
 
         if module_match or element_match:
-            matched.append({
-                "screen_id": screen_id,
-                "screen_name": spec.get("screen_name"),
-            })
+            matched.append(
+                {
+                    "screen_id": screen_id,
+                    "screen_name": spec.get("screen_name"),
+                }
+            )
             seen_screen_ids.add(screen_id)
 
     return matched
 
 
-def _find_matching_capability(
-    tp: dict[str, Any], caps: list[dict[str, Any]]
-) -> dict[str, Any] | None:
+def _find_matching_capability(tp: dict[str, Any], caps: list[dict[str, Any]]) -> dict[str, Any] | None:
     tp_point = (tp.get("point") or "").lower().strip()
     tp_module = (tp.get("module") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
@@ -116,9 +111,7 @@ def _find_matching_capability(
     return best if best_score >= 0.3 else None
 
 
-def _find_matching_scenario(
-    tp: dict[str, Any], cands: list[dict[str, Any]]
-) -> dict[str, Any] | None:
+def _find_matching_scenario(tp: dict[str, Any], cands: list[dict[str, Any]]) -> dict[str, Any] | None:
     tp_point = (tp.get("point") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
     search_texts = [s for s in [tp_point, tp_function] if s]
@@ -253,9 +246,7 @@ def _is_cjk(char: str) -> bool:
     )
 
 
-def _compute_alignment_confidence(
-    aligned: list[dict], conflicts: list[dict]
-) -> float:
+def _compute_alignment_confidence(aligned: list[dict], conflicts: list[dict]) -> float:
     if not aligned:
         return 0.0
     aligned_count = len([a for a in aligned if a["alignment_status"] == "aligned"])

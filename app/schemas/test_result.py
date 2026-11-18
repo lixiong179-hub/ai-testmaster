@@ -11,6 +11,7 @@
 - TestResult系列 -> app.models.test_result.TestResult
 - exec_status -> TestResult.exec_status (整数枚举：0未执行/1成功/2失败/3阻塞)
 """
+
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -23,6 +24,7 @@ class TestResultResponse(BaseModel):
     对应API：GET /api/v1/test-results/{result_id}
     与Model映射：完整映射 TestResult Model 的所有业务字段
     """
+
     id: int
     task_id: int | None = None
     project_id: int  # 所属项目ID，与TestResult.project_id对应
@@ -48,6 +50,7 @@ class TestResultListResponse(BaseModel):
     业务用途：返回执行结果列表查询结果
     对应API：GET /api/v1/test-results/ 的响应
     """
+
     total: int  # 符合条件的结果总数
     items: list[TestResultResponse]  # 当前页的结果列表
 
@@ -61,6 +64,7 @@ class TestResultCreate(BaseModel):
     对应API：POST /api/v1/test-results/
     与Model映射：映射 TestResult Model 的 task_id/project_id/case_id/case_no/exec_status等字段
     """
+
     task_id: int = Field(..., description="任务ID")  # 必填，关联的测试任务
     project_id: int = Field(..., description="项目ID")  # 必填，所属项目
     case_id: int = Field(..., description="用例ID")  # 必填，关联的测试用例

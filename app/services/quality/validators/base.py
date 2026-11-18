@@ -5,6 +5,7 @@
 
 状态严重度排序: rejected > pending_review > warning > passed
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import IntEnum
@@ -12,6 +13,7 @@ from enum import IntEnum
 
 class Severity(IntEnum):
     """校验结果严重度枚举，值越大越严重。"""
+
     passed = 0
     warning = 1
     pending_review = 2
@@ -27,6 +29,7 @@ class ValidationIssue:
         message: 问题描述
         severity: 严重度（passed/warning/pending_review/rejected）
     """
+
     field: str
     message: str
     severity: str = "passed"
@@ -34,9 +37,7 @@ class ValidationIssue:
     def __post_init__(self) -> None:
         valid = {s.name for s in Severity}
         if self.severity not in valid:
-            raise ValueError(
-                f"severity must be one of {sorted(valid)}, got '{self.severity}'"
-            )
+            raise ValueError(f"severity must be one of {sorted(valid)}, got '{self.severity}'")
 
 
 @dataclass
@@ -47,15 +48,14 @@ class ValidationResult:
         status: 整体状态（passed/warning/pending_review/rejected）
         issues: 所有校验问题列表
     """
+
     status: str = "passed"
     issues: list[ValidationIssue] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         valid = {s.name for s in Severity}
         if self.status not in valid:
-            raise ValueError(
-                f"status must be one of {sorted(valid)}, got '{self.status}'"
-            )
+            raise ValueError(f"status must be one of {sorted(valid)}, got '{self.status}'")
 
     @staticmethod
     def merge(results: list["ValidationResult"]) -> "ValidationResult":

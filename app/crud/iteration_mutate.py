@@ -27,6 +27,7 @@
       这些查询与具体变更逻辑强耦合（如重命名校验需排除自身），
       非通用查询，故按"保守处理"原则保留在本模块内。
 """
+
 from collections.abc import Callable
 from sqlalchemy.orm import Session
 from app.models.iteration import Iteration
@@ -48,7 +49,7 @@ def create_iteration(
     description: str | None = None,
     status: str = "draft",
     start_date: datetime | None = None,
-    end_date: datetime | None = None
+    end_date: datetime | None = None,
 ) -> Iteration:
     """
     创建迭代
@@ -79,10 +80,7 @@ def create_iteration(
     # 同名校验：防止项目下出现重复迭代名称
     name = _normalize_iteration_name(name)
 
-    existing = db.query(Iteration).filter(
-        Iteration.project_id == project_id,
-        Iteration.name == name
-    ).first()
+    existing = db.query(Iteration).filter(Iteration.project_id == project_id, Iteration.name == name).first()
     if existing:
         raise ValueError(f"项目下已存在同名迭代: {name}")
 
@@ -93,7 +91,7 @@ def create_iteration(
         description=description,
         status=status,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
     )
     db.add(db_iteration)
     db.flush()
@@ -130,18 +128,20 @@ def update_iteration(db: Session, iteration_id: int, **kwargs) -> Iteration | No
 
     # 禁止直接修改 status，必须通过 iteration_service.transition_iteration_status
     if "status" in kwargs:
-        raise ValueError(
-            "禁止直接修改 iteration.status，请使用 iteration_service.transition_iteration_status()"
-        )
+        raise ValueError("禁止直接修改 iteration.status，请使用 iteration_service.transition_iteration_status()")
 
     # 重命名校验：若更新name字段，检查项目下是否存在同名迭代（排除自身）
     if "name" in kwargs and kwargs["name"] is not None:
         kwargs["name"] = _normalize_iteration_name(kwargs["name"])
-        existing = db.query(Iteration).filter(
-            Iteration.project_id == db_iteration.project_id,
-            Iteration.name == kwargs["name"],
-            Iteration.id != iteration_id  # 排除自身，允许保持原名称
-        ).first()
+        existing = (
+            db.query(Iteration)
+            .filter(
+                Iteration.project_id == db_iteration.project_id,
+                Iteration.name == kwargs["name"],
+                Iteration.id != iteration_id,  # 排除自身，允许保持原名称
+            )
+            .first()
+        )
         if existing:
             raise ValueError(f"项目下已存在同名迭代: {kwargs['name']}")
 

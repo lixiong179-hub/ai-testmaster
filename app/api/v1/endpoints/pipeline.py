@@ -8,6 +8,7 @@
     - pipeline_resume     - Pipeline恢复 + AI客户端工厂
     - pipeline_artifacts  - 反推摘要、信号补充与取消运行
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -29,15 +30,19 @@ from app.api.v1.endpoints.pipeline_schemas import (
     SupplementSignalsRequest,
     Scenario4PrecheckRequest,
 )
+
 # 从子模块导入权限校验（保持外部 import 路径兼容）
 from app.api.v1.endpoints.pipeline_deps import (
     verify_project_access as _verify_project_access,
     verify_iteration_access as _verify_iteration_access,
 )
+
 # 从子模块导入 AI 客户端工厂
 from app.api.v1.endpoints.pipeline_resume import create_ai_client as _create_ai_client
+
 # 从子模块导入版本重跑指标记录
 from app.api.v1.endpoints.pipeline_artifacts import record_version_rerun_metric as _record_version_rerun_metric
+
 # 从子模块重新导出端点函数，保持外部 import 路径兼容
 from app.api.v1.endpoints.pipeline_precheck import precheck_scenario_4
 from app.api.v1.endpoints.pipeline_resume import resume_pipeline
@@ -82,6 +87,7 @@ async def run_pipeline(
     current_user: User = Depends(get_current_user),
 ):
     """触发 Pipeline 运行。"""
+
     def _run(sync_db):
         try:
             iteration = _verify_iteration_access(sync_db, iteration_id, current_user)
@@ -93,6 +99,7 @@ async def run_pipeline(
                 )
 
             from app.pipelines.scenarios import get_scenario, validate_scenario_inputs
+
             scenario_config = get_scenario(body.scenario)
             if not scenario_config:
                 raise HTTPException(status_code=400, detail=f"场景 {body.scenario} 不存在")
@@ -139,7 +146,8 @@ async def run_pipeline(
                 )
                 if last_run and last_run.pipeline_version != current_version:
                     _record_version_rerun_metric(
-                        sync_db, iteration_id=iteration_id,
+                        sync_db,
+                        iteration_id=iteration_id,
                         detail={
                             "old_version": last_run.pipeline_version,
                             "new_version": current_version,
@@ -148,6 +156,7 @@ async def run_pipeline(
 
             if iteration.status == "draft":
                 from app.services.iteration_service import transition_iteration_status
+
                 transition_iteration_status(sync_db, iteration_id, "in_pipeline")
 
             ai_client = _create_ai_client(body.ai_model)
@@ -198,6 +207,7 @@ async def get_pipeline_run(
     current_user: User = Depends(get_current_user),
 ):
     """查询 Pipeline 运行状态。"""
+
     def _get(sync_db):
         try:
             from app.services import pipeline_service
@@ -210,26 +220,30 @@ async def get_pipeline_run(
 
             steps_data = []
             for step in run.steps:
-                steps_data.append({
-                    "id": step.id,
-                    "step_name": step.step_name,
-                    "status": step.status,
-                    "started_at": step.started_at,
-                    "finished_at": step.finished_at,
-                    "error": step.error,
-                    "retried_count": step.retried_count,
-                    "degraded": step.degraded,
-                })
+                steps_data.append(
+                    {
+                        "id": step.id,
+                        "step_name": step.step_name,
+                        "status": step.status,
+                        "started_at": step.started_at,
+                        "finished_at": step.finished_at,
+                        "error": step.error,
+                        "retried_count": step.retried_count,
+                        "degraded": step.degraded,
+                    }
+                )
 
             artifacts_data = []
             for artifact in run.artifacts:
-                artifacts_data.append({
-                    "id": artifact.id,
-                    "kind": artifact.kind,
-                    "confidence": artifact.confidence,
-                    "schema_version": artifact.schema_version,
-                    "created_at": artifact.created_at,
-                })
+                artifacts_data.append(
+                    {
+                        "id": artifact.id,
+                        "kind": artifact.kind,
+                        "confidence": artifact.confidence,
+                        "schema_version": artifact.schema_version,
+                        "created_at": artifact.created_at,
+                    }
+                )
 
             return create_response(
                 data={

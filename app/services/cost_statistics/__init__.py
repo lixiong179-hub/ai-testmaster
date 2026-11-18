@@ -7,6 +7,7 @@ Mixin组合:
     - CostStatisticsQueryMixin: 用例/项目成本统计与趋势查询
     - CostStatisticsReportMixin: 成本报表生成与优化建议
 """
+
 from sqlalchemy.orm import Session
 
 from app.services.cost_statistics.models import CostStatistics, CostReport

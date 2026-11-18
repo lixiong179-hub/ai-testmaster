@@ -3,15 +3,13 @@
 提供:
     - _build_test_data_prompt: 测试数据生成的结构化 Prompt
 """
+
 import json
 from typing import Any
 
 
 def _build_test_data_prompt(
-    field_definitions: list[dict[str, Any]],
-    count: int,
-    context: str | None,
-    data_type: str
+    field_definitions: list[dict[str, Any]], count: int, context: str | None, data_type: str
 ) -> str:
     """构建数据生成的结构化 Prompt。
 
@@ -35,7 +33,7 @@ def _build_test_data_prompt(
         "normal": "正常数据 - 符合业务规则的典型值",
         "boundary": "边界值数据 - 刚好在边界上的值（如最大值、最小值、空值）",
         "invalid": "无效数据 - 不符合业务规则的数据（如格式错误、超长字符串）",
-        "special": "特殊字符数据 - 包含特殊字符的数据（如SQL注入字符、XSS字符）"
+        "special": "特殊字符数据 - 包含特殊字符的数据（如SQL注入字符、XSS字符）",
     }
     type_desc = type_descriptions.get(data_type, "正常数据")
     fields_json = json.dumps(field_definitions, ensure_ascii=False, indent=2)
@@ -48,7 +46,7 @@ def _build_test_data_prompt(
 {fields_json}
 
 ## 业务上下文：
-{context if context else '无特定业务上下文'}
+{context if context else "无特定业务上下文"}
 
 ## 输出要求：
 1. 只输出JSON格式内容，不要添加任何其他文字

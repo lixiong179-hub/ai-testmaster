@@ -3,6 +3,7 @@
 
 提供 TestCapability 的增删改查操作。删除操作通过 LifecycleService 走 archived 软删除。
 """
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.test_capability import TestCapability
@@ -12,6 +13,7 @@ from app.services.lifecycle_service import transition_capability
 
 class DuplicateCapabilityKeyError(Exception):
     """同项目下 key 重复"""
+
     pass
 
 
@@ -37,9 +39,7 @@ def create_capability(
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise DuplicateCapabilityKeyError(
-            f"Capability key '{key}' already exists in project {project_id}"
-        ) from e
+        raise DuplicateCapabilityKeyError(f"Capability key '{key}' already exists in project {project_id}") from e
     db.refresh(capability)
     return capability
 
@@ -94,9 +94,7 @@ def update_capability(
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise DuplicateCapabilityKeyError(
-            "Capability key conflict after update"
-        ) from e
+        raise DuplicateCapabilityKeyError("Capability key conflict after update") from e
     db.refresh(capability)
     return capability
 

@@ -19,6 +19,7 @@ deprovisioning 级联撤销（SCIM deprovisioning 时撤销所有会话）。
     - expires_at    : 会话过期时间（与 refresh_token 的 exp 对齐）
     - revoked_at    : 会话撤销时间（NULL 表示有效，logout 时写入）
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -52,6 +53,7 @@ class UserSession(Base):
         - sessions 端点查询用户的有效会话列表
         - SCIM deprovisioning 时级联撤销所有会话
     """
+
     __tablename__ = "user_sessions"
     __table_args__ = (
         # 复合索引：覆盖按用户+有效状态维度检索会话的高频查询（sessions 端点）

@@ -17,6 +17,7 @@
     - app.models.test_case : TestCase, TestCaseExecution
     - app.services.metrics_service : record_metric
 """
+
 import logging
 from typing import Any
 
@@ -51,14 +52,18 @@ def compute_posterior_quality(db: Session, project_id: int) -> dict[str, Any]:
     review_stats = (
         db.query(
             func.count(TestCase.id).label("total_reviewed"),
-            func.sum(case(
-                (TestCase.review_status == "approved", 1),
-                else_=0,
-            )).label("approved_count"),
-            func.sum(case(
-                (TestCase.review_status == "rejected", 1),
-                else_=0,
-            )).label("rejected_count"),
+            func.sum(
+                case(
+                    (TestCase.review_status == "approved", 1),
+                    else_=0,
+                )
+            ).label("approved_count"),
+            func.sum(
+                case(
+                    (TestCase.review_status == "rejected", 1),
+                    else_=0,
+                )
+            ).label("rejected_count"),
         )
         .filter(
             TestCase.project_id == project_id,
@@ -81,10 +86,12 @@ def compute_posterior_quality(db: Session, project_id: int) -> dict[str, Any]:
     execution_stats = (
         db.query(
             func.count(TestCaseExecution.id).label("total_executed"),
-            func.sum(case(
-                (TestCaseExecution.status == "passed", 1),
-                else_=0,
-            )).label("passed_count"),
+            func.sum(
+                case(
+                    (TestCaseExecution.status == "passed", 1),
+                    else_=0,
+                )
+            ).label("passed_count"),
         )
         .join(TestCase, TestCaseExecution.test_case_id == TestCase.id)
         .filter(
@@ -104,10 +111,12 @@ def compute_posterior_quality(db: Session, project_id: int) -> dict[str, Any]:
     modification_stats = (
         db.query(
             func.count(TestCase.id).label("total_cases"),
-            func.sum(case(
-                (TestCase.update_time > TestCase.create_time, 1),
-                else_=0,
-            )).label("modified_count"),
+            func.sum(
+                case(
+                    (TestCase.update_time > TestCase.create_time, 1),
+                    else_=0,
+                )
+            ).label("modified_count"),
         )
         .filter(
             TestCase.project_id == project_id,
@@ -122,11 +131,7 @@ def compute_posterior_quality(db: Session, project_id: int) -> dict[str, Any]:
     modification_rate = (modified_count / total_cases) if total_cases > 0 else 0.0
 
     # 4. 计算后验质量分
-    posterior = (
-        0.5 * review_pass_rate
-        + 0.3 * execution_pass_rate
-        + 0.2 * (1.0 - modification_rate)
-    )
+    posterior = 0.5 * review_pass_rate + 0.3 * execution_pass_rate + 0.2 * (1.0 - modification_rate)
     posterior = round(posterior * 100, 2)  # 转换为 0-100 分制
 
     return {
@@ -162,7 +167,9 @@ def compute_and_persist_posterior(db: Session, project_id: int) -> dict[str, Any
     if not result["meets_min_executions"]:
         logger.info(
             "项目 %d 执行次数不足（%d < %d），跳过后验质量分回填",
-            project_id, result["total_executed"], POSTERIOR_MIN_EXECUTIONS,
+            project_id,
+            result["total_executed"],
+            POSTERIOR_MIN_EXECUTIONS,
         )
         return result
 
@@ -187,12 +194,15 @@ def compute_and_persist_posterior(db: Session, project_id: int) -> dict[str, Any
 
     logger.info(
         "项目 %d 后验质量分回填完成：score=%.2f, updated=%d",
-        project_id, posterior_score, updated,
+        project_id,
+        posterior_score,
+        updated,
     )
 
     # 记录 F16 指标
     try:
         from app.services.metrics_service import record_metric
+
         record_metric(
             "posterior_quality_score",
             value=posterior_score,
@@ -238,6 +248,7 @@ def check_review_rejection_alert(db: Session, project_id: int) -> bool:
 
         try:
             from app.services.metrics_service import record_metric
+
             record_metric(
                 "review_rejection_rate_high",
                 value=rejection_rate,

@@ -35,6 +35,7 @@ async def _require_admin(current_user: User = Depends(get_current_user)) -> User
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
     return current_user
 
+
 router = APIRouter(tags=["Prompt模板"])
 
 
@@ -54,13 +55,9 @@ async def list_prompt_templates(
         stmt = stmt.where(PromptTemplate.prompt_key == prompt_key)
     total = (await asyncio.to_thread(db.execute, count_stmt)).scalar_one()
     skip = (page - 1) * page_size
-    stmt = stmt.order_by(
-        PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc()
-    ).offset(skip).limit(page_size)
+    stmt = stmt.order_by(PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc()).offset(skip).limit(page_size)
     items = list((await asyncio.to_thread(db.execute, stmt)).scalars().all())
-    return PromptTemplateListResponse(
-        items=items, total=total, page=page, page_size=page_size
-    )
+    return PromptTemplateListResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("/", response_model=PromptTemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -96,9 +93,7 @@ async def set_default_prompt(
     """将指定版本设为默认版本"""
     registry = PromptRegistry(db)
     try:
-        template = await asyncio.to_thread(
-            registry.set_default, key=key, version=data.version
-        )
+        template = await asyncio.to_thread(registry.set_default, key=key, version=data.version)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -117,9 +112,7 @@ async def rollback_prompt(
     """回滚到指定版本"""
     registry = PromptRegistry(db)
     try:
-        template = await asyncio.to_thread(
-            registry.rollback, key=key, target_version=data.target_version
-        )
+        template = await asyncio.to_thread(registry.rollback, key=key, target_version=data.target_version)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

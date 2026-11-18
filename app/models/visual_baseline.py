@@ -19,6 +19,7 @@
     - status          : 基线状态（active/archived/superseded）
     - version         : 基线版本号，每次更新基线递增
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -64,8 +65,16 @@ class VisualBaseline(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="基线主键ID")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
-    test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试用例ID（可空，支持页面级基线）")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
+    test_case_id = Column(
+        Integer,
+        ForeignKey("test_cases.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联测试用例ID（可空，支持页面级基线）",
+    )
 
     name = Column(String(256), nullable=False, comment="基线名称，如 登录页-桌面端-1280x800")
     page_url = Column(String(1024), nullable=False, comment="被测页面URL")
@@ -82,7 +91,9 @@ class VisualBaseline(Base):
     status = Column(String(32), nullable=False, default="active", comment="基线状态: active/archived/superseded")
     version = Column(Integer, nullable=False, default=1, comment="基线版本号，每次更新递增")
 
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="创建者用户ID")
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="创建者用户ID"
+    )
     created_at = Column(DateTime, default=utcnow, nullable=False, comment="创建时间（UTC）")
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False, comment="更新时间（UTC）")
 

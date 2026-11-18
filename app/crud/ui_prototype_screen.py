@@ -28,6 +28,7 @@ UI原型页面查询操作模块
     - _apply_iteration_filter 使用outerjoin处理-1（未关联迭代）的情况，
       因为页面可能没有关联的原型项目
 """
+
 from typing import Any
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -63,6 +64,7 @@ def _apply_iteration_filter(query: Any, iteration_id: int | None) -> Any:
         - 使用 or_ 条件同时处理"原型项目无迭代"和"页面无原型项目"两种情况
     """
     from app.models.ui_prototype import UIPrototypeProject
+
     if iteration_id is not None:
         if iteration_id <= 0:
             # 查询未关联迭代的页面：使用outerjoin保留无原型项目的页面
@@ -84,9 +86,7 @@ def _apply_iteration_filter(query: Any, iteration_id: int | None) -> Any:
     return query
 
 
-def get_ui_screen_by_id(
-    db: Session, screen_id: int, project_id: int | None = None
-) -> UIPrototypeScreen | None:
+def get_ui_screen_by_id(db: Session, screen_id: int, project_id: int | None = None) -> UIPrototypeScreen | None:
     """
     根据ID获取UI页面
 
@@ -149,9 +149,7 @@ def get_ui_screens_by_project(
     # 迭代过滤：复用_apply_iteration_filter统一处理
     query = _apply_iteration_filter(query, iteration_id)
     # 排序：先按screen_order排序（用户自定义顺序），再按创建时间排序
-    return query.order_by(
-        UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time
-    ).offset(skip).limit(limit).all()
+    return query.order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time).offset(skip).limit(limit).all()
 
 
 def get_ui_screens_count(
@@ -208,9 +206,7 @@ def get_test_cases_by_screen(db: Session, screen_id: int) -> list[int]:
     Note:
         此函数未做权限过滤，调用方需自行校验访问权限。
     """
-    links = db.query(UIScreenTestCaseLink).filter(
-        UIScreenTestCaseLink.screen_id == screen_id
-    ).all()
+    links = db.query(UIScreenTestCaseLink).filter(UIScreenTestCaseLink.screen_id == screen_id).all()
     return [link.test_case_id for link in links]
 
 
@@ -262,6 +258,4 @@ def get_parsed_ui_screens_for_case_generation(
                 UIPrototypeScreen.review_status == "pending",
             )
         )
-    return query.order_by(
-        UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time
-    ).all()
+    return query.order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time).all()

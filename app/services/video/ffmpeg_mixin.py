@@ -1,20 +1,14 @@
-"""FFmpeg Mixin - 视频录制、合并、截图和格式转换。
-"""
+"""FFmpeg Mixin - 视频录制、合并、截图和格式转换。"""
+
 import os
 import subprocess
 from loguru import logger
 
 
 class FFmpegMixin:
-
     def _check_ffmpeg_available(self) -> bool:
         try:
-            result = subprocess.run(
-                ["ffmpeg", "-version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             logger.warning("ffmpeg未安装或不可用")
@@ -22,22 +16,14 @@ class FFmpegMixin:
 
     def _check_ffprobe_available(self) -> bool:
         try:
-            result = subprocess.run(
-                ["ffprobe", "-version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["ffprobe", "-version"], capture_output=True, text=True, timeout=5)
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             logger.warning("ffprobe未安装或不可用")
             return False
 
     async def extract_video_thumbnail(
-        self,
-        video_path: str,
-        output_path: str | None = None,
-        time_offset: float = 1.0
+        self, video_path: str, output_path: str | None = None, time_offset: float = 1.0
     ) -> str | None:
         if not self._check_ffmpeg_available():
             logger.warning("ffmpeg不可用，无法提取缩略图")
@@ -49,27 +35,23 @@ class FFmpegMixin:
 
         if output_path is None:
             base_name = os.path.splitext(os.path.basename(video_path))[0]
-            output_path = os.path.join(
-                os.path.dirname(video_path),
-                f"{base_name}_thumb.jpg"
-            )
+            output_path = os.path.join(os.path.dirname(video_path), f"{base_name}_thumb.jpg")
 
         try:
             cmd = [
                 "ffmpeg",
-                "-i", video_path,
-                "-ss", str(time_offset),
-                "-frames:v", "1",
-                "-q:v", "2",
+                "-i",
+                video_path,
+                "-ss",
+                str(time_offset),
+                "-frames:v",
+                "1",
+                "-q:v",
+                "2",
                 "-y",
-                output_path
+                output_path,
             ]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0 and os.path.exists(output_path):
                 logger.info(f"视频缩略图提取成功: {output_path}")
@@ -96,17 +78,15 @@ class FFmpegMixin:
         try:
             cmd = [
                 "ffprobe",
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                video_path
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                video_path,
             ]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
             if result.returncode == 0 and result.stdout.strip():
                 duration = float(result.stdout.strip())
@@ -124,6 +104,6 @@ class FFmpegMixin:
             return False
         if not os.path.exists(video_path):
             return False
-        valid_extensions = {'.mp4', '.webm', '.avi', '.mov', '.mkv', '.flv'}
+        valid_extensions = {".mp4", ".webm", ".avi", ".mov", ".mkv", ".flv"}
         ext = os.path.splitext(video_path)[1].lower()
         return ext in valid_extensions

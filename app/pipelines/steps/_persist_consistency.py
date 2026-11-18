@@ -3,6 +3,7 @@
 校验持久化数量与预期数量的一致性，并验证 deprecation 旧用例状态。
 批量查询旧用例避免循环内 N+1 查询。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -38,10 +39,7 @@ def _run_consistency_check(
         generation_tasks = tasks_artifact.get("generation_tasks", [])
         deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
         deprecation_suggestions_count = len(deprecation_suggestions)
-        expected_count = sum(
-            1 for t in generation_tasks
-            if t.get("task_type") in ("create", "modify", "locator_fix")
-        )
+        expected_count = sum(1 for t in generation_tasks if t.get("task_type") in ("create", "modify", "locator_fix"))
 
     persisted_count = len(persisted_ids)
 
@@ -56,6 +54,7 @@ def _run_consistency_check(
     # 验证 deprecation 对应的旧用例状态
     if deprecation_suggestions:
         from app.models.test_case import TestCase as _TC
+
         deprecation_check: dict = {
             "total": len(deprecation_suggestions),
             "verified": 0,
@@ -64,15 +63,10 @@ def _run_consistency_check(
         }
         # 批量查询：收集 case_id 后一次 .in_() 查询，避免循环内 N+1 查询
         check_items = deprecation_suggestions[:20]
-        case_ids_to_check = [
-            ds.get("case_id") for ds in check_items
-            if ds.get("case_id") is not None
-        ]
+        case_ids_to_check = [ds.get("case_id") for ds in check_items if ds.get("case_id") is not None]
         old_cases_map: dict[int, _TC] = {}
         if case_ids_to_check:
-            old_cases = ctx.db.query(_TC).filter(
-                _TC.id.in_(case_ids_to_check)
-            ).all()
+            old_cases = ctx.db.query(_TC).filter(_TC.id.in_(case_ids_to_check)).all()
             old_cases_map = {c.id: c for c in old_cases}
 
         for ds in check_items:

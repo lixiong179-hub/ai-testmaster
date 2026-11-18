@@ -10,6 +10,7 @@
     - 状态变更走 update() 语句，避免加载完整对象再写回
     - 异常包装为 AgentError，保留 agent_type/session_id 上下文
 """
+
 from __future__ import annotations
 
 
@@ -32,8 +33,12 @@ class SessionService:
     """
 
     async def create_session(
-        self, db: Session | AsyncSession, *, agent_type: str,
-        project_id: int, created_by: int | None = None,
+        self,
+        db: Session | AsyncSession,
+        *,
+        agent_type: str,
+        project_id: int,
+        created_by: int | None = None,
     ) -> AgentSession:
         """创建 Agent 会话，初始 status=running、token_cost=0。
 
@@ -42,26 +47,36 @@ class SessionService:
         """
         if not AgentSession.validate_agent_type(agent_type):
             raise AgentError(
-                f"非法 agent_type: {agent_type}", agent_type=agent_type,
+                f"非法 agent_type: {agent_type}",
+                agent_type=agent_type,
             )
         session = AgentSession(
-            project_id=project_id, agent_type=agent_type, status="running",
-            token_cost=0, iteration_count=0, loop_detected=False,
+            project_id=project_id,
+            agent_type=agent_type,
+            status="running",
+            token_cost=0,
+            iteration_count=0,
+            loop_detected=False,
             created_by=created_by,
         )
         db.add(session)
         await flush_async(db)
         await refresh_async(db, session)
         logger.info(
-            f"Agent 会话创建: id={session.id} agent_type={agent_type} "
-            f"project_id={project_id} created_by={created_by}"
+            f"Agent 会话创建: id={session.id} agent_type={agent_type} project_id={project_id} created_by={created_by}"
         )
         return session
 
     async def append_message(
-        self, db: Session | AsyncSession, *, session_id: int, role: str,
-        content: dict, artifact_refs: list | None = None,
-        tool_call_id: str | None = None, tool_name: str | None = None,
+        self,
+        db: Session | AsyncSession,
+        *,
+        session_id: int,
+        role: str,
+        content: dict,
+        artifact_refs: list | None = None,
+        tool_call_id: str | None = None,
+        tool_name: str | None = None,
         token_cost: int = 0,
     ) -> AgentMessage:
         """追加一条消息到会话历史。
@@ -71,12 +86,17 @@ class SessionService:
         """
         if not AgentMessage.validate_role(role):
             raise AgentError(
-                f"非法消息角色: {role}", session_id=session_id,
+                f"非法消息角色: {role}",
+                session_id=session_id,
             )
         message = AgentMessage(
-            session_id=session_id, role=role, content=content,
-            artifact_refs=artifact_refs, tool_call_id=tool_call_id,
-            tool_name=tool_name, token_cost=token_cost,
+            session_id=session_id,
+            role=role,
+            content=content,
+            artifact_refs=artifact_refs,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            token_cost=token_cost,
         )
         db.add(message)
         await flush_async(db)
@@ -84,7 +104,10 @@ class SessionService:
         return message
 
     async def get_history(
-        self, db: Session | AsyncSession, session_id: int, limit: int = 50,
+        self,
+        db: Session | AsyncSession,
+        session_id: int,
+        limit: int = 50,
     ) -> list[AgentMessage]:
         """按时间顺序获取会话消息流（最旧 → 最新），返回最多 limit 条。"""
         stmt = (
@@ -97,8 +120,13 @@ class SessionService:
         return list(result.scalars().all())
 
     async def complete_session(
-        self, db: Session | AsyncSession, *, session_id: int, status: str,
-        token_cost: int | None = None, iteration_count: int | None = None,
+        self,
+        db: Session | AsyncSession,
+        *,
+        session_id: int,
+        status: str,
+        token_cost: int | None = None,
+        iteration_count: int | None = None,
         loop_detected: bool | None = None,
     ) -> AgentSession:
         """关闭会话：写入 status、completed_at 与可选统计字段。
@@ -107,7 +135,8 @@ class SessionService:
         """
         if not AgentSession.validate_status(status):
             raise AgentError(
-                f"非法会话状态: {status}", session_id=session_id,
+                f"非法会话状态: {status}",
+                session_id=session_id,
             )
         values: dict = {"status": status, "completed_at": utcnow()}
         if token_cost is not None:
@@ -117,11 +146,7 @@ class SessionService:
         if loop_detected is not None:
             values["loop_detected"] = loop_detected
 
-        stmt = (
-            update(AgentSession)
-            .where(AgentSession.id == session_id)
-            .values(**values)
-        )
+        stmt = update(AgentSession).where(AgentSession.id == session_id).values(**values)
         result = await execute_async(db, stmt)
         if result.rowcount == 0:
             raise AgentError(
@@ -133,7 +158,8 @@ class SessionService:
         refreshed = await self.get_session(db, session_id)
         if refreshed is None:
             raise AgentError(
-                f"会话不存在: session_id={session_id}", session_id=session_id,
+                f"会话不存在: session_id={session_id}",
+                session_id=session_id,
             )
         logger.info(
             f"Agent 会话关闭: id={session_id} status={status} "
@@ -142,15 +168,21 @@ class SessionService:
         return refreshed
 
     async def cancel_session(
-        self, db: Session | AsyncSession, session_id: int,
+        self,
+        db: Session | AsyncSession,
+        session_id: int,
     ) -> AgentSession:
         """取消会话（status=cancelled）。"""
         return await self.complete_session(
-            db, session_id=session_id, status="cancelled",
+            db,
+            session_id=session_id,
+            status="cancelled",
         )
 
     async def get_session(
-        self, db: Session | AsyncSession, session_id: int,
+        self,
+        db: Session | AsyncSession,
+        session_id: int,
     ) -> AgentSession | None:
         """按 ID 查询会话，不存在返回 None。"""
         stmt = select(AgentSession).where(AgentSession.id == session_id)
@@ -158,9 +190,14 @@ class SessionService:
         return result.scalar_one_or_none()
 
     async def list_sessions(
-        self, db: Session | AsyncSession, *, project_id: int | None = None,
-        agent_type: str | None = None, status: str | None = None,
-        offset: int = 0, limit: int = 20,
+        self,
+        db: Session | AsyncSession,
+        *,
+        project_id: int | None = None,
+        agent_type: str | None = None,
+        status: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
     ) -> tuple[list[AgentSession], int]:
         """分页查询会话列表，按 id 倒序。
 
@@ -175,7 +212,8 @@ class SessionService:
         if agent_type is not None:
             if not AgentSession.validate_agent_type(agent_type):
                 raise AgentError(
-                    f"非法 agent_type: {agent_type}", agent_type=agent_type,
+                    f"非法 agent_type: {agent_type}",
+                    agent_type=agent_type,
                 )
             conditions.append(AgentSession.agent_type == agent_type)
         if status is not None:
@@ -188,9 +226,7 @@ class SessionService:
         for cond in conditions:
             base_stmt = base_stmt.where(cond)
             count_stmt = count_stmt.where(cond)
-        base_stmt = (
-            base_stmt.order_by(AgentSession.id.desc()).offset(offset).limit(limit)
-        )
+        base_stmt = base_stmt.order_by(AgentSession.id.desc()).offset(offset).limit(limit)
 
         result = await execute_async(db, base_stmt)
         sessions = list(result.scalars().all())

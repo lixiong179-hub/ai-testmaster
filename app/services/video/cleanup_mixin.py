@@ -1,5 +1,5 @@
-"""清理Mixin - 自动清理过期视频文件和磁盘空间管理。
-"""
+"""清理Mixin - 自动清理过期视频文件和磁盘空间管理。"""
+
 from pathlib import Path
 import os
 from typing import Any
@@ -28,9 +28,7 @@ class CleanupMixin:
         retention_days = days or self._retention_days
         cutoff = utcnow() - timedelta(days=retention_days)
 
-        expired_videos = self.db.query(VideoRecord).filter(
-            VideoRecord.created_at < cutoff
-        ).all()
+        expired_videos = self.db.query(VideoRecord).filter(VideoRecord.created_at < cutoff).all()
 
         deleted_count = 0
         failed_count = 0
@@ -131,7 +129,7 @@ class CleanupMixin:
             "disk_usage_mb": round(disk_usage / (1024 * 1024), 2),
             "total_videos": total_count if videos else total_files,
             "total_size_bytes": total_size if videos else disk_usage,
-            "total_size_gb": round((total_size if videos else disk_usage) / (1024 ** 3), 4),
+            "total_size_gb": round((total_size if videos else disk_usage) / (1024**3), 4),
             "video_directory": str(video_dir),
             "retention_days": self._retention_days,
         }

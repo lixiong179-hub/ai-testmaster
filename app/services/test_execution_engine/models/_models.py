@@ -135,4 +135,5 @@ def handle_execution_errors(func: Callable[..., Any]) -> Callable[..., Any]:
             logger.error(error_msg)
             logger.debug(traceback.format_exc())
             raise StepExecutionError(error_msg) from e
+
     return wrapper

@@ -16,6 +16,7 @@
 依赖：
     pip install pyotp==2.9.0 qrcode==7.4.2
 """
+
 from __future__ import annotations
 
 import secrets
@@ -151,7 +152,7 @@ class MFAService:
             try:
                 if _backup_pwd_context.verify(submitted_code, hashed_code):
                     # 匹配，移除已使用的备份码
-                    remaining = stored_hashed_codes[:idx] + stored_hashed_codes[idx + 1:]
+                    remaining = stored_hashed_codes[:idx] + stored_hashed_codes[idx + 1 :]
                     logger.info("[MFA] 备份码已消费，剩余数量=%d", len(remaining))
                     return True, remaining
             except Exception as e:

@@ -45,52 +45,73 @@ class CaseValidator(BaseValidator):
 
         title = (case_data.get("title") or "").strip()
         if not title:
-            issues.append(ValidationIssue(
-                field="title", message="标题为空", severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="title",
+                    message="标题为空",
+                    severity="rejected",
+                )
+            )
         elif len(title) < title_min:
-            issues.append(ValidationIssue(
-                field="title",
-                message=f"标题过短（{len(title)}字），需≥{title_min}字",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="title",
+                    message=f"标题过短（{len(title)}字），需≥{title_min}字",
+                    severity="rejected",
+                )
+            )
         elif len(title) > title_max:
-            issues.append(ValidationIssue(
-                field="title",
-                message=f"标题过长（{len(title)}字），需≤{title_max}字",
-                severity="warning",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="title",
+                    message=f"标题过长（{len(title)}字），需≤{title_max}字",
+                    severity="warning",
+                )
+            )
 
         steps = case_data.get("steps") or []
         step_count = len(steps)
         if step_count < steps_min:
-            issues.append(ValidationIssue(
-                field="steps",
-                message=f"步骤数不足（{step_count}步），需≥{steps_min}步",
-                severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="steps",
+                    message=f"步骤数不足（{step_count}步），需≥{steps_min}步",
+                    severity="rejected",
+                )
+            )
         elif step_count > steps_max:
-            issues.append(ValidationIssue(
-                field="steps",
-                message=f"步骤数过多（{step_count}步），需≤{steps_max}步",
-                severity="warning",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="steps",
+                    message=f"步骤数过多（{step_count}步），需≤{steps_max}步",
+                    severity="warning",
+                )
+            )
 
         precondition = (case_data.get("precondition") or "").strip()
         if not precondition:
-            issues.append(ValidationIssue(
-                field="precondition", message="前置条件为空", severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="precondition",
+                    message="前置条件为空",
+                    severity="rejected",
+                )
+            )
 
         expected_result = (case_data.get("expected_result") or "").strip()
         if not expected_result:
-            issues.append(ValidationIssue(
-                field="expected_result", message="预期结果为空", severity="rejected",
-            ))
+            issues.append(
+                ValidationIssue(
+                    field="expected_result",
+                    message="预期结果为空",
+                    severity="rejected",
+                )
+            )
 
         worst = "passed"
         for issue in issues:
             from app.services.quality.validators.base import Severity
+
             if Severity[issue.severity].value > Severity[worst].value:
                 worst = issue.severity
 

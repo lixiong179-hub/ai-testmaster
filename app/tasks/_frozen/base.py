@@ -8,6 +8,7 @@
 
 依赖：celery.Task、app.db.database、app.core.config
 """
+
 import logging
 import time
 from typing import Any
@@ -36,6 +37,7 @@ def task_state_callback(task_id: str, state: str, result: Any | None = None) -> 
     # Redis 进度缓存（TTL 1h）
     try:
         import redis
+
         r = redis.from_url(settings.REDIS_URL, socket_timeout=1, socket_connect_timeout=1)
         r.hset(
             f"task:{task_id}:state",
@@ -72,18 +74,12 @@ class BaseTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """任务失败回调：回写 failure 状态，记录详细错误。"""
         task_state_callback(task_id, TASK_STATE_FAILURE, str(exc))
-        logger.error(
-            f"任务失败: task_id={task_id}, args={args}, kwargs={kwargs}, "
-            f"exception={exc}, traceback={einfo}"
-        )
+        logger.error(f"任务失败: task_id={task_id}, args={args}, kwargs={kwargs}, exception={exc}, traceback={einfo}")
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """任务重试回调：回写 retry 状态。"""
         task_state_callback(task_id, TASK_STATE_RETRY, str(exc))
-        logger.warning(
-            f"任务重试: task_id={task_id}, retry_count={self.request.retries}, "
-            f"exception={exc}"
-        )
+        logger.warning(f"任务重试: task_id={task_id}, retry_count={self.request.retries}, exception={exc}")
 
     def on_start(self, task_id, args, kwargs):
         """任务启动回调：回写 started 状态。"""
@@ -95,4 +91,4 @@ def calculate_retry_backoff(retry_count: int) -> float:
 
     业务用途：避免瞬时故障下任务密集重试压垮下游服务。
     """
-    return min(2 ** retry_count, 60)
+    return min(2**retry_count, 60)

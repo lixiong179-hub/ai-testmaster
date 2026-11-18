@@ -6,6 +6,7 @@
     - result: 最终结果事件，包含完整导入/预览数据
     - error: 错误事件，包含错误信息
 """
+
 import asyncio
 import contextlib
 import json
@@ -46,7 +47,7 @@ def _sse_event(event: str, data: dict) -> str:
     注意：SSE协议中data字段不能包含裸换行，
     需确保JSON序列化结果为单行。
     """
-    json_str = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+    json_str = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     return f"event: {event}\ndata: {json_str}\n\n"
 
 
@@ -63,8 +64,7 @@ async def _run_ai_parse_with_progress(
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue = asyncio.Queue()
 
-    def progress_callback(completed_batches: int, total_batches: int,
-                          completed_paths: int, total_paths_count: int):
+    def progress_callback(completed_batches: int, total_batches: int, completed_paths: int, total_paths_count: int):
         """线程安全的进度回调，将进度事件放入异步队列。"""
         progress_state["completed_batches"] = completed_batches
         progress_state["total_batches"] = total_batches
@@ -72,24 +72,30 @@ async def _run_ai_parse_with_progress(
         with contextlib.suppress(RuntimeError):
             loop.call_soon_threadsafe(
                 queue.put_nowait,
-                _sse_event("progress", {
-                    "completed_batches": completed_batches,
-                    "total_batches": total_batches,
-                    "completed_paths": completed_paths,
-                    "total_paths": total_paths_count,
-                    "percentage": round(completed_batches / total_batches * 100) if total_batches > 0 else 0,
-                }),
+                _sse_event(
+                    "progress",
+                    {
+                        "completed_batches": completed_batches,
+                        "total_batches": total_batches,
+                        "completed_paths": completed_paths,
+                        "total_paths": total_paths_count,
+                        "percentage": round(completed_batches / total_batches * 100) if total_batches > 0 else 0,
+                    },
+                ),
             )
 
     # 发送初始进度
-    yield _sse_event("progress", {
-        "completed_batches": 0,
-        "total_batches": 0,
-        "completed_paths": 0,
-        "total_paths": total_paths,
-        "percentage": 0,
-        "status": "starting",
-    })
+    yield _sse_event(
+        "progress",
+        {
+            "completed_batches": 0,
+            "total_batches": 0,
+            "completed_paths": 0,
+            "total_paths": total_paths,
+            "percentage": 0,
+            "status": "starting",
+        },
+    )
 
     # 在线程池中运行AI解析（不捕获异常，让task.result()自然抛出）
     def _sync_parse():
@@ -142,14 +148,17 @@ async def _run_ai_parse_with_progress(
         return
 
     # 发送完成进度
-    yield _sse_event("progress", {
-        "completed_batches": progress_state.get("total_batches", 0),
-        "total_batches": progress_state.get("total_batches", 0),
-        "completed_paths": len(ai_cases),
-        "total_paths": total_paths,
-        "percentage": 100,
-        "status": "completed",
-    })
+    yield _sse_event(
+        "progress",
+        {
+            "completed_batches": progress_state.get("total_batches", 0),
+            "total_batches": progress_state.get("total_batches", 0),
+            "completed_paths": len(ai_cases),
+            "total_paths": total_paths,
+            "percentage": 100,
+            "status": "completed",
+        },
+    )
 
     # 写入数据库并返回结果
     # 注意：SSE场景下请求级别的db会话在StreamingResponse返回后已关闭，
@@ -157,6 +166,7 @@ async def _run_ai_parse_with_progress(
     # 性能优化：handle_ai_enhanced_import 是 sync 函数，直接调用会阻塞事件循环，包到线程
     try:
         from app.db.database import PrimarySessionLocal
+
         db = PrimarySessionLocal()
         try:
             result = await asyncio.to_thread(
@@ -203,9 +213,7 @@ async def import_xmind_stream(
     返回Server-Sent Events流，实时推送AI解析进度和最终结果。
     仅支持AI增强模式（自动启用）。
     """
-    await asyncio.to_thread(
-        check_project_permission, db, project_id, current_user.id
-    )
+    await asyncio.to_thread(check_project_permission, db, project_id, current_user.id)
     validate_file(file)
 
     logger.info(f"XMind SSE导入请求: project_id={project_id}, preview={preview}")
@@ -217,8 +225,10 @@ async def import_xmind_stream(
         if not all_paths:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
+
             async def _error_gen():
                 yield _sse_event("error", {"detail": "XMind文件未提取到有效路径", "error_type": "parse_error"})
+
             return StreamingResponse(_error_gen(), media_type="text/event-stream")
 
         total_paths = len(all_paths)
@@ -261,6 +271,8 @@ async def import_xmind_stream(
                 os.unlink(tmp_path)
         except Exception:
             logger.debug("删除临时xmind文件失败", exc_info=True)
+
         async def _error_gen():
             yield _sse_event("error", {"detail": "XMind解析失败", "error_type": "parse_error"})
+
         return StreamingResponse(_error_gen(), media_type="text/event-stream")

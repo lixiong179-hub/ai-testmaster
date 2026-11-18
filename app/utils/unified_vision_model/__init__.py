@@ -12,12 +12,12 @@ from app.utils.unified_vision_model._model import (
 )
 
 __all__ = [
-    'UnifiedVisionModel',
-    'VisionModelType',
-    'ElementInfo',
-    'ModelProviderConfig',
-    'MODEL_PROVIDER_CONFIGS',
-    'resolve_default_model_type',
-    'create_vision_model',
-    'get_default_vision_model',
+    "UnifiedVisionModel",
+    "VisionModelType",
+    "ElementInfo",
+    "ModelProviderConfig",
+    "MODEL_PROVIDER_CONFIGS",
+    "resolve_default_model_type",
+    "create_vision_model",
+    "get_default_vision_model",
 ]

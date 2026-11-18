@@ -14,19 +14,21 @@ from app.models.review import IterationReview, ReviewDecision
 from app.models.user import User
 
 
-def _verify_review_access(
-    db: Session, review_id: int, current_user: User
-) -> IterationReview:
+def _verify_review_access(db: Session, review_id: int, current_user: User) -> IterationReview:
     review = db.get(IterationReview, review_id)
     if review is None:
         raise HTTPException(status_code=404, detail="评审不存在")
     iteration = db.get(Iteration, review.iteration_id)
     if iteration is None:
         raise HTTPException(status_code=404, detail="迭代不存在")
-    project = db.query(Project).filter(
-        Project.id == iteration.project_id,
-        Project.user_id == current_user.id,
-    ).first()
+    project = (
+        db.query(Project)
+        .filter(
+            Project.id == iteration.project_id,
+            Project.user_id == current_user.id,
+        )
+        .first()
+    )
     if project is None:
         raise HTTPException(status_code=403, detail="无权限操作此评审")
     return review
@@ -64,12 +66,17 @@ def _check_zero_edit_confirmation(
         try:
             from app.services.metrics_service import record_metric
             from app.models.test_case import TestCase
+
             project_id = None
             if decision.target_kind == "case" and decision.target_id:
-                case = db.query(TestCase).filter(
-                    TestCase.id == decision.target_id,
-                    TestCase.is_deleted.is_(False),
-                ).first()
+                case = (
+                    db.query(TestCase)
+                    .filter(
+                        TestCase.id == decision.target_id,
+                        TestCase.is_deleted.is_(False),
+                    )
+                    .first()
+                )
                 if case:
                     project_id = case.project_id
             record_metric(

@@ -31,7 +31,7 @@ class TaskCoreMixin:
             "case_ids": case_ids,
             "current_case": 0,
             "success_count": 0,
-            "fail_count": 0
+            "fail_count": 0,
         }
         # 启动异步任务
         asyncio.create_task(self._execute_task(task_id, project_id, case_ids))
@@ -102,7 +102,7 @@ class TaskCoreMixin:
                     project_id=project_id,
                     progress=progress,
                     success_count=success_count,
-                    fail_count=fail_count
+                    fail_count=fail_count,
                 )
 
                 # 推送执行进度（添加异常处理）
@@ -113,7 +113,7 @@ class TaskCoreMixin:
                         success_count=success_count,
                         fail_count=fail_count,
                         current_case=i + 1,
-                        total_cases=total_cases
+                        total_cases=total_cases,
                     )
                 except Exception as e:
                     logger.error(f"推送进度失败: {e}")
@@ -125,7 +125,7 @@ class TaskCoreMixin:
                         case_id=case_id,
                         case_no=case_result["case_no"],
                         status=case_result["status"],
-                        log=case_result["log"]
+                        log=case_result["log"],
                     )
                 except Exception as e:
                     logger.error(f"推送日志失败: {e}")
@@ -146,7 +146,7 @@ class TaskCoreMixin:
                     case_id=0,
                     case_no="",
                     status=status,
-                    log=f"任务执行完成，成功: {success_count}, 失败: {fail_count}"
+                    log=f"任务执行完成，成功: {success_count}, 失败: {fail_count}",
                 )
 
         except Exception as e:
@@ -155,11 +155,7 @@ class TaskCoreMixin:
 
             # 推送错误消息
             await self.push_execution_log(
-                task_id=task_id,
-                case_id=0,
-                case_no="",
-                status=3,
-                log=f"任务执行失败: {str(e)}"
+                task_id=task_id, case_id=0, case_no="", status=3, log=f"任务执行失败: {str(e)}"
             )
         finally:
             # 清理前置条件服务（关闭浏览器等资源）

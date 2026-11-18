@@ -9,6 +9,7 @@
     403「无权限操作此项目」语义冲突，容易在排查时误导。
     项目归属校验请统一使用 `app.api.v1.endpoints.access_deps`。
 """
+
 from app.models.history_asset import HistoryAsset
 from app.schemas.history_asset import (
     HistoryAssetDetailResponse,

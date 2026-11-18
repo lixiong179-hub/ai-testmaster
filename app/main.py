@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.exception import register_exception_handlers
 from app.core.rate_limit import RateLimitMiddleware
+
 # R4-2：lifespan 的启动/关闭逻辑已拆分为可独立测试的单元
 from app.core.lifecycle import shutdown as lifecycle_shutdown, startup as lifecycle_startup
 from app.api.v1.endpoints import auth, project, file, test_task, report, test_point
@@ -112,7 +113,7 @@ app = FastAPI(
     version=settings.APP_VERSION,
     description="AI全自动测试平台后端API",
     openapi_tags=TAGS_METADATA,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Prometheus 指标端点（可选监控，需 docker compose --profile monitoring 启用抓取）
@@ -139,7 +140,7 @@ _rate_limit = 1000 if settings.ENVIRONMENT == "prod" else 5000  # 生产环境�
 app.add_middleware(
     RateLimitMiddleware,
     max_requests=_rate_limit,  # 每分钟最多请求（根据环境动态配置）
-    time_window=60  # 时间窗口为60秒
+    time_window=60,  # 时间窗口为60秒
 )
 
 # 注册全局异常处理器
@@ -198,17 +199,22 @@ def root() -> dict[str, str]:
 
 
 # 健康检查接口
-@app.get("/health", summary="健康检查", description="检测 API 服务及依赖组件（数据库、Redis、AI 接口）的可用性状态。返回 status=healthy 或 degraded。")
+@app.get(
+    "/health",
+    summary="健康检查",
+    description="检测 API 服务及依赖组件（数据库、Redis、AI 接口）的可用性状态。返回 status=healthy 或 degraded。",
+)
 def health_check() -> dict[str, object]:
     """健康检查接口（含依赖服务状态检测）"""
     health_status = {
         "status": "healthy",
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
-        "services": {}
+        "services": {},
     }
 
     from app.db.database import check_db_connection
+
     db_ok = check_db_connection()
     health_status["services"]["database"] = "healthy" if db_ok else "unhealthy"
     if not db_ok:
@@ -216,6 +222,7 @@ def health_check() -> dict[str, object]:
 
     try:
         import redis
+
         r = redis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
         r.ping()
         r.close()
@@ -231,25 +238,35 @@ def health_check() -> dict[str, object]:
 
 
 # 存活探针（Kubernetes livenessProbe）：仅表示进程可响应，不探测任何外部依赖
-@app.get("/live", summary="存活探针", description="进程存活检查。仅返回进程可响应状态，不探测数据库、Redis 等外部依赖，避免依赖抖动导致容器被误重启。")
+@app.get(
+    "/live",
+    summary="存活探针",
+    description="进程存活检查。仅返回进程可响应状态，不探测数据库、Redis 等外部依赖，避免依赖抖动导致容器被误重启。",
+)
 def live_check() -> dict[str, str]:
     """存活探针：永远返回 200，只要事件循环仍在调度。"""
     return {"status": "alive"}
 
 
 # 就绪探针（Kubernetes readinessProbe）：关键依赖不可用时返回 503，从流量中摘除
-@app.get("/ready", summary="就绪探针", description="就绪检查。探测数据库与 Redis 等关键依赖，全部可用返回 200，任一不可用返回 503。")
+@app.get(
+    "/ready",
+    summary="就绪探针",
+    description="就绪检查。探测数据库与 Redis 等关键依赖，全部可用返回 200，任一不可用返回 503。",
+)
 def ready_check() -> JSONResponse:
     """就绪探针：依赖不可用时返回 503，使实例从负载均衡中摘除。
 
     安全约束：失败时仅返回通用提示，不披露具体哪个依赖不可用，防止信息探测。
     """
     from app.db.database import check_db_connection
+
     db_ok = bool(check_db_connection())
 
     redis_ok = False
     try:
         import redis
+
         r = redis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
         r.ping()
         r.close()

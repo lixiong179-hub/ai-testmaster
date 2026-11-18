@@ -9,6 +9,7 @@
 5. 多图流转合并
 6. 与测试用例关联
 """
+
 import os
 import asyncio
 from typing import Any
@@ -29,12 +30,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
     """UI原型图批量解析管道Mixin"""
 
     def __init__(
-        self,
-        db: Session,
-        project_id: int,
-        user_id: int,
-        upload_dir: str | None = None,
-        parse_mode: str | None = None
+        self, db: Session, project_id: int, user_id: int, upload_dir: str | None = None, parse_mode: str | None = None
     ) -> None:
         """初始化解析管道
 
@@ -68,27 +64,26 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
 
         try:
             success, ui_spec, error = await self.parser.parse_single_screen(
-                image_path=screen.original_file_path,
-                screen_name_hint=screen.screen_name
+                image_path=screen.original_file_path, screen_name_hint=screen.screen_name
             )
 
             if success:
-                ui_spec['_parse_mode'] = self.parse_mode
+                ui_spec["_parse_mode"] = self.parse_mode
 
-                elements = ui_spec.get('elements', [])
+                elements = ui_spec.get("elements", [])
                 for el in elements:
                     if not isinstance(el, dict):
                         continue
-                    if el.get('semantic_hint') and not el.get('semantic'):
-                        el['semantic'] = el['semantic_hint']
-                    elif el.get('semantic') and not el.get('semantic_hint'):
-                        el['semantic_hint'] = el['semantic']
+                    if el.get("semantic_hint") and not el.get("semantic"):
+                        el["semantic"] = el["semantic_hint"]
+                    elif el.get("semantic") and not el.get("semantic_hint"):
+                        el["semantic_hint"] = el["semantic"]
 
-                buttons = [e for e in elements if e.get('type') == 'button']
+                buttons = [e for e in elements if e.get("type") == "button"]
 
                 # 根据解析模式记录对应的模型名称
                 if self.parse_mode == settings.PARSE_MODE_TEXT:
-                    parse_model = getattr(settings, 'TEXT_MODEL_NAME', '') or settings.DEEPSEEK_MODEL
+                    parse_model = getattr(settings, "TEXT_MODEL_NAME", "") or settings.DEEPSEEK_MODEL
                 else:
                     parse_model = self.parser.vision_model.model_name
 
@@ -97,33 +92,27 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
                     screen_id=screen_id,
                     ui_spec=ui_spec,
                     parse_model=parse_model,
-                    summary=ui_spec.get('purpose', ''),
+                    summary=ui_spec.get("purpose", ""),
                     element_count=len(elements),
                     button_count=len(buttons),
-                    input_count=len([e for e in elements if e.get('type') == 'input']),
-                    layout_checks=ui_spec.get('layout_constraints', []),
-                    navigation_flow=ui_spec.get('flows', {}),
+                    input_count=len([e for e in elements if e.get("type") == "input"]),
+                    layout_checks=ui_spec.get("layout_constraints", []),
+                    navigation_flow=ui_spec.get("flows", {}),
                     is_entry_point=screen.screen_order == 0,
-                    is_end_point=len((ui_spec.get('flows') or {}).get('expected_next_screens', [])) == 0
+                    is_end_point=len((ui_spec.get("flows") or {}).get("expected_next_screens", [])) == 0,
                 )
                 return True, "解析成功"
             else:
-                ui_prototype_crud.update_ui_screen_parse_status(
-                    self.db, screen_id, "failed", error
-                )
+                ui_prototype_crud.update_ui_screen_parse_status(self.db, screen_id, "failed", error)
                 return False, error
 
         except Exception as e:
             logger.error(f"解析屏幕失败: {e}")
-            ui_prototype_crud.update_ui_screen_parse_status(
-                self.db, screen_id, "failed", str(e)
-            )
+            ui_prototype_crud.update_ui_screen_parse_status(self.db, screen_id, "failed", str(e))
             return False, "解析失败"
 
     async def batch_parse_screens(
-        self,
-        screen_ids: list[int],
-        progress_callback: Callable[..., Any] | None = None
+        self, screen_ids: list[int], progress_callback: Callable[..., Any] | None = None
     ) -> dict[str, Any]:
         """批量解析屏幕
 
@@ -161,10 +150,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         logger.info(
             f"批量解析UI屏幕启动: total={len(screen_ids)}, concurrency={concurrency}, parse_mode={self.parse_mode}"
         )
-        tasks = [
-            asyncio.create_task(_parse_one(i, screen_id))
-            for i, screen_id in enumerate(screen_ids)
-        ]
+        tasks = [asyncio.create_task(_parse_one(i, screen_id)) for i, screen_id in enumerate(screen_ids)]
 
         for completed, task in enumerate(asyncio.as_completed(tasks), 1):
             if progress_callback:
@@ -179,23 +165,21 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
             else:
                 failed_count += 1
 
-            results.append({'screen_id': item["screen_id"], 'success': success, 'message': msg})
+            results.append({"screen_id": item["screen_id"], "success": success, "message": msg})
 
         if progress_callback:
             progress_callback(100, "解析完成")
 
         return {
-            'total': len(screen_ids),
-            'success': success_count,
-            'failed': failed_count,
-            'results': results,
-            'parse_mode': self.parse_mode
+            "total": len(screen_ids),
+            "success": success_count,
+            "failed": failed_count,
+            "results": results,
+            "parse_mode": self.parse_mode,
         }
 
     async def parse_prototype_project(
-        self,
-        prototype_project_id: int,
-        progress_callback: Callable[..., Any] | None = None
+        self, prototype_project_id: int, progress_callback: Callable[..., Any] | None = None
     ) -> dict[str, Any]:
         """解析整个原型项目
 
@@ -211,17 +195,17 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
             project_id=self.project_id,
             user_id=self.user_id,
             prototype_project_id=prototype_project_id,
-            parse_status="pending"
+            parse_status="pending",
         )
 
         screen_ids = [s.id for s in screens]
 
         if not screen_ids:
-            return {'message': '没有待解析的屏幕', 'total': 0}
+            return {"message": "没有待解析的屏幕", "total": 0}
 
         result = await self.batch_parse_screens(screen_ids, progress_callback)
 
-        if result['success'] > 0:
+        if result["success"] > 0:
             await self.generate_flow(prototype_project_id)
 
         ui_prototype_crud.update_prototype_project_stats(self.db, prototype_project_id)
@@ -238,10 +222,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
             (成功标志, 消息)
         """
         screens = ui_prototype_crud.get_parsed_ui_screens_for_case_generation(
-            db=self.db,
-            project_id=self.project_id,
-            user_id=self.user_id,
-            prototype_project_id=prototype_project_id
+            db=self.db, project_id=self.project_id, user_id=self.user_id, prototype_project_id=prototype_project_id
         )
 
         if len(screens) < 2:
@@ -250,28 +231,25 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         screens_data = []
         for screen in screens:
             if screen.ui_spec:
-                screens_data.append({
-                    'screen_id': screen.id,
-                    'screen_name': screen.screen_name,
-                    'summary': screen.summary,
-                    'navigation': screen.navigation_flow,
-                    'elements': screen.ui_spec.get('elements', []) if screen.ui_spec else []
-                })
+                screens_data.append(
+                    {
+                        "screen_id": screen.id,
+                        "screen_name": screen.screen_name,
+                        "summary": screen.summary,
+                        "navigation": screen.navigation_flow,
+                        "elements": screen.ui_spec.get("elements", []) if screen.ui_spec else [],
+                    }
+                )
 
         merged_flow = await self.parser.parse_multiple_screen_flows(screens_data)
 
         if merged_flow:
-            ui_prototype_crud.update_prototype_project_merged_flow(
-                self.db, prototype_project_id, merged_flow
-            )
+            ui_prototype_crud.update_prototype_project_merged_flow(self.db, prototype_project_id, merged_flow)
             return True, "页面流转生成成功"
 
         return False, "页面流转生成失败"
 
-    def get_parsed_ui_spec_for_case_generation(
-        self,
-        prototype_project_id: int | None = None
-    ) -> list[dict[str, Any]]:
+    def get_parsed_ui_spec_for_case_generation(self, prototype_project_id: int | None = None) -> list[dict[str, Any]]:
         """获取已解析的UI规格，用于生成测试用例
 
         Args:
@@ -285,27 +263,29 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
             project_id=self.project_id,
             user_id=self.user_id,
             prototype_project_id=prototype_project_id,
-            approved_only=False
+            approved_only=False,
         )
 
         result = []
         for screen in screens:
             if screen.ui_spec:
-                result.append({
-                    'screen_id': screen.id,
-                    'screen_name': screen.screen_name,
-                    'prototype_name': screen.prototype_name,
-                    'screen_order': screen.screen_order,
-                    'ui_spec': screen.ui_spec,
-                    'summary': screen.summary,
-                    'layout_checks': screen.layout_checks or [],
-                    'navigation_flow': screen.navigation_flow,
-                    'element_count': screen.element_count,
-                    'button_count': screen.button_count,
-                    'is_entry_point': screen.is_entry_point,
-                    'is_end_point': screen.is_end_point,
-                    'review_status': screen.review_status
-                })
+                result.append(
+                    {
+                        "screen_id": screen.id,
+                        "screen_name": screen.screen_name,
+                        "prototype_name": screen.prototype_name,
+                        "screen_order": screen.screen_order,
+                        "ui_spec": screen.ui_spec,
+                        "summary": screen.summary,
+                        "layout_checks": screen.layout_checks or [],
+                        "navigation_flow": screen.navigation_flow,
+                        "element_count": screen.element_count,
+                        "button_count": screen.button_count,
+                        "is_entry_point": screen.is_entry_point,
+                        "is_end_point": screen.is_end_point,
+                        "review_status": screen.review_status,
+                    }
+                )
 
         return result
 
@@ -315,10 +295,7 @@ class UISpecParseService:
 
     @staticmethod
     def create_pipeline(
-        db: Session,
-        project_id: int,
-        user_id: int,
-        parse_mode: str | None = None
+        db: Session, project_id: int, user_id: int, parse_mode: str | None = None
     ) -> UISpecParsePipelineMixin:
         """创建解析管道实例"""
         return UISpecParsePipelineMixin(db, project_id, user_id, parse_mode=parse_mode)
@@ -328,7 +305,7 @@ class UISpecParseService:
         """同步的图片编码"""
         try:
             with open(image_path, "rb") as f:
-                return base64.b64encode(f.read()).decode('utf-8')
+                return base64.b64encode(f.read()).decode("utf-8")
         except Exception as e:
             logger.error(f"图片编码失败: {str(e)}")
             return None

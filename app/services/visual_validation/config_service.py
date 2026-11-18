@@ -9,6 +9,7 @@
 Q4 决策为「按项目配置、默认关」，因此缺省项目配置 enabled=True 但全局 False，
 实际效果仍是关闭，需显式开启全局 + 项目双开关才生效。
 """
+
 from typing import Any
 
 from fastapi import HTTPException
@@ -121,10 +122,7 @@ class VisualValidationConfigService:
         if not (DIFF_THRESHOLD_MIN <= float(diff_threshold) <= DIFF_THRESHOLD_MAX):
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    f"diff_threshold 取值范围: "
-                    f"[{DIFF_THRESHOLD_MIN}, {DIFF_THRESHOLD_MAX}]"
-                ),
+                detail=(f"diff_threshold 取值范围: [{DIFF_THRESHOLD_MIN}, {DIFF_THRESHOLD_MAX}]"),
             )
         result["diff_threshold"] = float(diff_threshold)
 

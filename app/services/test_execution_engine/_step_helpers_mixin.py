@@ -7,6 +7,7 @@
 - _dispatch_step_action: 分发步骤动作到对应的执行方法
 - _finalize_step_result: 完成步骤结果的时间记录
 """
+
 from typing import Any
 
 from loguru import logger
@@ -44,16 +45,22 @@ class StepHelpersMixin:
 
     def _resolve_action_type(self, step: TestStep, action_with_data: str) -> tuple:
         """解析步骤的动作类型。"""
-        if hasattr(step, 'action_type') and step.action_type:
+        if hasattr(step, "action_type") and step.action_type:
             action_type_str = step.action_type.lower()
             action_type_map = {
-                "click": ActionType.CLICK, "input": ActionType.INPUT,
-                "navigate": ActionType.NAVIGATE, "verify": ActionType.VERIFY,
-                "wait": ActionType.WAIT, "scroll": ActionType.SCROLL,
-                "hover": ActionType.HOVER, "select": ActionType.SELECT,
-                "captcha": ActionType.VERIFY_CAPTCHA, "verify_captcha": ActionType.VERIFY_CAPTCHA,
+                "click": ActionType.CLICK,
+                "input": ActionType.INPUT,
+                "navigate": ActionType.NAVIGATE,
+                "verify": ActionType.VERIFY,
+                "wait": ActionType.WAIT,
+                "scroll": ActionType.SCROLL,
+                "hover": ActionType.HOVER,
+                "select": ActionType.SELECT,
+                "captcha": ActionType.VERIFY_CAPTCHA,
+                "verify_captcha": ActionType.VERIFY_CAPTCHA,
                 "refresh": ActionType.REFRESH,
-                "keypress": ActionType.KEYBOARD, "keyboard": ActionType.KEYBOARD,
+                "keypress": ActionType.KEYBOARD,
+                "keyboard": ActionType.KEYBOARD,
                 "screenshot": ActionType.SCREENSHOT,
                 "upload": ActionType.UPLOAD,
                 "switch_frame": ActionType.SWITCH_FRAME,
@@ -68,8 +75,7 @@ class StepHelpersMixin:
         return action_type, action_info
 
     async def _resolve_locator(
-        self, step: TestStep, action_type: ActionType,
-        action_with_data: str, execution_mode: str
+        self, step: TestStep, action_type: ActionType, action_with_data: str, execution_mode: str
     ) -> tuple:
         """解析步骤的元素定位器。"""
         locator_record = None
@@ -89,7 +95,7 @@ class StepHelpersMixin:
                         action_description=action_with_data,
                         page_title=page_title,
                         action_type=action_type.value if isinstance(action_type, ActionType) else action_type,
-                        input_value=None
+                        input_value=None,
                     )
                     if element_info:
                         direct_executed = element_info.pop("_direct_executed", False)
@@ -105,8 +111,14 @@ class StepHelpersMixin:
         return locator_record, element_info, direct_executed
 
     async def _dispatch_step_action(
-        self, step, action_type: ActionType, action_info: dict[str, Any],
-        step_test_data: dict[str, str], locator_record, element_info, direct_executed: bool
+        self,
+        step,
+        action_type: ActionType,
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str],
+        locator_record,
+        element_info,
+        direct_executed: bool,
     ) -> None:
         """分发步骤动作到对应的执行方法。"""
         if action_type == ActionType.NAVIGATE:
@@ -146,6 +158,7 @@ class StepHelpersMixin:
     def _finalize_step_result(self, result: StepExecutionResult, start_time) -> StepExecutionResult:
         """完成步骤结果的时间记录。"""
         from app.utils.db_time import utcnow
+
         end_time = utcnow()
         duration = int((end_time - start_time).total_seconds() * 1000)
         result.end_time = end_time

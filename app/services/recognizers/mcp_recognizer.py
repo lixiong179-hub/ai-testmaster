@@ -1,5 +1,5 @@
-"""MCP识别器 - 通过MCP协议与外部识别服务交互实现元素识别。
-"""
+"""MCP识别器 - 通过MCP协议与外部识别服务交互实现元素识别。"""
+
 import json
 
 from loguru import logger
@@ -10,7 +10,6 @@ from app.utils.mcp_text_llm import MCPAwareLLM, get_mcp_llm
 
 
 class MCPRecognizer(ElementRecognizer):
-
     def __init__(self, mcp_client: PlaywrightMCPClient | None = None, mcp_llm: MCPAwareLLM | None = None) -> None:
         self._mcp_client = mcp_client
         self._mcp_llm = mcp_llm
@@ -41,10 +40,7 @@ class MCPRecognizer(ElementRecognizer):
         if not mcp_client or not mcp_client.is_available:
             logger.warning("MCP客户端不可用，降级到视觉模型")
             return RecognitionResult(
-                locator_type="mcp",
-                locator_value="",
-                confidence=0,
-                raw_result={"error": "MCP客户端不可用"}
+                locator_type="mcp", locator_value="", confidence=0, raw_result={"error": "MCP客户端不可用"}
             )
 
         try:
@@ -52,18 +48,12 @@ class MCPRecognizer(ElementRecognizer):
         except Exception as e:
             logger.error(f"获取Accessibility Tree失败: {e}")
             return RecognitionResult(
-                locator_type="mcp",
-                locator_value="",
-                confidence=0,
-                raw_result={"error": "获取页面快照失败"}
+                locator_type="mcp", locator_value="", confidence=0, raw_result={"error": "获取页面快照失败"}
             )
 
         if not snapshot:
             return RecognitionResult(
-                locator_type="mcp",
-                locator_value="",
-                confidence=0,
-                raw_result={"error": "Accessibility Tree为空"}
+                locator_type="mcp", locator_value="", confidence=0, raw_result={"error": "Accessibility Tree为空"}
             )
 
         snapshot_str = snapshot if isinstance(snapshot, str) else json.dumps(snapshot, ensure_ascii=False)
@@ -73,10 +63,7 @@ class MCPRecognizer(ElementRecognizer):
 
         if not locator_result:
             return RecognitionResult(
-                locator_type="mcp",
-                locator_value="",
-                confidence=0,
-                raw_result={"snapshot_size": len(snapshot_str)}
+                locator_type="mcp", locator_value="", confidence=0, raw_result={"snapshot_size": len(snapshot_str)}
             )
 
         locator_type = locator_result.get("locator_type", "")
@@ -93,16 +80,17 @@ class MCPRecognizer(ElementRecognizer):
                 "locator_value": locator_value,
                 "element_description": locator_result.get("element_description", ""),
                 "reasoning": locator_result.get("reasoning", ""),
-                "snapshot_size": len(snapshot_str)
-            }
+                "snapshot_size": len(snapshot_str),
+            },
         )
 
     async def batch_recognize(self, browser, operations: list[str]) -> list[RecognitionResult]:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             return [
-                RecognitionResult(locator_type="mcp", locator_value="", confidence=0,
-                                  raw_result={"error": "MCP客户端不可用"})
+                RecognitionResult(
+                    locator_type="mcp", locator_value="", confidence=0, raw_result={"error": "MCP客户端不可用"}
+                )
                 for _ in operations
             ]
 
@@ -111,16 +99,14 @@ class MCPRecognizer(ElementRecognizer):
         except Exception as e:
             logger.error(f"批量识别获取Accessibility Tree失败: {e}")
             return [
-                RecognitionResult(locator_type="mcp", locator_value="", confidence=0,
-                                  raw_result={"error": "获取页面快照失败"})
+                RecognitionResult(
+                    locator_type="mcp", locator_value="", confidence=0, raw_result={"error": "获取页面快照失败"}
+                )
                 for _ in operations
             ]
 
         if not snapshot:
-            return [
-                RecognitionResult(locator_type="mcp", locator_value="", confidence=0)
-                for _ in operations
-            ]
+            return [RecognitionResult(locator_type="mcp", locator_value="", confidence=0) for _ in operations]
 
         snapshot_str = snapshot if isinstance(snapshot, str) else json.dumps(snapshot, ensure_ascii=False)
 
@@ -130,25 +116,27 @@ class MCPRecognizer(ElementRecognizer):
         results = []
         for llm_result in llm_results:
             if llm_result:
-                results.append(RecognitionResult(
-                    locator_type=llm_result.get("locator_type", ""),
-                    locator_value=llm_result.get("locator_value", ""),
-                    confidence=llm_result.get("confidence", 0),
-                    raw_result=llm_result,
-                    element_info={
-                        "locator_type": llm_result.get("locator_type", ""),
-                        "locator_value": llm_result.get("locator_value", ""),
-                        "element_description": llm_result.get("element_description", ""),
-                    }
-                ))
+                results.append(
+                    RecognitionResult(
+                        locator_type=llm_result.get("locator_type", ""),
+                        locator_value=llm_result.get("locator_value", ""),
+                        confidence=llm_result.get("confidence", 0),
+                        raw_result=llm_result,
+                        element_info={
+                            "locator_type": llm_result.get("locator_type", ""),
+                            "locator_value": llm_result.get("locator_value", ""),
+                            "element_description": llm_result.get("element_description", ""),
+                        },
+                    )
+                )
             else:
-                results.append(RecognitionResult(
-                    locator_type="mcp", locator_value="", confidence=0
-                ))
+                results.append(RecognitionResult(locator_type="mcp", locator_value="", confidence=0))
 
         return results
 
-    async def execute_action(self, result: RecognitionResult, action_type: str = "click", input_value: str | None = None) -> bool:
+    async def execute_action(
+        self, result: RecognitionResult, action_type: str = "click", input_value: str | None = None
+    ) -> bool:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             logger.warning("MCP客户端不可用，无法执行操作")
@@ -193,7 +181,9 @@ class MCPRecognizer(ElementRecognizer):
                     logger.warning("select操作缺少input_value参数")
                     return False
                 values = [v.strip() for v in input_value.split(",")]
-                logger.info(f"MCP执行select: element={element}, ref={ref}, values={[_mask_sensitive(v) for v in values]}")
+                logger.info(
+                    f"MCP执行select: element={element}, ref={ref}, values={[_mask_sensitive(v) for v in values]}"
+                )
                 await mcp_client.browser_select_option(element, values, ref=ref)
             elif action_type == "wait":
                 wait_time = None

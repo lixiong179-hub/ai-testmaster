@@ -1,5 +1,5 @@
-
 """前置条件服务 - 通过Mixin组合模式组装测试前置条件执行能力。"""
+
 from app.services.precondition.models import (
     TestObjectType,
     PreconditionError,
@@ -33,16 +33,11 @@ async def create_precondition_service(
     api_key: str = None,
     base_url: str = None,
     model_name: str = None,
-    timing_config: PreconditionTimingConfig = None
+    timing_config: PreconditionTimingConfig = None,
 ) -> PreconditionService:
     """异步工厂函数 - 创建并初始化前置条件服务实例。"""
     service = PreconditionService(timing_config=timing_config)
-    await service.initialize(
-        model_type=model_type,
-        api_key=api_key,
-        base_url=base_url,
-        model_name=model_name
-    )
+    await service.initialize(model_type=model_type, api_key=api_key, base_url=base_url, model_name=model_name)
     return service
 
 

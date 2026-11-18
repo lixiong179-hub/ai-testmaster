@@ -9,6 +9,7 @@
     - SingleGenerateRequest: 基于单个测试点生成请求
     - BatchGenerateRequest: AI批量生成请求
 """
+
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +22,7 @@ MAX_FLOW_EDGES = 200
 
 class AIGenerateRequest(BaseModel):
     """AI基础生成请求。"""
+
     project_id: int
     description: str
 
@@ -36,6 +38,7 @@ class AIGenerateRequest(BaseModel):
 
 class AIGenerateEnhancedRequest(BaseModel):
     """AI增强模式生成请求。"""
+
     project_id: int
     description: str
     case_type: str | None = None
@@ -45,12 +48,8 @@ class AIGenerateEnhancedRequest(BaseModel):
     extra_requirements: str | None = None
     context: dict | None = None
     ui_screen_ids: list[int] | None = None
-    mode: Literal["linear", "graph"] = Field(
-        default="linear", description="排序模式：linear=线性/graph=流程图"
-    )
-    flow_sort_data: FlowSortDataSchema | None = Field(
-        None, description="流程图排序数据（graph模式必填）"
-    )
+    mode: Literal["linear", "graph"] = Field(default="linear", description="排序模式：linear=线性/graph=流程图")
+    flow_sort_data: FlowSortDataSchema | None = Field(None, description="流程图排序数据（graph模式必填）")
 
     @field_validator("case_type")
     @classmethod
@@ -58,12 +57,20 @@ class AIGenerateEnhancedRequest(BaseModel):
         if not v:
             return None
         valid_types = (
-            "ui_automation", "manual", "api_automation", "performance",
-            "security", "functional", "api_auto", "UI", "API",
+            "ui_automation",
+            "manual",
+            "api_automation",
+            "performance",
+            "security",
+            "functional",
+            "api_auto",
+            "UI",
+            "API",
         )
         if v not in valid_types:
             raise ValueError(f"不支持的用例类型: {v}")
         from app.core.constants import TestCaseType
+
         return TestCaseType.from_legacy(v).value
 
     @field_validator("exec_mode")
@@ -85,9 +92,7 @@ class AIGenerateEnhancedRequest(BaseModel):
 
     @field_validator("flow_sort_data")
     @classmethod
-    def validate_flow_sort_data_size(
-        cls, v: FlowSortDataSchema | None
-    ) -> FlowSortDataSchema | None:
+    def validate_flow_sort_data_size(cls, v: FlowSortDataSchema | None) -> FlowSortDataSchema | None:
         if v is None:
             return v
         if len(v.nodes) > MAX_FLOW_NODES:
@@ -99,6 +104,7 @@ class AIGenerateEnhancedRequest(BaseModel):
 
 class GenerateContextRequest(BaseModel):
     """获取AI生成上下文请求。"""
+
     project_id: int
     requirement_file_ids: list[int] | None = None
     ui_file_ids: list[int] | None = None
@@ -124,6 +130,7 @@ class GenerateContextRequest(BaseModel):
 
 class SingleGenerateRequest(BaseModel):
     """基于单个测试点生成请求。"""
+
     project_id: int
     test_point_id: int
     requirement_file_ids: list[int] | None = None
@@ -138,12 +145,20 @@ class SingleGenerateRequest(BaseModel):
         if not v:
             return None
         valid_types = (
-            "ui_automation", "manual", "api_automation", "performance",
-            "security", "functional", "api_auto", "UI", "API",
+            "ui_automation",
+            "manual",
+            "api_automation",
+            "performance",
+            "security",
+            "functional",
+            "api_auto",
+            "UI",
+            "API",
         )
         if v not in valid_types:
             raise ValueError(f"不支持的用例类型: {v}")
         from app.core.constants import TestCaseType
+
         return TestCaseType.from_legacy(v).value
 
     @field_validator("requirement_file_ids", "ui_file_ids", "ui_screen_ids")
@@ -168,6 +183,7 @@ class SingleGenerateRequest(BaseModel):
 
 class BatchGenerateRequest(BaseModel):
     """AI批量生成请求。"""
+
     project_id: int
     test_point_ids: list[int] | None = None
     requirement_file_ids: list[int] | None = None
@@ -184,12 +200,20 @@ class BatchGenerateRequest(BaseModel):
         if not v:
             return None
         valid_types = (
-            "ui_automation", "manual", "api_automation", "performance",
-            "security", "functional", "api_auto", "UI", "API",
+            "ui_automation",
+            "manual",
+            "api_automation",
+            "performance",
+            "security",
+            "functional",
+            "api_auto",
+            "UI",
+            "API",
         )
         if v not in valid_types:
             raise ValueError(f"不支持的用例类型: {v}")
         from app.core.constants import TestCaseType
+
         return TestCaseType.from_legacy(v).value
 
     @field_validator("test_point_ids", "requirement_file_ids", "ui_file_ids", "ui_screen_ids")

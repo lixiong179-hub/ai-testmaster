@@ -36,7 +36,7 @@ class UIElement:
             return None
         return {
             "x": (self.bounds["left"] + self.bounds["right"]) // 2,
-            "y": (self.bounds["top"] + self.bounds["bottom"]) // 2
+            "y": (self.bounds["top"] + self.bounds["bottom"]) // 2,
         }
 
     @property
@@ -74,28 +74,17 @@ class UIAutomatorHelper:
 
     async def dump_page(self) -> list[UIElement]:
         try:
-            await self.adb._execute_command(
-                "shell", "uiautomator", "dump", self.DUMP_PATH,
-                check=False, timeout=15
-            )
+            await self.adb._execute_command("shell", "uiautomator", "dump", self.DUMP_PATH, check=False, timeout=15)
             cmd = self.adb._build_command("shell", "cat", self.DUMP_PATH)
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=15
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15)
             xml_content = stdout.decode("utf-8", errors="replace")
             if not xml_content or "<hierarchy" not in xml_content:
                 raise UIAutomatorError("UIAutomator dump returned empty or invalid XML")
             try:
-                await self.adb._execute_command(
-                    "shell", "rm", "-f", self.DUMP_PATH,
-                    check=False, timeout=5
-                )
+                await self.adb._execute_command("shell", "rm", "-f", self.DUMP_PATH, check=False, timeout=5)
             except Exception:
                 logger.debug("清理UIAutomator dump文件失败", exc_info=True)
             return self._parse_xml(xml_content)
@@ -121,9 +110,9 @@ class UIAutomatorHelper:
 
     @staticmethod
     def _sanitize_xml(xml_content: str) -> str:
-        sanitized = re.sub(r'<!DOCTYPE[^>]*\[[^\]]*\]>', '', xml_content)
-        sanitized = re.sub(r'<!DOCTYPE[^>]*>', '', sanitized)
-        sanitized = re.sub(r'<!ENTITY[^>]*>', '', sanitized)
+        sanitized = re.sub(r"<!DOCTYPE[^>]*\[[^\]]*\]>", "", xml_content)
+        sanitized = re.sub(r"<!DOCTYPE[^>]*>", "", sanitized)
+        sanitized = re.sub(r"<!ENTITY[^>]*>", "", sanitized)
         return sanitized
 
     def _parse_node(self, node: ET.Element) -> UIElement | None:
@@ -206,7 +195,11 @@ class UIAutomatorHelper:
     async def get_element_at_coordinates(self, x: int, y: int) -> UIElement | None:
         elements = await self.dump_page()
         for el in elements:
-            if el.bounds and el.bounds["left"] <= x <= el.bounds["right"] and el.bounds["top"] <= y <= el.bounds["bottom"]:
+            if (
+                el.bounds
+                and el.bounds["left"] <= x <= el.bounds["right"]
+                and el.bounds["top"] <= y <= el.bounds["bottom"]
+            ):
                 return el
         return None
 

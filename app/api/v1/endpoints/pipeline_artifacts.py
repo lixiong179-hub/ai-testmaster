@@ -8,6 +8,7 @@
 
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
+
 import asyncio
 import hashlib
 import json
@@ -50,11 +51,10 @@ async def get_pipeline_summary(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await asyncio.to_thread(
-            _verify_iteration_access, db, run.iteration_id, current_user
-        )
+        await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
         from app.pipelines.scenarios import get_scenario_by_version, list_scenarios
+
         scenario_config = get_scenario_by_version(run.pipeline_version)
         scenario_id = 0
         if scenario_config:
@@ -64,9 +64,14 @@ async def get_pipeline_summary(
                     break
 
         actions = {
-            "keep": 0, "needs_modify": 0, "locator_broken": 0,
-            "locator_and_modify": 0, "deprecate": 0, "add_new": 0,
-            "conflict": 0, "pending_review": 0,
+            "keep": 0,
+            "needs_modify": 0,
+            "locator_broken": 0,
+            "locator_and_modify": 0,
+            "deprecate": 0,
+            "add_new": 0,
+            "conflict": 0,
+            "pending_review": 0,
         }
         persisted_case_ids: list[int] = []
         artifact_kinds: list[str] = []
@@ -113,9 +118,7 @@ async def get_inferred_summary(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await asyncio.to_thread(
-            _verify_iteration_access, db, run.iteration_id, current_user
-        )
+        await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
         artifact = await _get_artifact_async(
             db,
@@ -174,12 +177,12 @@ async def get_artifact_detail(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await asyncio.to_thread(
-            _verify_iteration_access, db, run.iteration_id, current_user
-        )
+        await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
         artifact = await _get_artifact_async(
-            db, run_id, artifact_id=artifact_id,
+            db,
+            run_id,
+            artifact_id=artifact_id,
         )
         if not artifact:
             raise HTTPException(status_code=404, detail="产物不存在或不属于该运行")
@@ -222,15 +225,9 @@ async def supplement_signals(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await asyncio.to_thread(
-            _verify_iteration_access, db, run.iteration_id, current_user
-        )
+        await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
-        has_changes = (
-            len(body.confirmed_capabilities) > 0
-            or len(body.answers) > 0
-            or body.change_summary is not None
-        )
+        has_changes = len(body.confirmed_capabilities) > 0 or len(body.answers) > 0 or body.change_summary is not None
         if not has_changes:
             raise HTTPException(status_code=400, detail="至少需要提供确认能力、回答或变更摘要中的一项")
 
@@ -309,9 +306,7 @@ async def cancel_pipeline_run(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await asyncio.to_thread(
-            _verify_iteration_access, db, run.iteration_id, current_user
-        )
+        await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
         if run.status not in CANCELLABLE_STATUSES:
             raise HTTPException(
@@ -327,19 +322,23 @@ async def cancel_pipeline_run(
         def _do_cancel(sync_db):
             # 重新查询 run（不同会话）
             from app.services import pipeline_service
+
             run_sync = pipeline_service.get_run(sync_db, run_id)
             if not run_sync:
                 raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
             _check_cancel_permission(sync_db, run_sync, current_user)
             try:
                 pipeline_service.update_run_status(
-                    db=sync_db, run_id=run_id, status="cancelled",
+                    db=sync_db,
+                    run_id=run_id,
+                    status="cancelled",
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=409, detail=str(exc))
 
             try:
                 from app.services.audit_service import log_action
+
                 log_action(
                     db=sync_db,
                     action="pipeline_cancel",
@@ -378,21 +377,13 @@ async def cancel_pipeline_run(
         raise HTTPException(status_code=500, detail="取消 Pipeline 运行失败")
 
 
-router.add_api_route(
-    "/{run_id}/summary", get_pipeline_summary, methods=["GET"], response_model=ApiResponse
-)
-router.add_api_route(
-    "/{run_id}/inferred-summary", get_inferred_summary, methods=["GET"], response_model=ApiResponse
-)
+router.add_api_route("/{run_id}/summary", get_pipeline_summary, methods=["GET"], response_model=ApiResponse)
+router.add_api_route("/{run_id}/inferred-summary", get_inferred_summary, methods=["GET"], response_model=ApiResponse)
 router.add_api_route(
     "/{run_id}/artifacts/{artifact_id}", get_artifact_detail, methods=["GET"], response_model=ApiResponse
 )
-router.add_api_route(
-    "/{run_id}/supplement-signals", supplement_signals, methods=["PUT"], response_model=ApiResponse
-)
-router.add_api_route(
-    "/{run_id}/cancel", cancel_pipeline_run, methods=["POST"], response_model=ApiResponse
-)
+router.add_api_route("/{run_id}/supplement-signals", supplement_signals, methods=["PUT"], response_model=ApiResponse)
+router.add_api_route("/{run_id}/cancel", cancel_pipeline_run, methods=["POST"], response_model=ApiResponse)
 
 __all__ = [
     "router",

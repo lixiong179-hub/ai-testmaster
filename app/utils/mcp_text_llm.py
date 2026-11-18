@@ -26,6 +26,7 @@ MCP文本LLM工具模块
     - app.utils.unified_vision_model: 统一视觉模型（多模型适配）
     - app.core.config.settings: 全局配置
 """
+
 import asyncio
 import json
 import re
@@ -102,10 +103,7 @@ class MCPAwareLLM:
         return self._vision_model
 
     async def understand_operation(
-        self,
-        accessibility_tree: str,
-        operation_description: str,
-        action_type: str | None = None
+        self, accessibility_tree: str, operation_description: str, action_type: str | None = None
     ) -> dict[str, Any] | None:
         """理解用户操作意图，返回元素定位信息
 
@@ -127,7 +125,9 @@ class MCPAwareLLM:
                 解析失败返回None
         """
         # 截断过长的Accessibility Tree，避免超出模型上下文窗口
-        prompt = LOCATOR_UNDERSTANDING_PROMPT.replace('{accessibility_tree}', accessibility_tree[:8000]).replace('{operation_description}', operation_description)
+        prompt = LOCATOR_UNDERSTANDING_PROMPT.replace("{accessibility_tree}", accessibility_tree[:8000]).replace(
+            "{operation_description}", operation_description
+        )
 
         if action_type:
             prompt += f"\n\n操作类型提示: {action_type}"
@@ -140,11 +140,7 @@ class MCPAwareLLM:
             logger.error(f"LLM理解操作意图失败: {e}")
             return None
 
-    async def batch_understand_operations(
-        self,
-        accessibility_tree: str,
-        operations: list
-    ) -> list:
+    async def batch_understand_operations(self, accessibility_tree: str, operations: list) -> list:
         """批量理解操作意图
 
         对同一页面的多个操作描述逐个调用understand_operation，
@@ -191,7 +187,7 @@ class MCPAwareLLM:
         if not response:
             return None
         try:
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if not json_match:
                 return None
             result = json.loads(json_match.group())
@@ -205,7 +201,7 @@ class MCPAwareLLM:
                 "locator_value": locator_value,
                 "element_description": result.get("element_description", ""),
                 "confidence": confidence,
-                "reasoning": result.get("reasoning", "")
+                "reasoning": result.get("reasoning", ""),
             }
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"解析LLM定位结果失败: {e}")
@@ -231,7 +227,7 @@ def get_mcp_llm() -> MCPAwareLLM:
 
 
 __all__ = [
-    'MCPAwareLLM',
-    'LOCATOR_UNDERSTANDING_PROMPT',
-    'get_mcp_llm',
+    "MCPAwareLLM",
+    "LOCATOR_UNDERSTANDING_PROMPT",
+    "get_mcp_llm",
 ]

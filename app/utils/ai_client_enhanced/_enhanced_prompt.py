@@ -50,32 +50,21 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
         (prompt, min_case_count) 元组，prompt 为完整提示词，
         min_case_count 为本次生成要求的最少用例数。
     """
-    from app.utils.ai_client_prompt import (
-        sanitize_input,
-        build_ui_specs_description, build_project_env_info
-    )
+    from app.utils.ai_client_prompt import sanitize_input, build_ui_specs_description, build_project_env_info
+
     raw_requirement = (
-        context.get('requirement_content')
-        or context.get('requirement')
-        or context.get('requirement_text')
-        or ''
+        context.get("requirement_content") or context.get("requirement") or context.get("requirement_text") or ""
     )
     requirement = sanitize_input(str(raw_requirement))
     test_points = _normalize_test_points(context)
-    ui_specs = _normalize_ui_specs(context.get('ui_specs'))
-    raw_ui_description = _stringify_ui_description(
-        context.get('ui_description') or context.get('ui_descriptions')
-    )
-    project_config = context.get('project_config')
+    ui_specs = _normalize_ui_specs(context.get("ui_specs"))
+    raw_ui_description = _stringify_ui_description(context.get("ui_description") or context.get("ui_descriptions"))
+    project_config = context.get("project_config")
     if not isinstance(project_config, dict):
         project_config = {}
-    extra_requirements = sanitize_input(str(context.get('extra_requirements') or ''), max_length=10000)
+    extra_requirements = sanitize_input(str(context.get("extra_requirements") or ""), max_length=10000)
     has_requirement = bool(requirement and requirement.strip())
-    ui_desc = (
-        build_ui_specs_description(ui_specs)
-        if ui_specs
-        else sanitize_input(raw_ui_description)
-    )
+    ui_desc = build_ui_specs_description(ui_specs) if ui_specs else sanitize_input(raw_ui_description)
     has_ui = bool(ui_specs)
     has_test_point = bool(test_points)
     min_case_count = 3 if (len(test_points) >= 2 if test_points else False) else 1
@@ -83,7 +72,7 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
     if not has_ui:
         ui_desc = "无UI原型图解析结果"
     env_desc = build_project_env_info(project_config)
-    history_cases = context.get('history_cases', [])
+    history_cases = context.get("history_cases", [])
     history_cases_text = ""
     if history_cases:
         history_cases_text = "## 项目已有测试用例（覆盖摘要，仅供避重参考）\n\n"
@@ -93,16 +82,18 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
         history_cases_text += "- 已有用例的维护由保鲜建议流程单独处理\n\n"
         for i, case in enumerate(history_cases, 1):
             desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
-            history_cases_text += f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n"
+            history_cases_text += (
+                f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n"
+            )
     test_points_text = ""
     if test_points:
         test_points_text = "## 测试点列表\n"
         for i, tp in enumerate(test_points):
-            module = tp.get('module', '')
-            function = tp.get('function', '')
-            point = tp.get('point', '')
-            priority = tp.get('priority', 2)
-            test_points_text += f"{i+1}. [{module} - {function}] {point} (优先级:{priority})\n"
+            module = tp.get("module", "")
+            function = tp.get("function", "")
+            point = tp.get("point", "")
+            priority = tp.get("priority", 2)
+            test_points_text += f"{i + 1}. [{module} - {function}] {point} (优先级:{priority})\n"
     extra_requirements_text = ""
     if extra_requirements:
         extra_requirements_text = f"""## 补充生成要求
@@ -141,7 +132,7 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
 {extra_requirements_text}
 
 ## 输出格式要求
-0. {'必须返回测试用例，覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条' if min_case_count >= 3 else '必须返回至少1条正向用例（case_category=positive）。仅在条件允许时补充边界（case_category=boundary）或异常（case_category=exception）用例，不要为了凑数而生成低质量用例'}
+0. {"必须返回测试用例，覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条" if min_case_count >= 3 else "必须返回至少1条正向用例（case_category=positive）。仅在条件允许时补充边界（case_category=boundary）或异常（case_category=exception）用例，不要为了凑数而生成低质量用例"}
 请严格按照以下JSON数组格式输出（不要添加markdown代码块标记）：
 [
   {{
@@ -178,19 +169,19 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
 5. **格式统一**：step字段为字符串类型；必须包含test_data字段（normal/boundary/abnormal三个空对象）
 """
 
-    case_type = context.get('case_type')
+    case_type = context.get("case_type")
     if case_type:
         prompt += "\n## 用例类型约束\n"
         if case_type == "ui_automation" and not has_ui:
             prompt += (
                 "当前项目未提供UI原型图，ui_automation降级为草稿模式。\n"
-                "所有用例的 case_type 字段填写 \"manual\"，不得填写 \"ui_automation\"。\n"
+                '所有用例的 case_type 字段填写 "manual"，不得填写 "ui_automation"。\n'
                 "涉及UI交互的步骤必须标记【待确认UI】，不得编造按钮、输入框等页面元素。\n"
                 "优先生成基于需求、业务规则或人工验证视角的测试用例。\n"
             )
             case_type = "manual"
         else:
-            prompt += f"所有用例的 case_type 字段必须统一为 \"{case_type}\"，不允许生成其他类型的用例。\n"
+            prompt += f'所有用例的 case_type 字段必须统一为 "{case_type}"，不允许生成其他类型的用例。\n'
             type_guidance = {
                 "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
                 "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",

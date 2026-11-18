@@ -12,6 +12,7 @@ target_element 与被测页面 PageSnapshot 真实元素做锚定校验，量化
 
 设计要点：单文件聚焦校验算法，与生成主流程/Prompt 文案解耦，便于独立单测与调优。
 """
+
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
@@ -80,9 +81,7 @@ class ValidationMixin:
         ratio = hit / checked
         return max(0.0, min(1.0, ratio))
 
-    def _build_element_index(
-        self, elements: list[dict[str, Any]]
-    ) -> dict[str, dict[str, Any]]:
+    def _build_element_index(self, elements: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         """以小写 name 为主键构建元素索引，locator 作为副键反查。
 
         name 为空元素不进索引（避免空键碰撞），同名元素后写覆盖（取首条更稳定）。
@@ -99,9 +98,7 @@ class ValidationMixin:
                 index[key] = element
         return index
 
-    def _match_element(
-        self, target: str, element_index: dict[str, dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _match_element(self, target: str, element_index: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """精确匹配 target_element 到页面元素，命中返回元素字典否则 None。
 
         匹配优先级：
@@ -122,9 +119,7 @@ class ValidationMixin:
                 return element
         return None
 
-    def _action_role_compatible(
-        self, action_type: Any, role: Any
-    ) -> bool:
+    def _action_role_compatible(self, action_type: Any, role: Any) -> bool:
         """校验 action_type 与元素 role 语义兼容。
 
         兼容规则：
@@ -149,7 +144,5 @@ class ValidationMixin:
             return True
         compatible = role_str in compatible_roles
         if not compatible:
-            logger.debug(
-                f"元素语义不兼容: action_type={action_str} role={role_str}"
-            )
+            logger.debug(f"元素语义不兼容: action_type={action_str} role={role_str}")
         return compatible

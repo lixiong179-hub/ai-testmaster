@@ -3,6 +3,7 @@
 将 XMind 导入的纯业务逻辑从 API 端点层下沉，避免端点文件膨胀。
 负责文件校验、保存、测试点过滤、场景树导入处理等。
 """
+
 import os
 import tempfile
 from datetime import datetime
@@ -133,16 +134,12 @@ def should_treat_as_case_tree(parsed_cases: list) -> bool:
         and case.get("action_count", 0) >= 1
         and case.get("expected_count", 0) >= 1
         and (
-            case.get("condition_count", 0) >= 1
-            or case.get("ignored_count", 0) >= 1
-            or case.get("action_count", 0) >= 2
+            case.get("condition_count", 0) >= 1 or case.get("ignored_count", 0) >= 1 or case.get("action_count", 0) >= 2
         )
     ]
     if len(parsed_cases) == 1:
         return len(case_like_items) == 1
-    return len(case_like_items) >= 2 and (
-        len(case_like_items) / len(parsed_cases)
-    ) >= 0.4
+    return len(case_like_items) >= 2 and (len(case_like_items) / len(parsed_cases)) >= 0.4
 
 
 def handle_case_style_import(

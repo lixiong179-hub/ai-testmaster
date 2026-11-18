@@ -18,6 +18,7 @@ UI原型页面端点模块
     - 上传支持批量文件，自动解析UI元素
     - 页面元素包括按钮、输入框、链接等可交互组件
 """
+
 import asyncio
 import os
 import shutil
@@ -43,6 +44,7 @@ from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
 from loguru import logger
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -88,18 +90,17 @@ async def upload_ui_screens(
 ):
     """上传UI屏幕图片"""
     try:
-        result = await _execute(db,
+        result = await _execute(
+            db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = result.scalar_one_or_none()
 
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         _ensure_upload_dir()
 
@@ -115,9 +116,7 @@ async def upload_ui_screens(
         invalid_files = []
         for i, file in enumerate(files):
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            ext = (
-                os.path.splitext(file.filename)[1] if file.filename else ".png"
-            )
+            ext = os.path.splitext(file.filename)[1] if file.filename else ".png"
             filename = f"{safe_prototype_name}_{timestamp}_{i}{ext}"
             filepath = os.path.join(project_dir, filename)
             # 防御性兜底：验证最终路径仍在 project_dir 内
@@ -131,7 +130,7 @@ async def upload_ui_screens(
                 with open(filepath, "wb") as f:
                     shutil.copyfileobj(file.file, f)
             finally:
-                if hasattr(file, 'file') and hasattr(file.file, 'close'):
+                if hasattr(file, "file") and hasattr(file.file, "close"):
                     file.file.close()
 
             file_size = os.path.getsize(filepath)
@@ -157,15 +156,11 @@ async def upload_ui_screens(
         if invalid_files:
             error_details = "; ".join([f"{f['name']}: {f['error']}" for f in invalid_files])
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"以下图片无效，已跳过: {error_details}"
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"以下图片无效，已跳过: {error_details}"
             )
 
         if not saved_files:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="没有有效的图片文件可上传"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="没有有效的图片文件可上传")
 
         def _ensure_prototype(sync_db: Session):
             nonlocal prototype_project_id
@@ -182,9 +177,7 @@ async def upload_ui_screens(
             elif iteration_id is not None:
                 db_iteration_id = iteration_id if iteration_id > 0 else None
                 proto_project = (
-                    sync_db.query(UIPrototypeProject)
-                    .filter(UIPrototypeProject.id == prototype_project_id)
-                    .first()
+                    sync_db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
                 )
                 if proto_project:
                     proto_project.iteration_id = db_iteration_id
@@ -193,9 +186,7 @@ async def upload_ui_screens(
         await db.run_sync(_ensure_prototype)
 
         def _create_pipeline(sync_db: Session):
-            return UISpecParsePipeline(
-                sync_db, project_id, current_user.id, UPLOAD_DIR
-            )
+            return UISpecParsePipeline(sync_db, project_id, current_user.id, UPLOAD_DIR)
 
         pipeline = await db.run_sync(_create_pipeline)
         screen_ids, message = await pipeline.upload_and_create_screens(
@@ -210,7 +201,7 @@ async def upload_ui_screens(
                 "total": len(screen_ids),
                 "prototype_project_id": prototype_project_id,
             },
-            msg=message
+            msg=message,
         )
     except HTTPException:
         raise
@@ -235,16 +226,12 @@ async def get_ui_screens(
 ):
     """获取UI屏幕列表"""
     try:
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         skip = (page - 1) * page_size
         # 内联 async 查询替代 ui_prototype_crud.get_ui_screens_by_project
@@ -258,9 +245,9 @@ async def get_ui_screens(
         if parse_status:
             stmt = stmt.where(UIPrototypeScreen.parse_status == parse_status)
         stmt = _apply_iteration_filter_stmt(stmt, iteration_id)
-        stmt = stmt.order_by(
-            UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time
-        ).offset(skip).limit(page_size)
+        stmt = (
+            stmt.order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time).offset(skip).limit(page_size)
+        )
         screens_result = await _execute(db, stmt)
         screens = screens_result.scalars().all()
 
@@ -289,10 +276,7 @@ async def get_ui_screens(
         raise
     except Exception as e:
         logger.error(f"获取UI屏幕列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取UI屏幕列表失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取UI屏幕列表失败，请稍后重试")
 
 
 @router.get("/screen/{screen_id}", response_model=ApiResponse)
@@ -303,35 +287,24 @@ async def get_ui_screen_detail(
 ):
     """获取UI屏幕详情"""
     try:
-        screen_result = await _execute(db,
-            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
-        )
+        screen_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id))
         screen = screen_result.scalars().first()
         if not screen:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在")
 
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == screen.project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == screen.project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         return create_response(data=_build_screen_response(screen))
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"获取UI屏幕详情失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取UI屏幕详情失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取UI屏幕详情失败，请稍后重试")
 
 
 @router.delete("/screen/{screen_id}", response_model=ApiResponse)
@@ -342,40 +315,26 @@ async def delete_ui_screen(
 ):
     """删除UI屏幕"""
     try:
-        screen_result = await _execute(db,
-            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
-        )
+        screen_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id))
         screen = screen_result.scalars().first()
         if not screen:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在")
 
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == screen.project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == screen.project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         if screen.original_file_path and os.path.exists(screen.original_file_path):
             try:
                 os.remove(screen.original_file_path)
             except OSError as e:
-                logger.warning(
-                    f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
-                )
+                logger.warning(f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}")
 
         # 内联 async 级联删除替代 ui_prototype_crud.delete_ui_screen
-        await _execute(db,
-            sa_delete(UIScreenTestCaseLink).where(
-                UIScreenTestCaseLink.screen_id == screen_id
-            )
-        )
+        await _execute(db, sa_delete(UIScreenTestCaseLink).where(UIScreenTestCaseLink.screen_id == screen_id))
         await asyncio.to_thread(db.delete, screen)
         await asyncio.to_thread(db.commit)
 
@@ -384,7 +343,4 @@ async def delete_ui_screen(
         raise
     except Exception as e:
         logger.error(f"删除UI屏幕失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除UI屏幕失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除UI屏幕失败，请稍后重试")

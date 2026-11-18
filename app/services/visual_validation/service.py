@@ -11,6 +11,7 @@ Agent 触发之后，按开关决定是否以 fire-and-forget 方式触发视觉
     - 异常隔离：任何异常仅 warning，不影响主流程响应；
     - 默认关：全局开关关闭时**不查项目配置、不建会话**（零开销）。
 """
+
 import asyncio
 from typing import Any
 
@@ -40,9 +41,7 @@ async def is_visual_validation_enabled(db: Any, project_id: int | None) -> bool:
     if db is None or project_id is None:
         return False
     try:
-        result = await db.execute(
-            select(Project.config).where(Project.id == project_id)
-        )
+        result = await db.execute(select(Project.config).where(Project.id == project_id))
         project_config = result.scalar_one_or_none()
     except Exception:
         logger.warning("读取项目级视觉校验配置失败，按关闭处理", exc_info=True)
@@ -61,9 +60,7 @@ def is_visual_validation_enabled_sync(db: Session, project_id: int | None) -> bo
     if db is None or project_id is None:
         return False
     try:
-        project_config = db.execute(
-            select(Project.config).where(Project.id == project_id)
-        ).scalar_one_or_none()
+        project_config = db.execute(select(Project.config).where(Project.id == project_id)).scalar_one_or_none()
     except Exception:
         logger.warning("读取项目级视觉校验配置失败，按关闭处理", exc_info=True)
         return False
@@ -85,6 +82,7 @@ def spawn_visual_validation_agent(
         screenshot_url: 待校验截图 URL（注入 ExecutionStateArtifact）。
         last_error: 最近错误信息（注入 ExecutionStateArtifact，供 Agent 判读）。
     """
+
     async def _run() -> None:
         try:
             from app.db.database import AsyncPrimarySessionLocal
@@ -94,9 +92,7 @@ def spawn_visual_validation_agent(
             from app.services.agent.session_service import SessionService
 
             async with AsyncPrimarySessionLocal() as db:
-                orchestrator = AgentOrchestrator(
-                    runtime=AgentRuntime(db=db, session_service=SessionService())
-                )
+                orchestrator = AgentOrchestrator(runtime=AgentRuntime(db=db, session_service=SessionService()))
                 await orchestrator.execute_pipeline(
                     pipeline=["visual_validation"],
                     project_id=project_id,

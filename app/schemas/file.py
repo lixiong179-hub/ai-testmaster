@@ -23,6 +23,7 @@
 - ResourceType -> ProjectFile.resource_type 字段的枚举值
 - ExtractStatus -> ProjectFile.extract_status 字段的枚举值
 """
+
 from pydantic import BaseModel, Field, HttpUrl
 from datetime import datetime
 from enum import StrEnum
@@ -35,6 +36,7 @@ class ResourceType(StrEnum):
     业务用途：标识上传文件的资源分类，影响AI解析策略和测试用例生成
     与Model映射：对应 ProjectFile.resource_type 字段
     """
+
     REQUIREMENT = "requirement"  # 需求文档，如PRD/SRS
     UI_MOCKUP = "ui_mockup"  # UI原型图，如Axure/Figma导出
     API_DOC = "api_doc"  # 接口文档，如Swagger/Postman
@@ -49,6 +51,7 @@ class ExtractStatus(StrEnum):
     业务用途：追踪文件内容提取的异步任务状态
     与Model映射：对应 ProjectFile.extract_status 字段
     """
+
     PENDING = "pending"  # 待处理，文件刚上传
     PROCESSING = "processing"  # 处理中，AI正在提取内容
     COMPLETED = "completed"  # 已完成，内容已提取
@@ -62,6 +65,7 @@ class FileBase(BaseModel):
     业务用途：定义文件的核心字段，作为FileUploadRequest/UrlSubmitRequest的公共父类
     与Model映射：project_id对应 ProjectFile.project_id 外键
     """
+
     project_id: int = Field(..., description="项目ID")  # 必填，文件所属项目，实现多项目隔离
 
 
@@ -73,6 +77,7 @@ class FileUploadRequest(FileBase):
     注意：文件本身通过Form表单的file字段上传，此Schema仅定义project_id
     对应API：POST /api/v1/files/upload
     """
+
     # 文件通过Form表单上传，这里只定义project_id
     pass
 
@@ -85,13 +90,11 @@ class UrlSubmitRequest(FileBase):
     验证规则：URL格式校验（HttpUrl），文件类型正则校验
     对应API：POST /api/v1/files/url
     """
+
     url: HttpUrl = Field(..., description="URL链接")  # 必填，Pydantic HttpUrl自动校验URL格式
     file_type: str = Field(
         ...,
-        pattern=(
-            "^(docx|doc|pdf|xlsx|xls|csv|txt|md|png|jpg|jpeg|"
-            "gif|webp|figma|url|yaml|yml|json|zip|rar)$"
-        ),
+        pattern=("^(docx|doc|pdf|xlsx|xls|csv|txt|md|png|jpg|jpeg|gif|webp|figma|url|yaml|yml|json|zip|rar)$"),
         description="文件类型",  # 必填，正则限制支持的文件格式，确保系统能正确解析
     )
 
@@ -104,13 +107,12 @@ class FileUpdateRequest(BaseModel):
     验证规则：所有字段可选
     对应API：PUT/PATCH /api/v1/files/{file_id}
     """
+
     resource_type: ResourceType | None = Field(None, description="资源类型")  # 可选，更新资源分类
     description: str | None = Field(None, description="文件描述")  # 可选，更新文件描述
     is_active: bool | None = Field(None, description="是否激活")  # 可选，软删除/恢复
     # 支持修改迭代归属，null或省略表示未分类
-    iteration_id: int | None = Field(
-        None, description="迭代ID（null或省略表示未分类）"
-    )  # 可选，将文件归属到指定迭代
+    iteration_id: int | None = Field(None, description="迭代ID（null或省略表示未分类）")  # 可选，将文件归属到指定迭代
 
 
 class FileResponse(BaseModel):
@@ -121,6 +123,7 @@ class FileResponse(BaseModel):
     对应API：GET /api/v1/files/{file_id}
     与Model映射：映射 ProjectFile Model 的所有业务字段
     """
+
     id: int  # 文件主键ID
     project_id: int  # 所属项目ID
     file_name: str  # 文件名，与ProjectFile.file_name对应
@@ -150,6 +153,7 @@ class FileListResponse(BaseModel):
     业务用途：返回文件列表查询结果，包装在code/message/data结构中
     对应API：GET /api/v1/files/ 的响应
     """
+
     code: int = Field(200, description="状态码")  # HTTP状态码，默认200
     message: str = Field("获取成功", description="消息")  # 操作结果消息
     data: dict = Field(..., description="数据")  # 文件列表数据，含items和total
@@ -162,6 +166,9 @@ class FileExtractRequest(BaseModel):
     业务用途：批量触发文件内容提取，AI解析文件内容用于测试用例生成
     对应API：POST /api/v1/files/extract
     """
+
     file_ids: list[int] = Field(..., description="文件ID列表")  # 必填，批量提取的文件ID
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离
-    force_refresh: bool = Field(False, description="是否强制刷新")  # 默认False，已提取的文件不重复提取；True则强制重新提取
+    force_refresh: bool = Field(
+        False, description="是否强制刷新"
+    )  # 默认False，已提取的文件不重复提取；True则强制重新提取

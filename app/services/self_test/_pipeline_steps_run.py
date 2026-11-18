@@ -1,5 +1,6 @@
 """Pipeline steps 5-9: task creation, execution, severity assessment,
 report generation, and cleanup."""
+
 import asyncio
 import time
 
@@ -40,15 +41,18 @@ async def _step_create_task(
 
     # 过滤出活跃用例
     active_cases = (
-        await db.execute(
-            select(TestCase)
-            .where(
-                TestCase.id.in_(case_ids),
-                TestCase.is_deleted.is_(False),
-                TestCase.project_id == project_id,
+        (
+            await db.execute(
+                select(TestCase).where(
+                    TestCase.id.in_(case_ids),
+                    TestCase.is_deleted.is_(False),
+                    TestCase.project_id == project_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     active_case_ids = [tc.id for tc in active_cases]
 
     if not active_case_ids:
@@ -62,10 +66,7 @@ async def _step_create_task(
         executor_id=user_id,
     )
 
-    logger.info(
-        f"项目 {project_id} 测试任务创建完成: task_id={task.id}, "
-        f"用例数={len(active_case_ids)}"
-    )
+    logger.info(f"项目 {project_id} 测试任务创建完成: task_id={task.id}, 用例数={len(active_case_ids)}")
     return (True, None, task.id)
 
 
@@ -122,9 +123,7 @@ async def _step_execute(
                 execution_mode="smart",
             )
         )
-        logger.info(
-            f"项目 {project_id} 任务 {task_id} 执行完成: {result}"
-        )
+        logger.info(f"项目 {project_id} 任务 {task_id} 执行完成: {result}")
         return (True, None)
     except Exception as exc:
         logger.error(f"任务执行失败: {exc}")
@@ -152,25 +151,24 @@ async def _step_assess_severity(
     from app.models.test_result import TestResult
     from app.models.enums import ExecStatus
 
-    project = (
-        await db.execute(
-            select(Project).where(Project.id == project_id)
-        )
-    ).scalars().first()
+    project = (await db.execute(select(Project).where(Project.id == project_id))).scalars().first()
     if not project:
         return (False, f"项目 {project_id} 不存在", {"p0": 0, "p1": 0, "p2": 0, "p3": 0})
 
     # 查询任务下所有失败和阻塞的测试结果
     test_results = (
-        await db.execute(
-            select(TestResult)
-            .where(
-                TestResult.project_id == project_id,
-                TestResult.task_id == task_id,
-                TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+        (
+            await db.execute(
+                select(TestResult).where(
+                    TestResult.project_id == project_id,
+                    TestResult.task_id == task_id,
+                    TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     defect_counts: dict[str, int] = {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
 
@@ -183,9 +181,14 @@ async def _step_assess_severity(
         if result.exec_log:
             log_lower = result.exec_log.lower()
             for assertion in (
-                "no_sensitive_data", "no_xss", "loading_hidden",
-                "no_console_errors", "no_network_errors", "text_not_empty",
-                "response_time_lt", "memory_leak_suspect",
+                "no_sensitive_data",
+                "no_xss",
+                "loading_hidden",
+                "no_console_errors",
+                "no_network_errors",
+                "text_not_empty",
+                "response_time_lt",
+                "memory_leak_suspect",
             ):
                 if assertion in log_lower:
                     failure_type = assertion
@@ -219,9 +222,7 @@ async def _step_assess_severity(
             if severity <= 2:
                 await _notify_critical_defect_bug(bug, project)
 
-    logger.info(
-        f"项目 {project_id} 任务 {task_id} 严重度评估完成: {defect_counts}"
-    )
+    logger.info(f"项目 {project_id} 任务 {task_id} 严重度评估完成: {defect_counts}")
     return (True, None, defect_counts)
 
 
@@ -260,9 +261,7 @@ async def _step_generate_report(
             description="自测全链路缺陷挖掘导向测试报告",
             user_id=user_id,
         )
-        logger.info(
-            f"项目 {project_id} 缺陷挖掘报告生成完成: report_id={report.id}"
-        )
+        logger.info(f"项目 {project_id} 缺陷挖掘报告生成完成: report_id={report.id}")
         return (True, None, report.id)
     except Exception as exc:
         logger.error(f"报告生成失败: {exc}")
@@ -290,26 +289,35 @@ async def _step_cleanup(
     try:
         # 清理草稿状态的测试点
         draft_points = (
-            await db.execute(
-                select(TestPoint).where(
-                    TestPoint.project_id == project_id,
-                    TestPoint.status == TestPointStatus.DRAFT.value,
+            (
+                await db.execute(
+                    select(TestPoint).where(
+                        TestPoint.project_id == project_id,
+                        TestPoint.status == TestPointStatus.DRAFT.value,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for point in draft_points:
             await db.delete(point)
 
         # 清理未完成的生成批次
         from app.models.generation_batch import GenerationBatch
+
         pending_batches = (
-            await db.execute(
-                select(GenerationBatch).where(
-                    GenerationBatch.project_id == project_id,
-                    GenerationBatch.status.in_(["created", "processing"]),
+            (
+                await db.execute(
+                    select(GenerationBatch).where(
+                        GenerationBatch.project_id == project_id,
+                        GenerationBatch.status.in_(["created", "processing"]),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for batch in pending_batches:
             batch.status = "cancelled"
 

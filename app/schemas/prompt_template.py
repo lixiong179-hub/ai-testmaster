@@ -1,4 +1,5 @@
 """Prompt 模板版本管理 Schema - 请求与响应模型"""
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -6,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class PromptTemplateCreate(BaseModel):
     """注册新 Prompt 版本请求"""
+
     prompt_key: str = Field(..., min_length=1, max_length=80, description="Prompt唯一标识键")
     content: str = Field(..., min_length=1, description="Prompt内容")
     description: str | None = Field(None, max_length=500, description="版本描述")
@@ -13,6 +15,7 @@ class PromptTemplateCreate(BaseModel):
 
 class PromptTemplateResponse(BaseModel):
     """Prompt 模板版本响应"""
+
     id: int
     prompt_key: str
     prompt_version: int
@@ -28,6 +31,7 @@ class PromptTemplateResponse(BaseModel):
 
 class PromptTemplateListResponse(BaseModel):
     """Prompt 模板版本列表响应"""
+
     items: list[PromptTemplateResponse]
     total: int
     page: int
@@ -36,9 +40,11 @@ class PromptTemplateListResponse(BaseModel):
 
 class SetDefaultRequest(BaseModel):
     """设为默认版本请求"""
+
     version: int = Field(..., gt=0, description="要设为默认的版本号")
 
 
 class RollbackRequest(BaseModel):
     """回滚请求"""
+
     target_version: int = Field(..., gt=0, description="回滚目标版本号")

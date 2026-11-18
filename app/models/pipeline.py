@@ -25,9 +25,20 @@ Pipeline 存储模型模块
     - app.db.database.Base     : SQLAlchemy 声明性基类
     - app.models.enums         : PipelineRunStatus, PipelineStepStatus
 """
+
 from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, Text, JSON,
-    Float, Boolean, Index, UniqueConstraint, CheckConstraint,
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Text,
+    JSON,
+    Float,
+    Boolean,
+    Index,
+    UniqueConstraint,
+    CheckConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
@@ -50,17 +61,23 @@ class PipelineRun(Base):
     约束：
         - status 仅允许 pending/running/waiting_for_user/completed/failed/cancelled
     """
+
     __tablename__ = "pipeline_runs"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     iteration_id = Column(
-        Integer, ForeignKey("iterations.id", ondelete="CASCADE"),
-        nullable=False, index=True, comment="关联迭代ID",
+        Integer,
+        ForeignKey("iterations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联迭代ID",
     )
     input_hash = Column(String(64), nullable=False, comment="输入内容哈希，用于幂等校验")
     pipeline_version = Column(String(32), nullable=False, default="1.0", comment="Pipeline 版本号")
     status = Column(
-        String(20), nullable=False, default=PipelineRunStatus.PENDING.value,
+        String(20),
+        nullable=False,
+        default=PipelineRunStatus.PENDING.value,
         comment="状态: pending/running/waiting_for_user/completed/failed/cancelled",
     )
     started_at = Column(DateTime, nullable=True, comment="开始执行时间")
@@ -69,29 +86,37 @@ class PipelineRun(Base):
     error = Column(Text, nullable=True, comment="错误信息")
     pause_payload = Column(JSON, nullable=True, comment="暂停信息：{reason, step_name, schema, paused_at}")
     triggered_by = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True, comment="触发运行的用户ID",
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="触发运行的用户ID",
     )
 
     iteration = relationship("Iteration", back_populates="pipeline_runs")
     steps = relationship(
-        "PipelineStep", back_populates="run", cascade="all, delete-orphan",
+        "PipelineStep",
+        back_populates="run",
+        cascade="all, delete-orphan",
         order_by="PipelineStep.id",
     )
     artifacts = relationship(
-        "Artifact", back_populates="run", cascade="all, delete-orphan",
+        "Artifact",
+        back_populates="run",
+        cascade="all, delete-orphan",
         order_by="Artifact.id",
     )
     ai_call_logs = relationship(
-        "AICallLog", backref="run", passive_deletes=True,
+        "AICallLog",
+        backref="run",
+        passive_deletes=True,
         order_by="AICallLog.id",
     )
 
     __table_args__ = (
-        Index('ix_pipeline_run_iteration_id', 'iteration_id'),
+        Index("ix_pipeline_run_iteration_id", "iteration_id"),
         CheckConstraint(
             "status IN ('pending', 'running', 'waiting_for_user', 'completed', 'failed', 'cancelled')",
-            name='ck_pipeline_run_status',
+            name="ck_pipeline_run_status",
         ),
     )
 
@@ -109,17 +134,23 @@ class PipelineStep(Base):
     约束：
         - status 仅允许 pending/running/done/failed/skipped/degraded
     """
+
     __tablename__ = "pipeline_steps"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     run_id = Column(
-        Integer, ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
-        nullable=False, index=True, comment="关联运行ID",
+        Integer,
+        ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联运行ID",
     )
     step_name = Column(String(64), nullable=False, comment="Step 名称")
     step_version = Column(String(32), nullable=False, default="1.0", comment="Step 版本号")
     status = Column(
-        String(20), nullable=False, default=PipelineStepStatus.PENDING.value,
+        String(20),
+        nullable=False,
+        default=PipelineStepStatus.PENDING.value,
         comment="状态: pending/running/done/failed/skipped/degraded",
     )
     cache_key = Column(String(64), nullable=True, index=True, comment="缓存键，用于幂等跳过")
@@ -136,7 +167,7 @@ class PipelineStep(Base):
     __table_args__ = (
         CheckConstraint(
             "status IN ('pending', 'running', 'done', 'failed', 'skipped', 'degraded')",
-            name='ck_pipeline_step_status',
+            name="ck_pipeline_step_status",
         ),
     )
 
@@ -154,12 +185,16 @@ class Artifact(Base):
     约束：
         - hash 唯一约束防止重复落库
     """
+
     __tablename__ = "artifacts"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     run_id = Column(
-        Integer, ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
-        nullable=False, index=True, comment="关联运行ID",
+        Integer,
+        ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联运行ID",
     )
     kind = Column(String(64), nullable=False, comment="产物类型")
     schema_version = Column(String(32), nullable=False, default="1.0", comment="产物 schema 版本")
@@ -171,6 +206,4 @@ class Artifact(Base):
 
     run = relationship("PipelineRun", back_populates="artifacts")
 
-    __table_args__ = (
-        UniqueConstraint('content_hash', name='uq_artifact_content_hash'),
-    )
+    __table_args__ = (UniqueConstraint("content_hash", name="uq_artifact_content_hash"),)

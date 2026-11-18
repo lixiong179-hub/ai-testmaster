@@ -35,15 +35,8 @@ def create_test_point(
     return db_test_point
 
 
-def get_test_point_by_id(
-    db: Session,
-    test_point_id: int,
-    project_id: int
-) -> TestPoint | None:
-    return db.query(TestPoint).filter(
-        TestPoint.id == test_point_id,
-        TestPoint.project_id == project_id
-    ).first()
+def get_test_point_by_id(db: Session, test_point_id: int, project_id: int) -> TestPoint | None:
+    return db.query(TestPoint).filter(TestPoint.id == test_point_id, TestPoint.project_id == project_id).first()
 
 
 def get_test_points_by_project(
@@ -52,7 +45,7 @@ def get_test_points_by_project(
     module: str | None = None,
     priority: int | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[TestPoint]:
     query = db.query(TestPoint).filter(TestPoint.project_id == project_id)
     if module:
@@ -69,12 +62,9 @@ def get_test_points_by_project_and_user(
     module: str | None = None,
     priority: int | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[TestPoint]:
-    query = db.query(TestPoint).join(Project).filter(
-        TestPoint.project_id == project_id,
-        Project.user_id == user_id
-    )
+    query = db.query(TestPoint).join(Project).filter(TestPoint.project_id == project_id, Project.user_id == user_id)
     if module:
         query = query.filter(TestPoint.module == module)
     if priority:
@@ -83,16 +73,9 @@ def get_test_points_by_project_and_user(
 
 
 def get_test_points_count(
-    db: Session,
-    project_id: int,
-    user_id: int,
-    module: str | None = None,
-    priority: int | None = None
+    db: Session, project_id: int, user_id: int, module: str | None = None, priority: int | None = None
 ) -> int:
-    query = db.query(TestPoint).join(Project).filter(
-        TestPoint.project_id == project_id,
-        Project.user_id == user_id
-    )
+    query = db.query(TestPoint).join(Project).filter(TestPoint.project_id == project_id, Project.user_id == user_id)
     if module:
         query = query.filter(TestPoint.module == module)
     if priority:
@@ -106,7 +89,7 @@ async def get_test_points_by_project_async(
     module: str | None = None,
     priority: int | None = None,
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
 ) -> list[TestPoint]:
     """
     获取项目的测试点列表（异步版本）

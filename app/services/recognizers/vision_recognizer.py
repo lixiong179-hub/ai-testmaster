@@ -1,6 +1,5 @@
+"""视觉识别器 - 使用AI视觉模型识别页面元素。"""
 
-"""视觉识别器 - 使用AI视觉模型识别页面元素。
-"""
 import json
 import re
 from typing import Any
@@ -12,7 +11,6 @@ from app.utils.unified_vision_model import UnifiedVisionModel
 
 
 class VisionRecognizer(ElementRecognizer):
-
     def __init__(self, vision_model: UnifiedVisionModel, confidence_threshold: float = 0.8) -> None:
         self.vision_model = vision_model
         self.confidence_threshold = confidence_threshold
@@ -25,40 +23,30 @@ class VisionRecognizer(ElementRecognizer):
         return self.vision_model is not None
 
     async def recognize(self, browser, operation_description: str, action_type: str | None = None) -> RecognitionResult:
-        page = browser._page if hasattr(browser, '_page') else browser
+        page = browser._page if hasattr(browser, "_page") else browser
         try:
             screenshot = await browser.take_screenshot()
         except Exception as e:
             logger.error(f"截图失败: {e}")
             return RecognitionResult(
-                locator_type="vision",
-                locator_value="",
-                confidence=0,
-                raw_result={"error": "截图失败"}
+                locator_type="vision", locator_value="", confidence=0, raw_result={"error": "截图失败"}
             )
 
         if not screenshot:
-            return RecognitionResult(
-                locator_type="vision",
-                locator_value="",
-                confidence=0
-            )
+            return RecognitionResult(locator_type="vision", locator_value="", confidence=0)
 
         prompt = self._build_recognition_prompt(operation_description, action_type)
 
         try:
             response = self.vision_model.analyze_image(screenshot, prompt)
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 element_info = json.loads(json_match.group())
                 confidence = element_info.get("confidence", 0)
                 if confidence < self.confidence_threshold:
                     logger.warning(f"元素识别置信度较低: {confidence} < {self.confidence_threshold}")
                     return RecognitionResult(
-                        locator_type="vision",
-                        locator_value="",
-                        confidence=confidence,
-                        raw_result=element_info
+                        locator_type="vision", locator_value="", confidence=confidence, raw_result=element_info
                     )
 
                 coordinate = self._normalize_coordinate(element_info)
@@ -76,25 +64,19 @@ class VisionRecognizer(ElementRecognizer):
                     locator_value=css_selector or json.dumps(coordinate),
                     confidence=confidence,
                     raw_result=element_info,
-                    element_info={
-                        **coordinate,
-                        "css_selector": css_selector,
-                        "element_attrs": element_attrs
-                    }
+                    element_info={**coordinate, "css_selector": css_selector, "element_attrs": element_attrs},
                 )
 
-            return RecognitionResult(
-                locator_type="vision",
-                locator_value="",
-                confidence=0
-            )
+            return RecognitionResult(locator_type="vision", locator_value="", confidence=0)
 
         except json.JSONDecodeError as e:
             logger.error(f"AI响应JSON解析失败: {e}")
             return RecognitionResult(locator_type="vision", locator_value="", confidence=0)
         except Exception as e:
             logger.error(f"元素识别发生错误: {e}")
-            return RecognitionResult(locator_type="vision", locator_value="", confidence=0, raw_result={"error": "识别失败"})
+            return RecognitionResult(
+                locator_type="vision", locator_value="", confidence=0, raw_result={"error": "识别失败"}
+            )
 
     async def batch_recognize(self, browser, operations: list[str]) -> list[RecognitionResult]:
         results = []

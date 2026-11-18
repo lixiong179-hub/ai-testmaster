@@ -1,17 +1,17 @@
-"""基础动作执行Mixin - 处理导航、等待、截图、切换窗口等基础操作。
-"""
+"""基础动作执行Mixin - 处理导航、等待、截图、切换窗口等基础操作。"""
+
 import asyncio
 import re
 from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
-    ActionType, StepExecutionError,
+    ActionType,
+    StepExecutionError,
 )
 
 
 class ActionExecutorBasicMixin:
-
     def _parse_step_action(self, action_text: str) -> dict[str, Any]:
         action_lower = action_text.lower()
         if "导航" in action_text or "访问" in action_text or "打开" in action_text or "navigate" in action_lower:
@@ -143,7 +143,11 @@ class ActionExecutorBasicMixin:
         if not page:
             raise StepExecutionError("浏览器页面未初始化")
 
-        target = (getattr(step, "target_element", "") if step else "") or action_info.get("target") or action_info.get("text", "")
+        target = (
+            (getattr(step, "target_element", "") if step else "")
+            or action_info.get("target")
+            or action_info.get("text", "")
+        )
         target = str(target).strip()
         if not target or target.lower() in {"main", "default", "top"}:
             if hasattr(self.browser, "switch_to_main"):
@@ -183,7 +187,11 @@ class ActionExecutorBasicMixin:
         if not context:
             raise StepExecutionError("浏览器上下文未初始化")
 
-        target = (getattr(step, "target_element", "") if step else "") or action_info.get("target") or action_info.get("text", "")
+        target = (
+            (getattr(step, "target_element", "") if step else "")
+            or action_info.get("target")
+            or action_info.get("text", "")
+        )
         target = str(target).strip()
         pages = list(getattr(context, "pages", []) or [])
         try:
@@ -249,7 +257,11 @@ class ActionExecutorBasicMixin:
         if not page:
             raise StepExecutionError("浏览器页面未初始化")
 
-        script = (getattr(step, "input_value", "") if step else "") or action_info.get("script") or action_info.get("text", "")
+        script = (
+            (getattr(step, "input_value", "") if step else "")
+            or action_info.get("script")
+            or action_info.get("text", "")
+        )
         if not script:
             raise StepExecutionError("执行脚本缺少JavaScript代码")
         if not self._validate_script_safety(script):
@@ -318,7 +330,7 @@ class ActionExecutorBasicMixin:
         return bool(re.match(r"^[A-Za-z][\w-]*(?:[#.\[][^\s]+)", value))
 
     def _extract_wait_time(self, text: str) -> int:
-        match = re.search(r'(\d+)\s*(秒|seconds?)', text, re.IGNORECASE)
+        match = re.search(r"(\d+)\s*(秒|seconds?)", text, re.IGNORECASE)
         if match:
             return int(match.group(1))
         return 2

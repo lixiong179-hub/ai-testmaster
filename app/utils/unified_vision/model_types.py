@@ -15,6 +15,7 @@
     - 百度 (ernie-4.0-8k): 文心大模型，百度自定义API格式
     - 智谱 (glm-4v): GLM视觉模型，OpenAI兼容API格式
 """
+
 from typing import Any
 from dataclasses import dataclass
 from enum import StrEnum
@@ -26,12 +27,13 @@ class VisionModelType(StrEnum):
     继承str和Enum，可直接作为字符串使用。
     每种类型对应不同的API格式和请求/响应处理逻辑。
     """
-    OPENAI = "openai"      # OpenAI及兼容API（如DeepSeek）
-    BAIDU = "baidu"        # 百度文心大模型
-    ZHIPU = "zhipu"        # 智谱GLM视觉模型
-    QWEN = "qwen"          # 通义千问VL视觉模型（OpenAI兼容API）
-    MIMO = "mimo"          # 小米MiMo多模态模型（OpenAI兼容API，已过期）
-    CUSTOM = "custom"      # 自定义模型（需手动配置API格式）
+
+    OPENAI = "openai"  # OpenAI及兼容API（如DeepSeek）
+    BAIDU = "baidu"  # 百度文心大模型
+    ZHIPU = "zhipu"  # 智谱GLM视觉模型
+    QWEN = "qwen"  # 通义千问VL视觉模型（OpenAI兼容API）
+    MIMO = "mimo"  # 小米MiMo多模态模型（OpenAI兼容API，已过期）
+    CUSTOM = "custom"  # 自定义模型（需手动配置API格式）
 
 
 @dataclass
@@ -50,6 +52,7 @@ class ElementInfo:
         confidence: 识别置信度（0-1）
         reasoning: 选择该元素的理由
     """
+
     x: int = 0
     y: int = 0
     width: int = 0
@@ -104,6 +107,7 @@ class ModelProviderConfig:
         temperature: 生成温度
         timeout: 请求超时时间（秒）
     """
+
     model_type: VisionModelType
     api_key_env: str
     api_url: str
@@ -152,7 +156,7 @@ MODEL_PROVIDER_CONFIGS: dict[str, ModelProviderConfig] = {
 def resolve_default_model_type() -> VisionModelType:
     from app.core.config import settings
 
-    default_name = getattr(settings, 'VISION_MODEL_DEFAULT', 'qwen')
+    default_name = getattr(settings, "VISION_MODEL_DEFAULT", "qwen")
     try:
         return VisionModelType(default_name.lower())
     except ValueError:

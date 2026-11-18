@@ -6,6 +6,7 @@
 R3-1：置信度权重已外置到 `settings.AI_SELF_HEALING_CONF_WEIGHT_*`，
 模块级常量仅作为「配置缺失/非法值」时的回落默认值。
 """
+
 from typing import Any
 
 # 置信度评分权重默认值（坐标匹配 + 属性匹配 + 模型输出）
@@ -61,10 +62,7 @@ def explain_confidence(
     score = 0.0
 
     coord_keys = ("x", "y", "width", "height")
-    coord_valid = all(
-        isinstance(element_info.get(k), (int, float)) and element_info.get(k, 0) > 0
-        for k in coord_keys
-    )
+    coord_valid = all(isinstance(element_info.get(k), (int, float)) and element_info.get(k, 0) > 0 for k in coord_keys)
     if coord_valid:
         score += w_coord
 

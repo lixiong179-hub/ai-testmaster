@@ -1,4 +1,4 @@
-﻿"""项目 / 任务级「归属校验」统一入口（R0-3）。
+"""项目 / 任务级「归属校验」统一入口（R0-3）。
 
 ## 为什么存在
 
@@ -29,6 +29,7 @@
       一次性完成「任务存在性 → 项目归属」校验并注入任务对象，
       省去端点里重复的「查询 + 404 + 校验」三连。
 """
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,27 +52,25 @@ __all__ = [
 ]
 
 
-def verify_project_access(
-    db: Session, project_id: int, current_user: User
-) -> None:
+def verify_project_access(db: Session, project_id: int, current_user: User) -> None:
     """sync 版项目归属校验：当前用户须为 project_id 的所有者，否则 403。
 
     保留 sync 形态是为兼容既有 import 方（如 pipeline.py 的
     `verify_project_access as _verify_project_access`）。
     """
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id,
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+    project = (
+        db.query(Project)
+        .filter(
+            Project.id == project_id,
+            Project.user_id == current_user.id,
         )
+        .first()
+    )
+    if not project:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
 
-async def verify_project_access_async(
-    db: Session | AsyncSession, project_id: int, current_user: User
-) -> None:
+async def verify_project_access_async(db: Session | AsyncSession, project_id: int, current_user: User) -> None:
     """async 版项目归属校验：当前用户须为 project_id 的所有者，否则 403。
 
     适用于项目 ID 来自 request body / query 的场景（非路径参数，
@@ -88,14 +87,10 @@ async def verify_project_access_async(
         )
     ).scalar_one_or_none()
     if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
 
-def verify_iteration_access(
-    db: Session, iteration_id: int, current_user: User
-) -> Iteration:
+def verify_iteration_access(db: Session, iteration_id: int, current_user: User) -> Iteration:
     """sync 版迭代归属校验：返回迭代对象；不存在 404、非本人项目 403。
 
     语义与 R0-3 重构前 `pipeline_deps.verify_iteration_access` 逐字一致
@@ -103,13 +98,15 @@ def verify_iteration_access(
     """
     iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
     if iteration is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在"
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在")
+    project = (
+        db.query(Project)
+        .filter(
+            Project.id == iteration.project_id,
+            Project.user_id == current_user.id,
         )
-    project = db.query(Project).filter(
-        Project.id == iteration.project_id,
-        Project.user_id == current_user.id,
-    ).first()
+        .first()
+    )
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -118,23 +115,15 @@ def verify_iteration_access(
     return iteration
 
 
-async def verify_iteration_access_async(
-    db: Session | AsyncSession, iteration_id: int, current_user: User
-) -> Iteration:
+async def verify_iteration_access_async(db: Session | AsyncSession, iteration_id: int, current_user: User) -> Iteration:
     """async 版迭代归属校验：语义与 sync 版完全一致。
 
     归口前 `pipeline_deps` 与 `pipeline_artifacts_helpers` 各存一份逐字拷贝，
     本函数为唯一实现。经 `db_async_compat` 执行查询，两种会话均可驱动。
     """
-    iteration = (
-        await execute_async(
-            db, select(Iteration).where(Iteration.id == iteration_id)
-        )
-    ).scalar_one_or_none()
+    iteration = (await execute_async(db, select(Iteration).where(Iteration.id == iteration_id))).scalar_one_or_none()
     if iteration is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在")
     project = (
         await execute_async(
             db,
@@ -178,13 +167,9 @@ def require_task_access(
         3. 404 文案统一为「测试任务不存在」（重构前部分端点写作「任务不存在」），
            403 文案保持原样。
     """
-    task = db.execute(
-        select(TestTask).where(TestTask.id == task_id)
-    ).scalar_one_or_none()
+    task = db.execute(select(TestTask).where(TestTask.id == task_id)).scalar_one_or_none()
     if task is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="测试任务不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试任务不存在")
 
     project = db.execute(
         select(Project).where(
@@ -193,7 +178,5 @@ def require_task_access(
         )
     ).scalar_one_or_none()
     if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此任务"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此任务")
     return task

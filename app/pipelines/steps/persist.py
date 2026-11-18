@@ -9,6 +9,7 @@
     - _persist_consistency: 持久化数量一致性校验
     - _persist_posterior: 后验评分触发
 """
+
 import threading
 from typing import Any, ClassVar
 
@@ -73,7 +74,8 @@ class Persist(PipelineStep):
 
         # --- 一致性校验 ---
         consistency_check, artifact_confidence_val = _run_consistency_check(
-            ctx, persisted_ids,
+            ctx,
+            persisted_ids,
         )
 
         payload = {

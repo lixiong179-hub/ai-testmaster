@@ -1,5 +1,5 @@
-"""数据模型定义 - 定义本子包所需的数据结构、枚举和结果模型。
-"""
+"""数据模型定义 - 定义本子包所需的数据结构、枚举和结果模型。"""
+
 from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime

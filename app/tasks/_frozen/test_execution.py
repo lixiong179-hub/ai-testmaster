@@ -9,6 +9,7 @@
 
 依赖：app.tasks.celery_app、app.tasks.base、app.pipelines.runner
 """
+
 import logging
 from typing import Any
 
@@ -92,10 +93,7 @@ def execute_pipeline_task(
         raise self.retry(exc=e, countdown=backoff)
     except (ValueError, PermissionError) as e:
         # 不可重试异常：数据/权限错误
-        logger.error(
-            f"Pipeline 任务不可重试异常: pipeline_run_id={pipeline_run_id}, "
-            f"error={e}"
-        )
+        logger.error(f"Pipeline 任务不可重试异常: pipeline_run_id={pipeline_run_id}, error={e}")
         raise
     except Exception as e:
         # 未知异常：尝试重试一次
@@ -183,4 +181,5 @@ def _create_ai_client_from_config(ai_model: dict[str, Any] | None):
         return None
     # 复用端点 _create_ai_client 逻辑，避免重复实现
     from app.api.v1.endpoints.pipeline import _create_ai_client
+
     return _create_ai_client(ai_model)

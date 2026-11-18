@@ -6,6 +6,7 @@
 
 主服务入口在 app.services.saml_service.SAMLService。
 """
+
 from app.services.saml._settings_builder import (
     build_sp_settings_dict,
     build_idp_settings_dict,

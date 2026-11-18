@@ -2,11 +2,10 @@
 
 所有逻辑已拆分为独立Mixin，本文件仅做最终组合并提供全局单例函数。
 """
+
 from typing import Any
 
-from app.services.execution_replay.legacy_models import (
-    ReplayEvent, ExecutionTimeline, ReplaySession
-)
+from app.services.execution_replay.legacy_models import ReplayEvent, ExecutionTimeline, ReplaySession
 from app.services.execution_replay.legacy_session_mixin import LegacySessionMixin
 from app.services.execution_replay.legacy_playback_mixin import LegacyPlaybackMixin
 from app.services.execution_replay.legacy_query_mixin import LegacyQueryMixin

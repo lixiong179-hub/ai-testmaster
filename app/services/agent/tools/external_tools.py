@@ -7,6 +7,7 @@
     - schema 优先：LLM function calling 需要提前感知工具存在，schema 注册即可被发现
     - 显式未实现：execute 抛 NotImplementedError 而非返回空结果，避免误判成功
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -18,9 +19,7 @@ class _BaseExternalTool(Tool):
     """外部工具基类，execute 统一抛 NotImplementedError。"""
 
     async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
-        raise NotImplementedError(
-            f"外部工具 {self.name} 尚未实现，待 add-external-issue-tracker spec 落地"
-        )
+        raise NotImplementedError(f"外部工具 {self.name} 尚未实现，待 add-external-issue-tracker spec 落地")
 
 
 class CreateJiraIssueTool(_BaseExternalTool):

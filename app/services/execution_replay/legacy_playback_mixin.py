@@ -1,4 +1,5 @@
 """Legacy 回放控制Mixin - execution_replay_service.py 原始回放控制逻辑。"""
+
 import asyncio
 from typing import Any
 from collections.abc import Callable
@@ -15,7 +16,7 @@ class LegacyPlaybackMixin:
         execution_id: str,
         start_time: float = 0.0,
         speed: float = 1.0,
-        event_callback: Callable[[ReplayEvent], None] | None = None
+        event_callback: Callable[[ReplayEvent], None] | None = None,
     ) -> bool:
         session = self._active_replays.get(execution_id)
         if not session:
@@ -31,11 +32,7 @@ class LegacyPlaybackMixin:
         asyncio.create_task(self._replay_loop(execution_id, event_callback))
         return True
 
-    async def _replay_loop(
-        self,
-        execution_id: str,
-        event_callback: Callable[[ReplayEvent], None] | None = None
-    ):
+    async def _replay_loop(self, execution_id: str, event_callback: Callable[[ReplayEvent], None] | None = None):
         session = self._active_replays.get(execution_id)
         if not session:
             return
@@ -118,10 +115,12 @@ class LegacyPlaybackMixin:
             "is_playing": session["is_playing"],
             "current_time": session["current_time"],
             "total_duration": timeline.total_duration,
-            "progress_percent": (session["current_time"] / timeline.total_duration * 100) if timeline.total_duration > 0 else 0,
+            "progress_percent": (session["current_time"] / timeline.total_duration * 100)
+            if timeline.total_duration > 0
+            else 0,
             "speed": session["speed"],
             "current_event_index": current_event_idx,
-            "total_events": len(timeline.events)
+            "total_events": len(timeline.events),
         }
 
     def set_default_speed(self, speed: float) -> None:

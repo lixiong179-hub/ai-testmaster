@@ -6,6 +6,7 @@
     - get_view_statistics: 获取视图统计信息
     - get_locator_coverage: 获取定位覆盖率统计
 """
+
 from typing import Any
 from loguru import logger
 
@@ -14,12 +15,8 @@ from app.models.enums import LocatorStatus
 
 
 class ViewConfigMixin:
-
     def update_step_view_config(
-        self,
-        step_id: int,
-        is_business_view: int | None = None,
-        is_technical_view: int | None = None
+        self, step_id: int, is_business_view: int | None = None, is_technical_view: int | None = None
     ) -> bool:
         """更新单个步骤的视图可见性配置。
 
@@ -45,12 +42,7 @@ class ViewConfigMixin:
         logger.info(f"更新步骤 {step_id} 视图配置成功")
         return True
 
-    def batch_update_view_config(
-        self,
-        test_case_id: int,
-        view_type: str,
-        visible: bool
-    ) -> int:
+    def batch_update_view_config(self, test_case_id: int, view_type: str, visible: bool) -> int:
         """批量更新测试用例所有步骤的视图可见性配置。
 
         Args:
@@ -64,13 +56,17 @@ class ViewConfigMixin:
         value = 1 if visible else 0
 
         if view_type == "business":
-            count = self.db.query(TestStep).filter(
-                TestStep.test_case_id == test_case_id
-            ).update({"is_business_view": value})
+            count = (
+                self.db.query(TestStep)
+                .filter(TestStep.test_case_id == test_case_id)
+                .update({"is_business_view": value})
+            )
         elif view_type == "technical":
-            count = self.db.query(TestStep).filter(
-                TestStep.test_case_id == test_case_id
-            ).update({"is_technical_view": value})
+            count = (
+                self.db.query(TestStep)
+                .filter(TestStep.test_case_id == test_case_id)
+                .update({"is_technical_view": value})
+            )
         else:
             logger.error(f"未知的视图类型: {view_type}")
             return 0
@@ -81,9 +77,7 @@ class ViewConfigMixin:
 
     def get_view_statistics(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的视图统计信息。"""
-        steps = self.db.query(TestStep).filter(
-            TestStep.test_case_id == test_case_id
-        ).all()
+        steps = self.db.query(TestStep).filter(TestStep.test_case_id == test_case_id).all()
 
         total = len(steps)
         business_visible = sum(1 for s in steps if s.is_business_view == 1)
@@ -95,14 +89,12 @@ class ViewConfigMixin:
             "business_view_steps": business_visible,
             "technical_view_steps": technical_visible,
             "located_steps": has_locator_count,
-            "locator_coverage": f"{has_locator_count / total * 100:.1f}%" if total > 0 else "0%"
+            "locator_coverage": f"{has_locator_count / total * 100:.1f}%" if total > 0 else "0%",
         }
 
     def get_locator_coverage(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的定位覆盖率统计。"""
-        steps = self.db.query(TestStep).filter(
-            TestStep.test_case_id == test_case_id
-        ).all()
+        steps = self.db.query(TestStep).filter(TestStep.test_case_id == test_case_id).all()
 
         total = len(steps)
         located = sum(1 for s in steps if s.has_locator == 1)
@@ -114,5 +106,5 @@ class ViewConfigMixin:
             "located_steps": located,
             "pending_steps": pending,
             "failed_steps": failed,
-            "coverage_percentage": (located / total * 100) if total > 0 else 0.0
+            "coverage_percentage": (located / total * 100) if total > 0 else 0.0,
         }

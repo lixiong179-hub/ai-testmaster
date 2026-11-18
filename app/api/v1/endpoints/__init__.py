@@ -6,6 +6,7 @@ main.py 只需调用 register_all_routers(app) 一次即可完成全部路由注
 每个路由的 prefix 与原 main.py 中的注册保持完全一致，避免破坏现有 URL 契约。
 模块注册顺序与原 main.py 一致，便于排查回归。
 """
+
 from fastapi import FastAPI
 
 from app.api.v1.endpoints import (

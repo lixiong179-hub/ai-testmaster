@@ -13,6 +13,7 @@ ValidateTestCaseSyntaxTool 已迁移至 app.services.agent.agents._test_case_too
 数据库查询通过 context.db（Session / AsyncSession，经 db_async_compat 执行）
 完成，结果序列化为 dict 注入 LLM。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -44,12 +45,12 @@ class GetTestCaseTool(Tool):
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         test_case_id = params["test_case_id"]
-        result = await execute_async(context.db,
-            select(TestCase.id, TestCase.title, TestCase.case_type, TestCase.priority)
-            .where(
+        result = await execute_async(
+            context.db,
+            select(TestCase.id, TestCase.title, TestCase.case_type, TestCase.priority).where(
                 TestCase.id == test_case_id,
                 TestCase.project_id == context.project_id,
-            )
+            ),
         )
         row = result.first()
         if row is None:
@@ -76,8 +77,8 @@ class QueryProjectTool(Tool):
             return ToolResult(success=False, error="数据库会话不可用")
         if context.project_id is None:
             return ToolResult(success=False, error="项目 ID 不可用")
-        result = await execute_async(context.db,
-            select(Project.id, Project.name, Project.description).where(Project.id == context.project_id)
+        result = await execute_async(
+            context.db, select(Project.id, Project.name, Project.description).where(Project.id == context.project_id)
         )
         row = result.first()
         if row is None:
@@ -106,7 +107,8 @@ class QueryAuditTool(Tool):
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         limit = min(int(params.get("limit", 10)), 50)
-        result = await execute_async(context.db,
+        result = await execute_async(
+            context.db,
             select(
                 SelfHealingAudit.id,
                 SelfHealingAudit.test_case_id,
@@ -118,7 +120,7 @@ class QueryAuditTool(Tool):
             )
             .where(SelfHealingAudit.test_case_id == params["test_case_id"])
             .order_by(SelfHealingAudit.created_at.desc())
-            .limit(limit)
+            .limit(limit),
         )
         records = [
             {
@@ -151,14 +153,15 @@ class QueryLocatorHistoryTool(Tool):
     async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
-        result = await execute_async(context.db,
+        result = await execute_async(
+            context.db,
             select(
                 ElementLocator.id,
                 ElementLocator.css_selector,
                 ElementLocator.xpath,
                 ElementLocator.success_count,
                 ElementLocator.version,
-            ).where(ElementLocator.id == params["locator_id"])
+            ).where(ElementLocator.id == params["locator_id"]),
         )
         row = result.first()
         if row is None:

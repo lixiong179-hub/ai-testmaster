@@ -20,6 +20,7 @@
     # ... 使用 cases ...
     clear_history_cache()  # 清理缓存
 """
+
 import copy
 import logging
 import time
@@ -80,10 +81,7 @@ def get_history_cases_for_project(
 
     cases = _query_history_cases(db, project_id, min_score, limit)
     _history_cache[cache_key] = (cases, time.monotonic())
-    logger.debug(
-        f"history_cache 未命中，已查询并缓存: project_id={project_id}, "
-        f"count={len(cases)}, key={cache_key}"
-    )
+    logger.debug(f"history_cache 未命中，已查询并缓存: project_id={project_id}, count={len(cases)}, key={cache_key}")
     # 首次写入后返回也用深拷贝，保持与缓存命中路径一致的语义
     return copy.deepcopy(cases)
 
@@ -113,10 +111,7 @@ def invalidate_project_cache(project_id: int) -> int:
     for key in keys_to_remove:
         _history_cache.pop(key, None)
     if keys_to_remove:
-        logger.debug(
-            f"history_cache 精准失效: project_id={project_id}, "
-            f"removed={len(keys_to_remove)}"
-        )
+        logger.debug(f"history_cache 精准失效: project_id={project_id}, removed={len(keys_to_remove)}")
     return len(keys_to_remove)
 
 

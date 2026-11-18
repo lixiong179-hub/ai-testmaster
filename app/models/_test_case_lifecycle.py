@@ -12,6 +12,7 @@
 兼容性：`test_case.py` 通过 re-export 保持
 `from app.models.test_case import enable_lifecycle_transition` 等导入路径不变。
 """
+
 import contextvars
 from typing import Any
 
@@ -41,9 +42,7 @@ from sqlalchemy.orm import Session
 #           session.flush()
 #       finally:
 #           disable_lifecycle_transition()
-_lifecycle_guard: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'lifecycle_transition_allowed', default=False
-)
+_lifecycle_guard: contextvars.ContextVar[bool] = contextvars.ContextVar("lifecycle_transition_allowed", default=False)
 
 
 def _lifecycle_transition_allowed() -> bool:
@@ -78,6 +77,7 @@ def _guard_lifecycle_status(session, flush_context, instances):
             continue
         # 检查 lifecycle_status 是否被修改
         from sqlalchemy import inspect as sa_inspect
+
         state = sa_inspect(instance)
         hist = state.attrs.lifecycle_status.history
         # lifecycle_status 被修改
@@ -95,9 +95,7 @@ def _guard_lifecycle_status(session, flush_context, instances):
 
 
 # 上下文标记：跳过自动版本快照（用于批量操作或内部流程手动控制）
-_version_snapshot_skip: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'version_snapshot_skip', default=False
-)
+_version_snapshot_skip: contextvars.ContextVar[bool] = contextvars.ContextVar("version_snapshot_skip", default=False)
 
 
 def skip_version_snapshot() -> None:

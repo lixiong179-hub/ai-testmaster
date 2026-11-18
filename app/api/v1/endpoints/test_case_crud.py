@@ -51,30 +51,24 @@ from app.utils.test_case_helpers import build_test_case_response
 
 
 async def create_test_case(
-    test_case: TestCaseCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case: TestCaseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """创建测试用例（含步骤和测试数据，编号自动生成）"""
     try:
-        project_result = await _execute(db,
+        project_result = await _execute(
+            db,
             select(Project).where(
                 Project.id == test_case.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalar_one_or_none()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         case_no = test_case.case_no
         if not case_no:
-            case_no = await asyncio.to_thread(
-                CaseNumberService.generate, test_case.project_id, db
-            )
+            case_no = await asyncio.to_thread(CaseNumberService.generate, test_case.project_id, db)
 
         new_test_case = TestCase(
             project_id=test_case.project_id,
@@ -111,10 +105,7 @@ async def create_test_case(
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"创建测试用例失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建测试用例失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建测试用例失败")
 
 
 async def get_test_cases(
@@ -132,14 +123,12 @@ async def get_test_cases(
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """查询测试用例列表（分页，按项目/需求文件筛选，排除已删除，只返回用户有权访问的项目的用例）"""
     effective_lifecycle_status = lifecycle_status or status_filter
     try:
-        authorized_subquery = select(Project.id).where(
-            Project.user_id == current_user.id
-        )
+        authorized_subquery = select(Project.id).where(Project.user_id == current_user.id)
 
         conditions = [
             TestCase.is_deleted.is_(False),
@@ -147,17 +136,15 @@ async def get_test_cases(
         ]
 
         if project_id:
-            project_access_result = await _execute(db,
+            project_access_result = await _execute(
+                db,
                 select(Project.id).where(
                     Project.id == project_id,
                     Project.user_id == current_user.id,
-                )
+                ),
             )
             if not project_access_result.scalar_one_or_none():
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权限访问此项目"
-                )
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此项目")
             conditions.append(TestCase.project_id == project_id)
         if requirement_file_id:
             conditions.append(TestCase.requirement_file_id == requirement_file_id)
@@ -197,26 +184,22 @@ async def get_test_cases(
 
         offset = (page - 1) * page_size
 
-        total = (await _execute(db,
-            select(func.count()).select_from(TestCase).where(*conditions)
-        )).scalar() or 0
+        total = (await _execute(db, select(func.count()).select_from(TestCase).where(*conditions))).scalar() or 0
 
-        automated_conditions = conditions + [
-            TestCase.case_type.in_(["ui_automation", "api_automation"])
-        ]
-        automated = (await _execute(db,
-            select(func.count()).select_from(TestCase).where(*automated_conditions)
-        )).scalar() or 0
+        automated_conditions = conditions + [TestCase.case_type.in_(["ui_automation", "api_automation"])]
+        automated = (
+            await _execute(db, select(func.count()).select_from(TestCase).where(*automated_conditions))
+        ).scalar() or 0
 
         manual_conditions = conditions + [TestCase.case_type == "manual"]
-        manual = (await _execute(db,
-            select(func.count()).select_from(TestCase).where(*manual_conditions)
-        )).scalar() or 0
+        manual = (
+            await _execute(db, select(func.count()).select_from(TestCase).where(*manual_conditions))
+        ).scalar() or 0
 
         high_priority_conditions = conditions + [TestCase.priority == 1]
-        high_priority = (await _execute(db,
-            select(func.count()).select_from(TestCase).where(*high_priority_conditions)
-        )).scalar() or 0
+        high_priority = (
+            await _execute(db, select(func.count()).select_from(TestCase).where(*high_priority_conditions))
+        ).scalar() or 0
 
         sort_columns = {
             "create_time": TestCase.create_time,
@@ -227,8 +210,8 @@ async def get_test_cases(
         sort_column = sort_columns.get(sort_by or "create_time", TestCase.create_time)
         order_clause = sort_column.asc() if sort_order == "asc" else sort_column.desc()
 
-        result = await _execute(db,
-            select(TestCase).where(*conditions).order_by(order_clause).offset(offset).limit(page_size)
+        result = await _execute(
+            db, select(TestCase).where(*conditions).order_by(order_clause).offset(offset).limit(page_size)
         )
         test_cases = result.scalars().all()
         items = [build_test_case_response(tc) for tc in test_cases]
@@ -243,7 +226,7 @@ async def get_test_cases(
                 "automated": automated,
                 "manual": manual,
                 "high_priority": high_priority,
-            }
+            },
         ).model_dump()
 
         return create_response(data=data)
@@ -251,75 +234,67 @@ async def get_test_cases(
         raise
     except Exception as e:
         logger.error(f"查询测试用例列表失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="查询测试用例列表失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="查询测试用例列表失败")
 
 
 async def get_test_case(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """获取测试用例详情（含步骤和测试数据，只允许访问用户有权访问的项目的用例）"""
     try:
-        result = await _execute(db,
-            select(TestCase).join(Project).where(
+        result = await _execute(
+            db,
+            select(TestCase)
+            .join(Project)
+            .where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         test_case = result.scalar_one_or_none()
 
         if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
         return create_response(data=build_test_case_response(test_case))
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"获取测试用例详情失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取测试用例详情失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取测试用例详情失败")
 
 
 async def update_test_case(
     test_case_id: int,
     test_case_update: TestCaseUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """更新测试用例（部分更新，步骤变更时重建，只允许操作用户有权访问的项目的用例）"""
     try:
-        result = await _execute(db,
-            select(TestCase).join(Project).where(
+        result = await _execute(
+            db,
+            select(TestCase)
+            .join(Project)
+            .where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         test_case = result.scalar_one_or_none()
 
         if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
         update_data = test_case_update.model_dump(exclude_unset=True)
 
         steps_data = None
-        if 'steps' in update_data and update_data['steps'] is not None:
-            steps_data = update_data['steps']
+        if "steps" in update_data and update_data["steps"] is not None:
+            steps_data = update_data["steps"]
             test_case.steps_json = steps_data
-            del update_data['steps']
+            del update_data["steps"]
 
         for field, value in update_data.items():
             setattr(test_case, field, value)
@@ -327,21 +302,19 @@ async def update_test_case(
         await asyncio.to_thread(db.flush)
 
         if steps_data is not None:
-            await _execute(db,
-                delete(TestStep).where(TestStep.test_case_id == test_case_id)
-            )
+            await _execute(db, delete(TestStep).where(TestStep.test_case_id == test_case_id))
 
             for i, step_data in enumerate(steps_data):
                 step = TestStep(
                     test_case_id=test_case_id,
                     step_number=i + 1,
-                    action=step_data.get('action', ''),
-                    expected_result=step_data.get('expected_result', ''),
-                    action_type=step_data.get('action_type', ''),
-                    input_value=step_data.get('input_value', ''),
-                    target_element=step_data.get('target_element', ''),
+                    action=step_data.get("action", ""),
+                    expected_result=step_data.get("expected_result", ""),
+                    action_type=step_data.get("action_type", ""),
+                    input_value=step_data.get("input_value", ""),
+                    target_element=step_data.get("target_element", ""),
                     is_business_view=1,
-                    is_technical_view=1
+                    is_technical_view=1,
                 )
                 db.add(step)
 
@@ -354,17 +327,14 @@ async def update_test_case(
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"更新测试用例失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新测试用例失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新测试用例失败")
 
 
 async def delete_test_case(
     test_case_id: int,
     project_id: int | None = Query(default=None, description="项目ID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """软删除测试用例（is_deleted标记，可批量恢复）"""
     try:
@@ -383,10 +353,7 @@ async def delete_test_case(
         result = await _execute(db, query)
         test_case = result.scalar_one_or_none()
         if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
         test_case.is_deleted = True
         test_case.deleted_at = utcnow()
@@ -400,10 +367,7 @@ async def delete_test_case(
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"删除测试用例失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除测试用例失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除测试用例失败")
 
 
 async def _execute(db: Session, stmt):

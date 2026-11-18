@@ -16,8 +16,8 @@
 
 所有异常携带 agent_type 与可选 session_id，便于审计与日志关联。
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 
 class AgentError(Exception):

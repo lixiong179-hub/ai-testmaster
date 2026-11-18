@@ -18,6 +18,7 @@
     采用联合主键（resource_id + resource_type + role_id + permission_id），
     确保同一资源上同一角色的同一权限不会重复分配。
 """
+
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -45,16 +46,23 @@ class ResourcePermission(Base):
         - 特定用例的编辑权限控制
         - 细粒度的资源访问控制
     """
+
     __tablename__ = "resource_permission"
 
-    resource_id = Column(Integer, nullable=False, primary_key=True, comment="资源ID")                  # 资源实例ID
-    resource_type = Column(String(50), nullable=False, primary_key=True, comment="资源类型: project/test_case/test_task")  # project=项目，test_case=用例，test_task=任务
-    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False, primary_key=True, comment="角色ID")  # 角色ID，级联删除
-    permission_id = Column(Integer, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False, primary_key=True, comment="权限ID")  # 权限ID，级联删除
+    resource_id = Column(Integer, nullable=False, primary_key=True, comment="资源ID")  # 资源实例ID
+    resource_type = Column(
+        String(50), nullable=False, primary_key=True, comment="资源类型: project/test_case/test_task"
+    )  # project=项目，test_case=用例，test_task=任务
+    role_id = Column(
+        Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False, primary_key=True, comment="角色ID"
+    )  # 角色ID，级联删除
+    permission_id = Column(
+        Integer, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False, primary_key=True, comment="权限ID"
+    )  # 权限ID，级联删除
 
     # 关联关系
-    role = relationship("Role")                                                                       # 关联角色
-    permission = relationship("Permission")                                                           # 关联权限
+    role = relationship("Role")  # 关联角色
+    permission = relationship("Permission")  # 关联权限
 
     def __repr__(self) -> str:
         """返回资源权限的字符串表示，便于调试和日志输出。"""

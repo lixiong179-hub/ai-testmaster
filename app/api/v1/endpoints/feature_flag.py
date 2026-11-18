@@ -1,4 +1,4 @@
-﻿"""
+"""
 运行时特性开关端点模块（R2-1 单范式：同步 Session + asyncio.to_thread）
 
 提供特性开关的 CRUD 与启用/禁用切换接口。
@@ -20,6 +20,7 @@
            保持事件循环不被 DB IO 阻塞；
         3. _require_admin 依赖注入不变。
 """
+
 import asyncio
 from typing import Any
 
@@ -58,13 +59,8 @@ async def list_feature_flags(
     """获取所有特性开关列表（分页）"""
     service = FeatureFlagService(db)
     flags, total = await asyncio.to_thread(service.list_flags, page=page, page_size=page_size)
-    items = [
-        FeatureFlagResponse.model_validate(f).model_dump(mode="json")
-        for f in flags
-    ]
-    return create_response(
-        data={"items": items, "total": total, "page": page, "page_size": page_size}
-    )
+    items = [FeatureFlagResponse.model_validate(f).model_dump(mode="json") for f in flags]
+    return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size})
 
 
 @router.post("/", response_model=FeatureFlagResponse, status_code=status.HTTP_201_CREATED)

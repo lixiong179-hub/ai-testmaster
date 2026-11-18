@@ -2,6 +2,7 @@
 
 提供场景配置查询接口，供 API 端点和 Pipeline Runner 使用。
 """
+
 from typing import Any, Optional
 
 from app.pipelines.scenarios.scenario_1 import SCENARIO_1_STEPS, SCENARIO_1_NAME, SCENARIO_1_VERSION

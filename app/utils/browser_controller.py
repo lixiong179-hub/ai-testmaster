@@ -3,6 +3,7 @@
 The implementation was split into browser_controller_v2 and mixin modules.
 This module preserves the legacy import path used by older tests and callers.
 """
+
 from app.utils.browser_controller_v2 import (
     BrowserConfig,
     BrowserControllerV2,

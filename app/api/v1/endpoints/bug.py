@@ -18,6 +18,7 @@
        线程池执行，事件循环不被阻塞；
     3. 端点仍为 `async def`，保持 OpenAPI 与调用方签名不变。
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
@@ -30,6 +31,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -71,11 +73,7 @@ async def list_bugs(
         包含 items 和 total 的分页结果。
     """
     # 校验项目存在
-    project = (
-        await _execute(db,
-            select(Project).where(Project.id == project_id)
-        )
-    ).scalar_one_or_none()
+    project = (await _execute(db, select(Project).where(Project.id == project_id))).scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -101,24 +99,14 @@ async def list_bugs(
         filters.append(Bug.status == status_filter)
 
     # 统计总数
-    total = (
-        await _execute(db,
-            select(func.count())
-            .select_from(Bug)
-            .where(*filters)
-        )
-    ).scalar_one()
+    total = (await _execute(db, select(func.count()).select_from(Bug).where(*filters))).scalar_one()
 
     # 分页查询
     offset = (page - 1) * page_size
     bugs = (
         (
-            await _execute(db,
-                select(Bug)
-                .where(*filters)
-                .order_by(Bug.create_time.desc())
-                .offset(offset)
-                .limit(page_size)
+            await _execute(
+                db, select(Bug).where(*filters).order_by(Bug.create_time.desc()).offset(offset).limit(page_size)
             )
         )
         .scalars()
@@ -145,9 +133,11 @@ async def list_bugs(
         for bug in bugs
     ]
 
-    return create_response(data={
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return create_response(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )

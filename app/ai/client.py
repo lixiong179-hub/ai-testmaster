@@ -15,6 +15,7 @@ AI Client 抽象接口模块
     - typing.Protocol : 接口定义
     - dataclasses     : 数据类
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ class TokenUsage:
         completion_tokens: 输出 Token 数量
         total_cost_usd: 本次调用总成本（美元）
     """
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_cost_usd: float = 0.0
@@ -48,6 +50,7 @@ class AIResponse:
         raw_response: 原始 API 响应对象，可选（调试用）
         degraded: 是否由 fallback 模型生成
     """
+
     content: str = ""
     parsed: dict[str, Any] | None = None
     usage: TokenUsage = field(default_factory=TokenUsage)

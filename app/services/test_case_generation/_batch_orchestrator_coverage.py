@@ -6,6 +6,7 @@
 供 BatchOrchestrator 通过多继承组合使用，依赖宿主类在 __init__ 中
 注入 self._ai_generator（提供 _build_ui_description）。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -45,12 +46,8 @@ class CoverageEnhancementMixin:
             return candidate_cases
 
         try:
-            ui_description = self._ai_generator._build_ui_description(
-                point_context.get("ui_descriptions", [])
-            )
-            has_ui = bool(ui_description and ui_description.strip()) or bool(
-                point_context.get("ui_specs", [])
-            )
+            ui_description = self._ai_generator._build_ui_description(point_context.get("ui_descriptions", []))
+            has_ui = bool(ui_description and ui_description.strip()) or bool(point_context.get("ui_specs", []))
             supplemental_context: dict[str, Any] = {
                 "prd_content": point_context.get("requirement_content", ""),
                 "ui_description": ui_description,
@@ -68,12 +65,16 @@ class CoverageEnhancementMixin:
             if supplemental:
                 logger.info(
                     "批量生成覆盖补全 tp_id={} 补充{}条缺失类型用例: {}",
-                    test_point.get("id"), len(supplemental), missing,
+                    test_point.get("id"),
+                    len(supplemental),
+                    missing,
                 )
                 return candidate_cases + supplemental
         except (AttributeError, RuntimeError, ValueError, TypeError) as e:
             logger.warning(
                 "批量生成覆盖补全失败 tp_id={} {}: {}",
-                test_point.get("id"), type(e).__name__, e,
+                test_point.get("id"),
+                type(e).__name__,
+                e,
             )
         return candidate_cases

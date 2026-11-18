@@ -9,6 +9,7 @@
     - presigned URL 支持有效期，便于临时共享
     - 客户端在构造时创建，线程安全可共享
 """
+
 import asyncio
 
 from app.services.storage.base import StorageBackend, StorageObject
@@ -85,12 +86,11 @@ class S3Storage(StorageBackend):
         if not key:
             raise ValueError("key 不能为空")
         try:
-            response = await asyncio.to_thread(
-                self._client.get_object, Bucket=self._bucket, Key=key
-            )
+            response = await asyncio.to_thread(self._client.get_object, Bucket=self._bucket, Key=key)
         except Exception as exc:
             # boto3 抛 ClientErrorNoSuchKey 时转为 FileNotFoundError
             from botocore.exceptions import ClientError  # noqa: WPS433
+
             if isinstance(exc, ClientError) and exc.response.get("Error", {}).get("Code") in (
                 "NoSuchKey",
                 "404",
@@ -104,18 +104,14 @@ class S3Storage(StorageBackend):
             raise ValueError("key 不能为空")
         if not await self.exists(key):
             return False
-        await asyncio.to_thread(
-            self._client.delete_object, Bucket=self._bucket, Key=key
-        )
+        await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
         return True
 
     async def exists(self, key: str) -> bool:
         if not key:
             raise ValueError("key 不能为空")
         try:
-            await asyncio.to_thread(
-                self._client.head_object, Bucket=self._bucket, Key=key
-            )
+            await asyncio.to_thread(self._client.head_object, Bucket=self._bucket, Key=key)
             return True
         except Exception:
             return False

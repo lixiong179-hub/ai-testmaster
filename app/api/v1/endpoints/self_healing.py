@@ -17,6 +17,7 @@
     为每次调用新建独立 sync 会话，避免与 get_current_user 注入的 async 会话混用
     （参考 app/api/v1/endpoints/audit_log.py 的既有模式）。
 """
+
 import asyncio
 from typing import Any
 from collections.abc import Callable
@@ -46,6 +47,7 @@ from app.services.self_healing.config_service import (
     SelfHealingConfigService,
 )
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -54,19 +56,11 @@ async def _execute(db: Session, stmt):
 router = APIRouter(tags=["自愈管理"])
 
 
-async def _verify_project_owner(
-    db: Session, project_id: int, user_id: int
-) -> None:
+async def _verify_project_owner(db: Session, project_id: int, user_id: int) -> None:
     """校验项目归属当前用户，不存在或无权限抛 403（查询经 `_execute` 转线程池）。"""
-    result = await _execute(db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == user_id
-        )
-    )
+    result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == user_id))
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
 
 def _to_audit_response(audit: Any) -> AuditResponse:
@@ -120,9 +114,7 @@ async def list_audits(
 
         records, total = await asyncio.to_thread(_run_sync, _do)
         items = [_to_audit_response(r) for r in records]
-        data = AuditListResponse(
-            items=items, total=total, page=page, page_size=page_size
-        )
+        data = AuditListResponse(items=items, total=total, page=page, page_size=page_size)
         return create_response(data=data.model_dump(), msg="获取成功")
     except HTTPException:
         raise
@@ -143,6 +135,7 @@ async def get_audit(
 ) -> dict[str, Any]:
     """获取单条自愈审计记录详情，不存在返回 404。"""
     try:
+
         def _do(sync_db: Session) -> Any:
             service = SelfHealingAuditService(sync_db)
             return service.get_audit(audit_id)
@@ -180,6 +173,7 @@ async def rollback_audit(
         - 定位器版本并发冲突: 409（service 抛 HTTPException）
     """
     try:
+
         def _do(sync_db: Session) -> Any:
             service = SelfHealingAuditService(sync_db)
             return service.rollback_audit(audit_id)
@@ -252,11 +246,7 @@ async def update_self_healing_config(
 
         def _do(sync_db: Session) -> dict:
             service = SelfHealingConfigService(sync_db)
-            project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id)
-                .first()
-            )
+            project = sync_db.query(Project).filter(Project.id == project_id).first()
             if project is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,

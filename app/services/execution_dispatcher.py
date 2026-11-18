@@ -14,6 +14,7 @@
     3. **可回滚**：`settings.EXECUTOR_MODE` 为 `inprocess` 时 Web 侧仍走
        原有「同步执行」路径，本模块完全不参与，作为部署级兜底开关。
 """
+
 from __future__ import annotations
 
 
@@ -74,9 +75,7 @@ class ExecutionDispatcher:
             "queued_at": utcnow().isoformat(),
         }
 
-    def claim_next(
-        self, *, scan_limit: int = 10, task_id: int | None = None
-    ) -> int | None:
+    def claim_next(self, *, scan_limit: int = 10, task_id: int | None = None) -> int | None:
         """领取一个排队任务并置为 RUNNING。
 
         通过「条件更新 + rowcount」实现原子占用：同一任务被多个 executor
@@ -92,9 +91,7 @@ class ExecutionDispatcher:
         query = select(TestTask.id).where(TestTask.status == TaskStatus.PENDING)
         if task_id is not None:
             query = query.where(TestTask.id == task_id)
-        candidates = self._db.execute(
-            query.order_by(TestTask.id.asc()).limit(max(scan_limit, 1))
-        ).scalars().all()
+        candidates = self._db.execute(query.order_by(TestTask.id.asc()).limit(max(scan_limit, 1))).scalars().all()
 
         for task_id in candidates:
             result = self._db.execute(

@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,6 +58,7 @@ def add_decision(
         raise ReviewFinalizedError(f"Review {review_id} is finalized, cannot add decision")
 
     from app.models.enums import ReviewTargetKind
+
     valid_target_kinds = {k.value for k in ReviewTargetKind}
     if target_kind not in valid_target_kinds:
         raise ReviewError(f"Invalid target_kind: {target_kind}")
@@ -104,9 +104,7 @@ def set_human_verdict(
 
     review = db.get(IterationReview, decision.review_id)
     if review is not None and review.is_finalized():
-        raise ReviewFinalizedError(
-            f"Cannot modify decision {decision_id}: review is finalized"
-        )
+        raise ReviewFinalizedError(f"Cannot modify decision {decision_id}: review is finalized")
 
     if human_verdict not in VALID_VERDICTS:
         raise ReviewError(f"Invalid human_verdict: {human_verdict}, must be one of {VALID_VERDICTS}")
@@ -117,7 +115,8 @@ def set_human_verdict(
     decision.decided_at = utcnow()
 
     final_verdict, conflict = ReviewDecision.compute_final_verdict(
-        decision.ai_verdict, human_verdict,
+        decision.ai_verdict,
+        human_verdict,
     )
     decision.final_verdict = final_verdict
     decision.conflict_marker = conflict
@@ -139,9 +138,8 @@ def rollback_decision(
     review = db.get(IterationReview, decision.review_id)
     if review is not None and review.is_finalized():
         from app.services.review_service._errors import ReviewDecisionImmutableError
-        raise ReviewDecisionImmutableError(
-            f"Cannot rollback decision {decision_id}: review is finalized"
-        )
+
+        raise ReviewDecisionImmutableError(f"Cannot rollback decision {decision_id}: review is finalized")
 
     old_human_verdict = decision.human_verdict
     decision.human_verdict = None
@@ -149,12 +147,11 @@ def rollback_decision(
     decision.human_reason = None
     decision.final_verdict = decision.ai_verdict or "keep"
     decision.conflict_marker = False
-    decision.accepted_low_confidence = (
-        decision.ai_confidence is not None and decision.ai_confidence < 70
-    )
+    decision.accepted_low_confidence = decision.ai_confidence is not None and decision.ai_confidence < 70
     decision.decided_at = utcnow()
 
     from app.models.audit_log import AuditLog
+
     audit = AuditLog(
         action="review_rollback",
         target_kind="review_decision",
@@ -190,9 +187,11 @@ def finalize_review(
 
     try:
         from app.services.decision_application_service import apply_decisions
+
         apply_decisions(review_id=review.id, db=db)
     except Exception as e:
         from loguru import logger
+
         logger.error("apply_decisions failed for review_id={}: {}", review.id, e)
         review.status = ReviewStatus.IN_PROGRESS.value
         review.finalized_at = None
@@ -283,6 +282,7 @@ async def add_decision_async(
         raise ReviewFinalizedError(f"Review {review_id} is finalized, cannot add decision")
 
     from app.models.enums import ReviewTargetKind
+
     valid_target_kinds = {k.value for k in ReviewTargetKind}
     if target_kind not in valid_target_kinds:
         raise ReviewError(f"Invalid target_kind: {target_kind}")
@@ -343,12 +343,14 @@ async def finalize_review_async(
 
     def _apply_decisions_sync(sync_db: Session) -> None:
         from app.services.decision_application_service import apply_decisions
+
         apply_decisions(review_id=review.id, db=sync_db)
 
     try:
         await db.run_sync(_apply_decisions_sync)
     except Exception as e:
         from loguru import logger
+
         logger.error("apply_decisions failed for review_id={}: {}", review.id, e)
         review.status = ReviewStatus.IN_PROGRESS.value
         review.finalized_at = None

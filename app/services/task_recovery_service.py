@@ -17,6 +17,7 @@
 注意：`TIMEOUT_CHECK_INTERVAL <= 0` 时巡检不启动（灰度关闭用），
 但启动即恢复仍可被显式调用。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -57,11 +58,7 @@ class TaskRecoveryService:
             list[dict]: 每条为 `{task_id, reason, stale_seconds, start_time}`。
         """
         reference = now or utcnow()
-        timeout = (
-            int(timeout_seconds)
-            if timeout_seconds is not None
-            else int(settings.TASK_TIMEOUT_SECONDS)
-        )
+        timeout = int(timeout_seconds) if timeout_seconds is not None else int(settings.TASK_TIMEOUT_SECONDS)
         cutoff = reference - timedelta(seconds=max(timeout, 0))
 
         stale_tasks = (
@@ -78,11 +75,7 @@ class TaskRecoveryService:
         recovered: list[dict] = []
         for task in stale_tasks:
             start_time = task.start_time
-            stale_seconds = (
-                int((reference - start_time).total_seconds())
-                if start_time is not None
-                else None
-            )
+            stale_seconds = int((reference - start_time).total_seconds()) if start_time is not None else None
             task.status = TaskStatus.FAILED
             task.error_message = (
                 f"任务超时中断：已运行 {stale_seconds}s，超过阈值 {timeout}s"
@@ -99,10 +92,7 @@ class TaskRecoveryService:
                     "start_time": start_time.isoformat() if start_time else None,
                 }
             )
-            logger.warning(
-                f"孤儿 RUNNING 任务已标记中断: task_id={task.id} "
-                f"stale={stale_seconds}s timeout={timeout}s"
-            )
+            logger.warning(f"孤儿 RUNNING 任务已标记中断: task_id={task.id} stale={stale_seconds}s timeout={timeout}s")
 
         self._db.commit()
         return recovered
@@ -151,9 +141,7 @@ def start_task_recovery() -> None:
         return
 
     try:
-        _monitor_task = asyncio.get_running_loop().create_task(
-            _recovery_loop(interval)
-        )
+        _monitor_task = asyncio.get_running_loop().create_task(_recovery_loop(interval))
     except RuntimeError:
         # 无运行中的事件循环（如脚本/测试直接调用）：退化为同步扫描一次
         recovered = _scan_once()

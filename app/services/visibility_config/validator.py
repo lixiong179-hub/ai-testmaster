@@ -1,5 +1,5 @@
-"""可见模式配置 - 配置验证器
-"""
+"""可见模式配置 - 配置验证器"""
+
 from app.services.visibility_config.models import VisibilityConfig
 from app.services.visibility_config.env_loader import VisibilityEnvLoader
 

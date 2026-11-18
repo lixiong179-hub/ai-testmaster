@@ -2,6 +2,7 @@
 
 提供 Pipeline 产物详情查询的响应模型。
 """
+
 from typing import Any
 from datetime import datetime
 
@@ -24,6 +25,7 @@ class ArtifactDetailResponse(BaseModel):
         truncated: payload 是否被截断
         truncated_reason: 截断原因描述
     """
+
     id: int = Field(..., description="产物 ID")
     run_id: int = Field(..., description="关联的 Pipeline 运行 ID")
     kind: str = Field(..., description="产物类型")

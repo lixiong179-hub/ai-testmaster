@@ -8,6 +8,7 @@
 工具通过 ToolRegistry 注册，按 agent_type 路由，AgentRuntime.list_for_agent()
 获取当前 Agent 可用工具列表构造 LLM function schema。
 """
+
 from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
 from app.services.agent.tools.client_tools import (
     ClickElementTool,

@@ -3,7 +3,6 @@ from loguru import logger
 
 
 class _UtilMixin:
-
     XMAP_NS = "urn:xmind:xmap:xmlns:content:2.0"
     NS = {"xmap": XMAP_NS}
     MAX_DEPTH = 10
@@ -108,9 +107,7 @@ class _UtilMixin:
 
         return paths
 
-    def _collect_leaf_paths(
-        self, topic: ET.Element, prefix: list[str]
-    ) -> list[list[str]]:
+    def _collect_leaf_paths(self, topic: ET.Element, prefix: list[str]) -> list[list[str]]:
         child_topics = self._get_child_topics(topic)
         if not child_topics:
             return [prefix]

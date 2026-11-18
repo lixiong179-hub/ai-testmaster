@@ -11,6 +11,7 @@
 _quality_gate_issues 内部调用 cls._ui_executability_issues，由
 UIElementValidationMixin 提供，运行时通过 CaseValidator MRO 解析。
 """
+
 import re
 from typing import Any
 
@@ -38,19 +39,44 @@ class QualityGateMixin:
     _ASSERT_KEYWORDS = frozenset({"查看", "检查", "验证", "确认", "核对", "观察", "获取"})
     _NAVIGATE_KEYWORDS = frozenset({"等待", "静置", "等待加载"})
     _ASSERT_CLICK_PATTERNS = re.compile(
-        r'(检查.*(?:点击|可点击|是否可)|查看.*(?:点击|可点击|是否可)|'
-        r'验证.*(?:点击|可点击|是否可)|确认.*(?:点击|可点击|是否可))'
+        r"(检查.*(?:点击|可点击|是否可)|查看.*(?:点击|可点击|是否可)|"
+        r"验证.*(?:点击|可点击|是否可)|确认.*(?:点击|可点击|是否可))"
     )
-    _VALID_CASE_TYPES = frozenset({
-        "ui_automation", "manual", "api_automation", "performance", "security",
-    })
+    _VALID_CASE_TYPES = frozenset(
+        {
+            "ui_automation",
+            "manual",
+            "api_automation",
+            "performance",
+            "security",
+        }
+    )
     _MIN_PERSIST_QUALITY_SCORE = 80.0
     _MIN_PRECONDITION_LENGTH = 15
-    _PRIORITY_ONE_KEYWORDS = frozenset({
-        "主流程", "全流程", "核心", "提交批改", "批改", "断网", "无网络",
-        "网络异常", "数据丢失", "崩溃", "白屏", "未登录", "权限", "越权",
-        "安全", "重复提交", "连续快速点击", "正确率100%", "听写结果", "结果页",
-    })
+    _PRIORITY_ONE_KEYWORDS = frozenset(
+        {
+            "主流程",
+            "全流程",
+            "核心",
+            "提交批改",
+            "批改",
+            "断网",
+            "无网络",
+            "网络异常",
+            "数据丢失",
+            "崩溃",
+            "白屏",
+            "未登录",
+            "权限",
+            "越权",
+            "安全",
+            "重复提交",
+            "连续快速点击",
+            "正确率100%",
+            "听写结果",
+            "结果页",
+        }
+    )
 
     @classmethod
     def _correct_action_type(cls, action: str, action_type: str) -> str:
@@ -77,22 +103,22 @@ class QualityGateMixin:
         if not precondition:
             return precondition
         patterns = [
-            r'[、，,]?\s*通过(?:Mock|cy\.intercept|ADB|devtools)[^、，,]*',
-            r'[、，,]?\s*Mock[^、，,]*',
-            r'[、，,]?\s*cy\.intercept\([^)]*\)[^、，,]*',
-            r'[、，,]?\s*ADB[^、，,]*',
-            r'[、，,]?\s*devtools[^、，,]*',
-            r'[、，,]?\s*（?清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^）、，,]*）?',
-            r'[、，,]?\s*清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^、，,]*',
-            r'[、，,]?\s*（?(?:token|cookie|session)[^）、，,]*）?',
+            r"[、，,]?\s*通过(?:Mock|cy\.intercept|ADB|devtools)[^、，,]*",
+            r"[、，,]?\s*Mock[^、，,]*",
+            r"[、，,]?\s*cy\.intercept\([^)]*\)[^、，,]*",
+            r"[、，,]?\s*ADB[^、，,]*",
+            r"[、，,]?\s*devtools[^、，,]*",
+            r"[、，,]?\s*（?清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^）、，,]*）?",
+            r"[、，,]?\s*清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^、，,]*",
+            r"[、，,]?\s*（?(?:token|cookie|session)[^）、，,]*）?",
         ]
         cleaned = precondition
         for pattern in patterns:
-            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'[、，,]\s*$', '', cleaned.strip())
-        cleaned = re.sub(r'^[、，,]\s*', '', cleaned)
-        cleaned = re.sub(r'（\s*）', '', cleaned)
-        cleaned = re.sub(r'\(\s*\)', '', cleaned)
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"[、，,]\s*$", "", cleaned.strip())
+        cleaned = re.sub(r"^[、，,]\s*", "", cleaned)
+        cleaned = re.sub(r"（\s*）", "", cleaned)
+        cleaned = re.sub(r"\(\s*\)", "", cleaned)
         return cleaned
 
     @classmethod
@@ -146,16 +172,11 @@ class QualityGateMixin:
             issues.append("quality score is missing")
             local_blocking = True
         elif quality_score < cls._MIN_PERSIST_QUALITY_SCORE:
-            issues.append(
-                f"quality score {quality_score:.0f} is below "
-                f"{cls._MIN_PERSIST_QUALITY_SCORE:.0f}"
-            )
+            issues.append(f"quality score {quality_score:.0f} is below {cls._MIN_PERSIST_QUALITY_SCORE:.0f}")
             local_blocking = True
         precondition = (generated_case.get("precondition") or "").strip()
         if len(precondition) < cls._MIN_PRECONDITION_LENGTH:
-            issues.append(
-                f"precondition is too short ({len(precondition)} chars)"
-            )
+            issues.append(f"precondition is too short ({len(precondition)} chars)")
             local_blocking = True
         ui_issues = cls._ui_executability_issues(
             generated_case.get("steps", []),
@@ -178,9 +199,7 @@ class QualityGateMixin:
         generated_case: dict[str, Any],
         test_point: dict[str, Any],
     ) -> int:
-        priority = normalize_priority(
-            generated_case.get("priority", test_point.get("priority", 2))
-        )
+        priority = normalize_priority(generated_case.get("priority", test_point.get("priority", 2)))
         point_priority = normalize_priority(test_point.get("priority", priority))
         if priority == 1 or point_priority == 1:
             return 1

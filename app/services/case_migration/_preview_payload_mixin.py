@@ -3,6 +3,7 @@
 将预览阶段的载荷构造逻辑集中到独立子 Mixin，与 AI 调用和持久化
 解耦。本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db。
 """
+
 import json
 import uuid
 from datetime import datetime

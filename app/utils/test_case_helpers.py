@@ -3,6 +3,7 @@
 
 提供统一的步骤转换、响应构建等功能，避免代码重复
 """
+
 from typing import Any
 from datetime import datetime
 from loguru import logger
@@ -92,37 +93,37 @@ def build_test_case_response(test_case) -> dict[str, Any]:
     Returns:
         标准化的测试用例字典
     """
-    create_time = getattr(test_case, 'create_time', None)
+    create_time = getattr(test_case, "create_time", None)
     if create_time and isinstance(create_time, datetime):
         create_time = create_time.isoformat()
 
     return {
         "id": test_case.id,
         "project_id": test_case.project_id,
-        "case_no": getattr(test_case, 'case_no', ''),
-        "module": getattr(test_case, 'module', ''),
+        "case_no": getattr(test_case, "case_no", ""),
+        "module": getattr(test_case, "module", ""),
         "title": test_case.title or "(无标题)",
-        "precondition": getattr(test_case, 'precondition', ''),
-        "steps": convert_steps_to_response(getattr(test_case, 'steps_json', None)),
-        "expected_result": getattr(test_case, 'expected_result', ''),
+        "precondition": getattr(test_case, "precondition", ""),
+        "steps": convert_steps_to_response(getattr(test_case, "steps_json", None)),
+        "expected_result": getattr(test_case, "expected_result", ""),
         "priority": test_case.priority,
-        "case_type": getattr(test_case, 'case_type', ''),
-        "test_category": getattr(test_case, 'test_category', None),
-        "exec_script": getattr(test_case, 'exec_script', ''),
-        "generate_status": getattr(test_case, 'generate_status', 0),
-        "lifecycle_status": getattr(test_case, 'lifecycle_status', 'draft'),
-        "test_point_id": getattr(test_case, 'test_point_id', None),
-        "summary": getattr(test_case, 'summary', None),
-        "summary_version": getattr(test_case, 'summary_version', 0),
-        "summary_model_version": getattr(test_case, 'summary_model_version', None),
-        "parent_case_id": getattr(test_case, 'parent_case_id', None),
-        "ai_change_type": getattr(test_case, 'ai_change_type', None),
-        "last_review_id": getattr(test_case, 'last_review_id', None),
-        "depends_on": getattr(test_case, 'depends_on', None),
-        "anchor_step": getattr(test_case, 'anchor_step', None),
-        "fallback_steps": getattr(test_case, 'fallback_steps', None),
-        "setup_api_calls": getattr(test_case, 'setup_api_calls', None),
-        "create_time": create_time
+        "case_type": getattr(test_case, "case_type", ""),
+        "test_category": getattr(test_case, "test_category", None),
+        "exec_script": getattr(test_case, "exec_script", ""),
+        "generate_status": getattr(test_case, "generate_status", 0),
+        "lifecycle_status": getattr(test_case, "lifecycle_status", "draft"),
+        "test_point_id": getattr(test_case, "test_point_id", None),
+        "summary": getattr(test_case, "summary", None),
+        "summary_version": getattr(test_case, "summary_version", 0),
+        "summary_model_version": getattr(test_case, "summary_model_version", None),
+        "parent_case_id": getattr(test_case, "parent_case_id", None),
+        "ai_change_type": getattr(test_case, "ai_change_type", None),
+        "last_review_id": getattr(test_case, "last_review_id", None),
+        "depends_on": getattr(test_case, "depends_on", None),
+        "anchor_step": getattr(test_case, "anchor_step", None),
+        "fallback_steps": getattr(test_case, "fallback_steps", None),
+        "setup_api_calls": getattr(test_case, "setup_api_calls", None),
+        "create_time": create_time,
     }
 
 

@@ -21,14 +21,12 @@ def _record_enhanced_call(
     """
     try:
         from app.ai.call_log import record_call
+
         db = metadata.get("db") if metadata else None
         usage_data = response.usage
         prompt_tokens = usage_data.prompt_tokens if usage_data else 0
         completion_tokens = usage_data.completion_tokens if usage_data else 0
-        cost_usd = (
-            prompt_tokens / 1000 * 0.0014
-            + completion_tokens / 1000 * 0.0028
-        )
+        cost_usd = prompt_tokens / 1000 * 0.0014 + completion_tokens / 1000 * 0.0028
         record_call(
             db,
             model=response.model or model_name,

@@ -3,6 +3,7 @@
 从 case_version_service.py 拆分，包含版本对比、详情查询与快照解析工具。
 所有函数均为模块级纯函数，由 CaseVersionService 类方法薄委托调用。
 """
+
 import json
 from typing import Any
 
@@ -55,14 +56,22 @@ def compare_versions(
     Raises:
         ValueError: 版本不存在或不属于指定用例。
     """
-    v1 = db.query(TestCaseVersion).filter(
-        TestCaseVersion.id == v1_id,
-        TestCaseVersion.test_case_id == test_case_id,
-    ).first()
-    v2 = db.query(TestCaseVersion).filter(
-        TestCaseVersion.id == v2_id,
-        TestCaseVersion.test_case_id == test_case_id,
-    ).first()
+    v1 = (
+        db.query(TestCaseVersion)
+        .filter(
+            TestCaseVersion.id == v1_id,
+            TestCaseVersion.test_case_id == test_case_id,
+        )
+        .first()
+    )
+    v2 = (
+        db.query(TestCaseVersion)
+        .filter(
+            TestCaseVersion.id == v2_id,
+            TestCaseVersion.test_case_id == test_case_id,
+        )
+        .first()
+    )
 
     if not v1:
         raise ValueError(f"版本不存在: v1_id={v1_id}, test_case_id={test_case_id}")
@@ -112,10 +121,14 @@ def get_version(
     Returns:
         版本详情字典，版本不存在时返回 None。
     """
-    version = db.query(TestCaseVersion).filter(
-        TestCaseVersion.id == version_id,
-        TestCaseVersion.test_case_id == test_case_id,
-    ).first()
+    version = (
+        db.query(TestCaseVersion)
+        .filter(
+            TestCaseVersion.id == version_id,
+            TestCaseVersion.test_case_id == test_case_id,
+        )
+        .first()
+    )
     if not version:
         return None
 

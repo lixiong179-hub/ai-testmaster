@@ -167,9 +167,7 @@ def get_secondary_session_local() -> sessionmaker:
         return PrimarySessionLocal
     if _secondary_session_local_cache is None:
         engine_ = get_secondary_engine()
-        _secondary_session_local_cache = sessionmaker(
-            autocommit=False, autoflush=False, bind=engine_
-        )
+        _secondary_session_local_cache = sessionmaker(autocommit=False, autoflush=False, bind=engine_)
     return _secondary_session_local_cache  # type: ignore[return-value]
 
 

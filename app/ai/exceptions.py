@@ -17,6 +17,7 @@ class AIServiceError(Exception):
     所有AI相关业务异常的基类，携带可读的错误信息和标准错误码。
     子类应通过 error_code 提供机器可读的标识，便于上层统一处理。
     """
+
     def __init__(self, message: str, error_code: str | None = None) -> None:
         self.message = message
         self.error_code = error_code
@@ -25,42 +26,49 @@ class AIServiceError(Exception):
 
 class AIAuthenticationError(AIServiceError):
     """AI API认证失败 — API密钥无效或已过期"""
+
     def __init__(self, message: str = "AI API认证失败，请检查API密钥") -> None:
         super().__init__(message, error_code="AUTH_FAILED")
 
 
 class AIRateLimitError(AIServiceError):
     """AI API请求频率超限 — 触发了服务端限流策略"""
+
     def __init__(self, message: str = "AI API请求频率过高，请稍后重试") -> None:
         super().__init__(message, error_code="RATE_LIMITED")
 
 
 class AIPermissionError(AIServiceError):
     """AI API权限不足 — 当前密钥无权访问指定资源"""
+
     def __init__(self, message: str = "AI API权限不足") -> None:
         super().__init__(message, error_code="PERMISSION_DENIED")
 
 
 class AINotFoundError(AIServiceError):
     """AI API地址错误 — 请求的模型或端点不存在"""
+
     def __init__(self, message: str = "AI API地址错误") -> None:
         super().__init__(message, error_code="NOT_FOUND")
 
 
 class AITimeoutError(AIServiceError):
     """AI API请求超时 — 服务端未在规定时间内响应"""
+
     def __init__(self, message: str = "AI API请求超时") -> None:
         super().__init__(message, error_code="TIMEOUT")
 
 
 class AIResponseParseError(AIServiceError):
     """AI响应解析失败 — 返回内容不是合法JSON或结构不符预期"""
+
     def __init__(self, message: str = "AI响应格式错误，无法解析") -> None:
         super().__init__(message, error_code="PARSE_ERROR")
 
 
 class AIResponseFormatError(AIServiceError):
     """AI响应缺少必要字段 — JSON可解析但业务字段缺失"""
+
     def __init__(self, message: str = "AI响应缺少必要字段") -> None:
         super().__init__(message, error_code="FORMAT_ERROR")
 

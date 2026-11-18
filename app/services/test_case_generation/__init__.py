@@ -11,6 +11,7 @@ TestCaseGenerationService 采用组合模式持有 4 个内聚组件：
 继承深度 ≤ 1（仅 object），通过构造函数注入组件，避免 Mixin 多继承的调试栈深
 与责任分散问题。对外保持公开方法签名兼容。
 """
+
 from typing import Any, Optional
 from collections.abc import AsyncGenerator
 
@@ -196,7 +197,7 @@ async def get_test_case_context(
     ui_screen_ids: list[int] | None = None,
     test_point_ids: list[int] | None = None,
     test_point_page: int = 1,
-    test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE
+    test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE,
 ) -> dict[str, Any]:
     """获取测试用例生成的上下文"""
     service = TestCaseGenerationService(db)
@@ -208,7 +209,7 @@ async def get_test_case_context(
         ui_screen_ids=ui_screen_ids,
         test_point_ids=test_point_ids,
         test_point_page=test_point_page,
-        test_point_page_size=test_point_page_size
+        test_point_page_size=test_point_page_size,
     )
 
 

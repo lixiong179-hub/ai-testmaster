@@ -5,13 +5,11 @@ from typing import Any
 from loguru import logger
 
 
-
 class XmindParseError(Exception):
     pass
 
 
 class _ParseMixin:
-
     def parse(self, file_path: str) -> list[dict[str, Any]]:
         content_xml = self._extract_content_xml(file_path)
         root = self._parse_xml(content_xml)
@@ -201,16 +199,12 @@ class _ParseMixin:
             point_text = self._append_notes_to_point(point_text, inherited_notes)
             point_text = self._truncate_field(point_text, "point", self.POINT_MAX_LEN)
             priority = inherited_priority if inherited_priority is not None else 2
-            return [
-                self._build_test_point(module_name, function_name, point_text, priority)
-            ]
+            return [self._build_test_point(module_name, function_name, point_text, priority)]
 
         test_points: list[dict[str, Any]] = []
         for child in child_topics:
             child_priority = self._extract_priority_marker(child)
-            next_priority = (
-                child_priority if child_priority is not None else inherited_priority
-            )
+            next_priority = child_priority if child_priority is not None else inherited_priority
             next_notes = inherited_notes + self._collect_notes(child)
             child_points = self._collect_leaf_test_points(
                 topic=child,
@@ -228,9 +222,7 @@ class _ParseMixin:
             test_points.extend(child_points)
         return test_points
 
-    def _build_test_point(
-        self, module: str, function: str, point: str, priority: int
-    ) -> dict[str, Any]:
+    def _build_test_point(self, module: str, function: str, point: str, priority: int) -> dict[str, Any]:
         return {
             "module": module,
             "function": function,

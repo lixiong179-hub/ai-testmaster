@@ -20,6 +20,7 @@
     统计指标包括总数、通过数、失败数、阻塞数和通过率。
     缺陷维度构建逻辑拆分至 _ReportDefectDimensionBuilder 基类。
 """
+
 from sqlalchemy.orm import Session
 from app.models.report import TestReport
 from app.models.test_result import TestResult
@@ -56,7 +57,14 @@ class ReportService(_ReportDefectDimensionBuilder):
     """
 
     @staticmethod
-    def generate_report(db: Session, project_id: int, test_task_id: int = None, name: str = None, description: str = None, user_id: int = None) -> TestReport:
+    def generate_report(
+        db: Session,
+        project_id: int,
+        test_task_id: int = None,
+        name: str = None,
+        description: str = None,
+        user_id: int = None,
+    ) -> TestReport:
         """生成测试报告，包含统计数据、用例明细、缺陷维度和执行时间。
 
         生成流程:
@@ -79,8 +87,7 @@ class ReportService(_ReportDefectDimensionBuilder):
         """
         # 构建查询条件，支持按任务ID过滤
         query = db.query(TestResult).filter(
-            TestResult.project_id == project_id,
-            TestResult.test_case.has(TestCase.is_deleted.is_(False))
+            TestResult.project_id == project_id, TestResult.test_case.has(TestCase.is_deleted.is_(False))
         )
         if test_task_id:
             query = query.filter(TestResult.task_id == test_task_id)
@@ -96,24 +103,12 @@ class ReportService(_ReportDefectDimensionBuilder):
         # 聚合缺陷维度数据（仅在关联任务时填充）
         if test_task_id:
             try:
-                report_content["defect_overview"] = ReportService._build_defect_overview(
-                    db, project_id, test_task_id
-                )
-                report_content["defect_list"] = ReportService._build_defect_list(
-                    db, project_id
-                )
-                report_content["defect_distribution"] = ReportService._build_defect_distribution(
-                    db, project_id
-                )
-                report_content["implicit_defects"] = ReportService._build_implicit_defects(
-                    db, project_id, test_task_id
-                )
-                report_content["security_findings"] = ReportService._build_security_findings(
-                    db, project_id
-                )
-                report_content["coverage_assessment"] = ReportService._build_coverage_assessment(
-                    db, project_id
-                )
+                report_content["defect_overview"] = ReportService._build_defect_overview(db, project_id, test_task_id)
+                report_content["defect_list"] = ReportService._build_defect_list(db, project_id)
+                report_content["defect_distribution"] = ReportService._build_defect_distribution(db, project_id)
+                report_content["implicit_defects"] = ReportService._build_implicit_defects(db, project_id, test_task_id)
+                report_content["security_findings"] = ReportService._build_security_findings(db, project_id)
+                report_content["coverage_assessment"] = ReportService._build_coverage_assessment(db, project_id)
             except Exception as exc:
                 logger.warning(f"报告缺陷维度数据聚合失败，不影响报告生成: {exc}")
 
@@ -121,16 +116,17 @@ class ReportService(_ReportDefectDimensionBuilder):
             name=name or f"测试报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             description=description or "自动生成的测试报告",
             project_id=project_id,
-            test_task_id=test_task_id
+            test_task_id=test_task_id,
         )
 
         from app.crud.test_report import create_test_report
+
         report = create_test_report(db, report_data, user_id=user_id or 1)
 
-        report.total_cases = statistics['total']
-        report.passed_cases = statistics['passed']
-        report.failed_cases = statistics['failed']
-        report.blocked_cases = statistics['blocked']
+        report.total_cases = statistics["total"]
+        report.passed_cases = statistics["passed"]
+        report.failed_cases = statistics["failed"]
+        report.blocked_cases = statistics["blocked"]
         report.status = "completed"
         report.content = report_content
         report.summary = ReportService._generate_summary(statistics)
@@ -170,11 +166,11 @@ class ReportService(_ReportDefectDimensionBuilder):
         blocked = sum(1 for result in test_results if result.exec_status == ExecStatus.BLOCKED)
 
         return {
-            'total': total,
-            'passed': passed,
-            'failed': failed,
-            'blocked': blocked,
-            'pass_rate': round(passed / total * 100, 2) if total > 0 else 0
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "blocked": blocked,
+            "pass_rate": round(passed / total * 100, 2) if total > 0 else 0,
         }
 
     @staticmethod
@@ -205,18 +201,18 @@ class ReportService(_ReportDefectDimensionBuilder):
                 status=status_map.get(result.exec_status, "unknown"),
                 execution_time=None,  # 可从执行日志中提取
                 error_message=result.error_msg,
-                steps=None  # 可从执行日志中提取
+                steps=None,  # 可从执行日志中提取
             )
             test_cases.append(test_case.model_dump())
 
         return {
-            'test_cases': test_cases,
-            'statistics': statistics,
-            'environment': {
-                'generate_time': datetime.now().isoformat(),
-                'platform': 'AI TestMaster',
-                'version': '1.0.0'
-            }
+            "test_cases": test_cases,
+            "statistics": statistics,
+            "environment": {
+                "generate_time": datetime.now().isoformat(),
+                "platform": "AI TestMaster",
+                "version": "1.0.0",
+            },
         }
 
     @staticmethod
@@ -247,6 +243,7 @@ class ReportService(_ReportDefectDimensionBuilder):
             ValueError: 报告不存在或报告内容为空。
         """
         from app.crud.test_report import get_test_report_by_id
+
         report = get_test_report_by_id(db, report_id, project_id)
         if not report:
             raise ValueError("Report not found")

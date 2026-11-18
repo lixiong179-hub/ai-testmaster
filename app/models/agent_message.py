@@ -18,6 +18,7 @@ Agent 消息模型模块
     - tool_name       : 工具名称（仅 assistant 触发工具调用时有值）
     - token_cost      : 本条消息消耗的 Token 数
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -56,6 +57,7 @@ class AgentMessage(Base):
         - 构建 LLM 上下文时按 session_id + created_at 顺序读取历史
         - Agent API 端点查询会话消息流（支持分页）
     """
+
     __tablename__ = "agent_messages"
     __table_args__ = (
         # 复合索引：覆盖按会话+时间维度检索消息流的高频查询（LLM 上下文构建）
@@ -63,7 +65,9 @@ class AgentMessage(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="消息主键ID")
-    session_id = Column(BigInteger, ForeignKey("agent_sessions.id", ondelete="CASCADE"), nullable=False, index=True, comment="会话ID")
+    session_id = Column(
+        BigInteger, ForeignKey("agent_sessions.id", ondelete="CASCADE"), nullable=False, index=True, comment="会话ID"
+    )
     role = Column(String(32), nullable=False, comment="消息角色: system/user/assistant/tool")
 
     # JSON 内容：兼容纯文本、工具调用、多模态（图片/截图 URL）
@@ -81,10 +85,7 @@ class AgentMessage(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False, comment="消息创建时间（UTC）")
 
     def __repr__(self) -> str:
-        return (
-            f"<AgentMessage(id={self.id}, session_id={self.session_id}, "
-            f"role={self.role}, tool={self.tool_name})>"
-        )
+        return f"<AgentMessage(id={self.id}, session_id={self.session_id}, role={self.role}, tool={self.tool_name})>"
 
     def to_dict(self) -> dict[str, Any]:
         """返回消息核心字段字典，供 API 响应使用。"""

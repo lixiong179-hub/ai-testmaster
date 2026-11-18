@@ -21,6 +21,7 @@ Agent 会话模型模块
     - iteration_count : 已执行迭代轮数
     - loop_detected   : 是否触发循环检测熔断
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -74,6 +75,7 @@ class AgentSession(Base):
         - Agent API 端点查询会话历史与状态
         - Prometheus 指标按 agent_type/status 标签聚合
     """
+
     __tablename__ = "agent_sessions"
     __table_args__ = (
         # 复合索引：覆盖按项目+Agent 类型维度检索的高频查询
@@ -83,9 +85,20 @@ class AgentSession(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="Agent会话主键ID")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
-    agent_type = Column(String(64), nullable=False, comment="Agent类型: test_generation/failure_analysis/visual_validation/locator_healing")
-    status = Column(String(32), nullable=False, default="running", comment="会话状态: running/completed/failed/cancelled/loop_detected/circuit_open/token_exhausted")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
+    agent_type = Column(
+        String(64),
+        nullable=False,
+        comment="Agent类型: test_generation/failure_analysis/visual_validation/locator_healing",
+    )
+    status = Column(
+        String(32),
+        nullable=False,
+        default="running",
+        comment="会话状态: running/completed/failed/cancelled/loop_detected/circuit_open/token_exhausted",
+    )
 
     started_at = Column(DateTime, default=utcnow, nullable=False, comment="会话开始时间（UTC）")
     completed_at = Column(DateTime, nullable=True, comment="会话完成时间（UTC，含 failed/cancelled）")
@@ -94,7 +107,9 @@ class AgentSession(Base):
     iteration_count = Column(Integer, nullable=False, default=0, comment="已执行迭代轮数")
     loop_detected = Column(Boolean, nullable=False, default=False, comment="是否触发循环检测熔断")
 
-    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="创建者用户ID")
+    created_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="创建者用户ID"
+    )
     created_at = Column(DateTime, default=utcnow, nullable=False, comment="记录创建时间（UTC）")
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False, comment="记录更新时间（UTC）")
 

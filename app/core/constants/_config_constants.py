@@ -17,11 +17,7 @@ DEFAULT_REVIEW_STATUS = TestCaseReviewStatus.PENDING
 
 from app.utils.file_utils import SUPPORTED_FILE_TYPES
 
-FileExtension = Enum(
-    'FileExtension',
-    {ext.upper(): ext for ext in SUPPORTED_FILE_TYPES},
-    type=str
-)
+FileExtension = Enum("FileExtension", {ext.upper(): ext for ext in SUPPORTED_FILE_TYPES}, type=str)
 
 ALLOWED_EXTENSIONS: list[str] = list(SUPPORTED_FILE_TYPES.keys())
 
@@ -48,6 +44,15 @@ class SecurityConfig(IntEnum):
 LOGIN_KEYWORDS: list[str] = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
 
 AUTH_FAILURE_KEYWORDS: tuple[str, ...] = (
-    "unauthorized", "forbidden", "permission", "认证失败", "无权限", "权限", "登录",
-    "invalid", "incorrect", "expired", "token"
+    "unauthorized",
+    "forbidden",
+    "permission",
+    "认证失败",
+    "无权限",
+    "权限",
+    "登录",
+    "invalid",
+    "incorrect",
+    "expired",
+    "token",
 )

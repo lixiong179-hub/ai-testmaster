@@ -16,6 +16,7 @@
 
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
+
 import asyncio
 import os
 
@@ -44,6 +45,7 @@ from app.services.ui_prototype_flow import (
 )
 from app.utils.db_time import utcnow
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -59,17 +61,16 @@ async def create_prototype_project(
 ):
     try:
         # 内联 async 实现, 替代 db.run_sync(_create) + sync crud
-        project_result = await _execute(db,
+        project_result = await _execute(
+            db,
             select(Project).where(
                 Project.id == project_data.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         record = UIPrototypeProject(
             project_id=project_data.project_id,
@@ -87,10 +88,7 @@ async def create_prototype_project(
         raise
     except Exception as e:
         logger.error(f"创建UI原型项目失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建UI原型项目失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建UI原型项目失败，请稍后重试")
 
 
 async def get_prototype_projects(
@@ -103,16 +101,12 @@ async def get_prototype_projects(
 ):
     try:
         # 内联 async 实现, 替代 db.run_sync(_list) + sync crud
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         skip = (page - 1) * page_size
         # 内联 async 查询替代 get_ui_prototype_projects_by_project
@@ -128,15 +122,14 @@ async def get_prototype_projects(
             if iteration_id <= 0:
                 list_stmt = list_stmt.where(UIPrototypeProject.iteration_id.is_(None))
             else:
-                list_stmt = list_stmt.where(
-                    UIPrototypeProject.iteration_id == iteration_id
-                )
+                list_stmt = list_stmt.where(UIPrototypeProject.iteration_id == iteration_id)
         list_stmt = list_stmt.offset(skip).limit(page_size)
         db_projects_result = await _execute(db, list_stmt)
         db_projects = db_projects_result.scalars().all()
 
         # 内联 async 聚合查询替代 get_ui_prototype_projects_count
         from sqlalchemy import func as sa_func
+
         count_stmt = (
             select(sa_func.count())
             .select_from(UIPrototypeProject)
@@ -150,29 +143,29 @@ async def get_prototype_projects(
             if iteration_id <= 0:
                 count_stmt = count_stmt.where(UIPrototypeProject.iteration_id.is_(None))
             else:
-                count_stmt = count_stmt.where(
-                    UIPrototypeProject.iteration_id == iteration_id
-                )
+                count_stmt = count_stmt.where(UIPrototypeProject.iteration_id == iteration_id)
         total = (await _execute(db, count_stmt)).scalar() or 0
 
         items = []
         for p in db_projects:
             flow_summary = _build_flow_summary(p.merged_flow)
-            items.append({
-                "id": p.id,
-                "project_id": p.project_id,
-                "name": p.name,
-                "description": p.description,
-                "source": p.source,
-                "screen_count": p.screen_count,
-                "parsed_count": p.parsed_count,
-                "parse_status": p.parse_status,
-                "iteration_id": p.iteration_id,
-                "has_flow": flow_summary["has_flow"],
-                "flow_summary": flow_summary,
-                "create_time": p.create_time.isoformat() if p.create_time else None,
-                "update_time": p.update_time.isoformat() if p.update_time else None,
-            })
+            items.append(
+                {
+                    "id": p.id,
+                    "project_id": p.project_id,
+                    "name": p.name,
+                    "description": p.description,
+                    "source": p.source,
+                    "screen_count": p.screen_count,
+                    "parsed_count": p.parsed_count,
+                    "parse_status": p.parse_status,
+                    "iteration_id": p.iteration_id,
+                    "has_flow": flow_summary["has_flow"],
+                    "flow_summary": flow_summary,
+                    "create_time": p.create_time.isoformat() if p.create_time else None,
+                    "update_time": p.update_time.isoformat() if p.update_time else None,
+                }
+            )
 
         data = {
             "items": items,
@@ -186,8 +179,7 @@ async def get_prototype_projects(
     except Exception as e:
         logger.error(f"获取UI原型项目列表失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取UI原型项目列表失败，请稍后重试"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取UI原型项目列表失败，请稍后重试"
         )
 
 
@@ -197,54 +189,39 @@ async def delete_prototype_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        proto_result = await _execute(db,
-            select(UIPrototypeProject).where(
-                UIPrototypeProject.id == prototype_project_id
-            )
+        proto_result = await _execute(
+            db, select(UIPrototypeProject).where(UIPrototypeProject.id == prototype_project_id)
         )
         proto_project = proto_result.scalars().first()
 
         if not proto_project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在")
 
-        db_project_result = await _execute(db,
+        db_project_result = await _execute(
+            db,
             select(Project).where(
                 Project.id == proto_project.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         db_project = db_project_result.scalars().first()
 
         if not db_project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        screens_result = await _execute(db,
-            select(UIPrototypeScreen).where(
-                UIPrototypeScreen.prototype_project_id == prototype_project_id
-            )
+        screens_result = await _execute(
+            db, select(UIPrototypeScreen).where(UIPrototypeScreen.prototype_project_id == prototype_project_id)
         )
         screens = screens_result.scalars().all()
 
         deleted_screens = 0
         for screen in screens:
-            if screen.original_file_path and os.path.exists(
-                screen.original_file_path
-            ):
+            if screen.original_file_path and os.path.exists(screen.original_file_path):
                 try:
                     os.remove(screen.original_file_path)
                 except OSError as e:
-                    logger.warning(
-                        f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
-                    )
-            await _execute(db,
-                delete(UIScreenTestCaseLink).where(
-                    UIScreenTestCaseLink.screen_id == screen.id
-                )
-            )
+                    logger.warning(f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}")
+            await _execute(db, delete(UIScreenTestCaseLink).where(UIScreenTestCaseLink.screen_id == screen.id))
             await asyncio.to_thread(db.delete, screen)
             deleted_screens += 1
 
@@ -252,18 +229,14 @@ async def delete_prototype_project(
         await asyncio.to_thread(db.commit)
 
         return create_response(
-            data={"deleted_screens": deleted_screens},
-            msg=f"删除成功，共删除 {deleted_screens} 张图片"
+            data={"deleted_screens": deleted_screens}, msg=f"删除成功，共删除 {deleted_screens} 张图片"
         )
     except HTTPException:
         raise
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"删除UI原型项目失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除UI原型项目失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除UI原型项目失败，请稍后重试")
 
 
 async def save_flow_data(
@@ -279,32 +252,21 @@ async def save_flow_data(
     每个项目仅保留一条记录。存在则更新，不存在则新增。
     """
     try:
-        if (
-            flow_request.project_id is not None
-            and flow_request.project_id != project_id
-        ):
+        if flow_request.project_id is not None and flow_request.project_id != project_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="请求体项目ID与路径项目ID不一致",
             )
 
         # 内联 async 实现, 替代 db.run_sync(_save) + sync crud
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        existing_result = await _execute(db,
-            select(ProjectFlowData).where(
-                ProjectFlowData.project_id == project_id
-            )
-        )
+        existing_result = await _execute(db, select(ProjectFlowData).where(ProjectFlowData.project_id == project_id))
         existing = existing_result.scalars().first()
         if existing:
             existing.flow_data = flow_request.flow_data
@@ -329,8 +291,7 @@ async def save_flow_data(
     except Exception as e:
         logger.error(f"保存项目流程数据失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="保存项目流程数据失败，请稍后重试"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="保存项目流程数据失败，请稍后重试"
         )
 
 
@@ -347,22 +308,14 @@ async def get_flow_data(
     """
     try:
         # 内联 async 实现, 替代 db.run_sync(_get) + sync crud
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        flow_result = await _execute(db,
-            select(ProjectFlowData).where(
-                ProjectFlowData.project_id == project_id
-            )
-        )
+        flow_result = await _execute(db, select(ProjectFlowData).where(ProjectFlowData.project_id == project_id))
         result: ProjectFlowData | None = flow_result.scalars().first()
 
         if result:
@@ -375,8 +328,7 @@ async def get_flow_data(
     except Exception as e:
         logger.error(f"获取项目流程数据失败: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取项目流程数据失败，请稍后重试"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取项目流程数据失败，请稍后重试"
         )
 
 

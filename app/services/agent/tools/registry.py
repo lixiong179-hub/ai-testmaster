@@ -11,6 +11,7 @@
     - 启用/禁用：disabled 的工具不被 list_for_agent 返回，用于运维降级
     - 线程安全：写操作加锁，读操作无锁（CPython GIL 保证读 dict 原子性）
 """
+
 from __future__ import annotations
 
 import threading
@@ -59,9 +60,7 @@ class ToolRegistry:
             if tool.name in self._tools:
                 raise ValueError(f"工具 {tool.name} 已注册")
             self._tools[tool.name] = tool
-            self._agent_scopes[tool.name] = (
-                set(agent_types) if agent_types is not None else None
-            )
+            self._agent_scopes[tool.name] = set(agent_types) if agent_types is not None else None
             self._disabled.discard(tool.name)
 
     def get(self, tool_name: str) -> Tool | None:

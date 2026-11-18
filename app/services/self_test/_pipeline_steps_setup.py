@@ -1,5 +1,6 @@
 """Pipeline steps 1-4: requirement confirmation, test point extraction,
 case generation, and review/save."""
+
 from typing import Any
 
 from loguru import logger
@@ -52,16 +53,19 @@ async def _step_requirement_confirmation(
         (成功标志, 错误信息) 二元组。
     """
     requirement_file = (
-        await db.execute(
-            select(ProjectFile)
-            .where(
-                ProjectFile.project_id == project_id,
-                ProjectFile.resource_type == "requirement",
-                ProjectFile.extract_status == "completed",
-                ProjectFile.is_active.is_(True),
+        (
+            await db.execute(
+                select(ProjectFile).where(
+                    ProjectFile.project_id == project_id,
+                    ProjectFile.resource_type == "requirement",
+                    ProjectFile.extract_status == "completed",
+                    ProjectFile.is_active.is_(True),
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if not requirement_file:
         return (False, f"项目 {project_id} 未找到已完成提取的需求文档")
     return (True, None)
@@ -89,23 +93,24 @@ async def _step_extract_test_points(
     existing_points = await get_test_points_by_project_async(db, project_id, limit=500)
     if existing_points:
         existing_ids = [tp.id for tp in existing_points]
-        logger.info(
-            f"项目 {project_id} 已有 {len(existing_ids)} 个测试点，跳过提取"
-        )
+        logger.info(f"项目 {project_id} 已有 {len(existing_ids)} 个测试点，跳过提取")
         return (True, None, existing_ids)
 
     # 获取需求文档内容
     requirement_file = (
-        await db.execute(
-            select(ProjectFile)
-            .where(
-                ProjectFile.project_id == project_id,
-                ProjectFile.resource_type == "requirement",
-                ProjectFile.extract_status == "completed",
-                ProjectFile.is_active.is_(True),
+        (
+            await db.execute(
+                select(ProjectFile).where(
+                    ProjectFile.project_id == project_id,
+                    ProjectFile.resource_type == "requirement",
+                    ProjectFile.extract_status == "completed",
+                    ProjectFile.is_active.is_(True),
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     if not requirement_file or not requirement_file.content:
         return (False, "需求文档内容为空，无法提取测试点", [])
 
@@ -122,13 +127,15 @@ async def _step_extract_test_points(
     # 批量创建测试点
     point_data_list: list[dict[str, Any]] = []
     for pt in extracted_points:
-        point_data_list.append({
-            "module": pt.get("module", "未分类"),
-            "point": pt.get("point", ""),
-            "priority": pt.get("priority", 2),
-            "ai_prompt": pt.get("function", ""),
-            "created_by": "self_test_pipeline",
-        })
+        point_data_list.append(
+            {
+                "module": pt.get("module", "未分类"),
+                "point": pt.get("point", ""),
+                "priority": pt.get("priority", 2),
+                "ai_prompt": pt.get("function", ""),
+                "created_by": "self_test_pipeline",
+            }
+        )
 
     created_points = await batch_create_test_points_async(
         db=db,
@@ -137,9 +144,7 @@ async def _step_extract_test_points(
     )
 
     point_ids = [tp.id for tp in created_points]
-    logger.info(
-        f"项目 {project_id} AI 提取测试点完成: {len(point_ids)} 个"
-    )
+    logger.info(f"项目 {project_id} AI 提取测试点完成: {len(point_ids)} 个")
     return (True, None, point_ids)
 
 
@@ -202,9 +207,7 @@ async def _step_generate_cases(
     if not generated_case_ids:
         return (False, "AI 用例生成未产出任何用例", [])
 
-    logger.info(
-        f"项目 {project_id} 缺陷挖掘用例生成完成: {len(generated_case_ids)} 个"
-    )
+    logger.info(f"项目 {project_id} 缺陷挖掘用例生成完成: {len(generated_case_ids)} 个")
     return (True, None, generated_case_ids)
 
 
@@ -242,19 +245,16 @@ async def _step_review_and_save(
 
     # 获取项目关联的迭代，若无则跳过评审直接保存
     from app.models.iteration import Iteration
+
     iteration = (
-        await db.execute(
-            select(Iteration)
-            .where(Iteration.project_id == project_id)
-            .order_by(Iteration.id.desc())
-        )
-    ).scalars().first()
+        (await db.execute(select(Iteration).where(Iteration.project_id == project_id).order_by(Iteration.id.desc())))
+        .scalars()
+        .first()
+    )
 
     if not iteration:
         # 无迭代时直接确认用例为活跃状态（跳过评审）
-        logger.info(
-            f"项目 {project_id} 无迭代，跳过评审直接保存 {len(case_ids)} 个用例"
-        )
+        logger.info(f"项目 {project_id} 无迭代，跳过评审直接保存 {len(case_ids)} 个用例")
         return (True, None)
 
     try:
@@ -263,11 +263,7 @@ async def _step_review_and_save(
         review = await start_review_async(db, review.id)
 
         # P1-3: 批量查询用例替代循环内逐个查询，消除 N+1
-        cases = (
-            await db.execute(
-                select(TestCase).where(TestCase.id.in_(case_ids))
-            )
-        ).scalars().all()
+        cases = (await db.execute(select(TestCase).where(TestCase.id.in_(case_ids)))).scalars().all()
         cases_by_id = {c.id: c for c in cases}
 
         # 为每个用例添加 AI 评审决策
@@ -301,28 +297,28 @@ async def _step_review_and_save(
 
         # 应用高置信度决策
         decisions = (
-            await db.execute(
-                select(ReviewDecision)
-                .where(
-                    ReviewDecision.review_id == review.id,
-                    ReviewDecision.ai_confidence >= _AUTO_ADOPT_CONFIDENCE_THRESHOLD,
+            (
+                await db.execute(
+                    select(ReviewDecision).where(
+                        ReviewDecision.review_id == review.id,
+                        ReviewDecision.ai_confidence >= _AUTO_ADOPT_CONFIDENCE_THRESHOLD,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         # P1-3: 批量查询待废弃用例替代循环内逐个查询，消除 N+1
         deprecate_target_ids = [
-            d.target_id for d in decisions
-            if d.final_verdict == "deprecate" and d.target_id is not None
+            d.target_id for d in decisions if d.final_verdict == "deprecate" and d.target_id is not None
         ]
         if deprecate_target_ids:
             deprecate_cases = (
-                await db.execute(
-                    select(TestCase)
-                    .where(TestCase.id.in_(deprecate_target_ids))
-                )
-            ).scalars().all()
+                (await db.execute(select(TestCase).where(TestCase.id.in_(deprecate_target_ids)))).scalars().all()
+            )
             from app.utils.db_time import utcnow as _utcnow
+
             for case in deprecate_cases:
                 case.is_deleted = True
                 case.deleted_at = _utcnow()

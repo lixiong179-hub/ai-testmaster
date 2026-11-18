@@ -12,6 +12,7 @@ Redis key 约定：
     差异巨大，若共用 key 会导致低频 Agent 被高频 Agent 饿死。按项目隔离
     则防止单项目异常消耗拖垮其他项目。
 """
+
 from __future__ import annotations
 
 from typing import Any

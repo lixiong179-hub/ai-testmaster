@@ -3,6 +3,7 @@
 在生命周期锁保护下，将生成的用例逐条写入数据库，
 推导 parent_case_id / ai_change_type，并关联测试步骤。
 """
+
 import threading
 from typing import Any
 
@@ -78,15 +79,15 @@ def _resolve_quality_grade(
             QualityScoringService,
         )
         from app.services.quality.grade import grade_status_to_letter
-        mapped = grade_status_to_letter(
-            QualityScoringService.grade_status(case_data)
-        )
+
+        mapped = grade_status_to_letter(QualityScoringService.grade_status(case_data))
         if mapped:
             grade = mapped
     except Exception as e:
         logger.debug(
             "grade_status 映射失败，保留分数映射 grade={}: {}",
-            grade, e,
+            grade,
+            e,
         )
     return prior_score, grade
 
@@ -147,10 +148,7 @@ def _persist_generated_cases(
 
                         steps_json = case_data.get("steps", [])
                         if isinstance(steps_json, list):
-                            steps_json = [
-                                s if isinstance(s, dict) else {"step": str(s)}
-                                for s in steps_json
-                            ]
+                            steps_json = [s if isinstance(s, dict) else {"step": str(s)} for s in steps_json]
                         else:
                             steps_json = []
 
@@ -199,6 +197,7 @@ def _persist_generated_cases(
             ctx.db.flush()
         finally:
             from app.models.test_case import disable_lifecycle_transition
+
             disable_lifecycle_transition()
 
     return persisted_ids, failed_persist

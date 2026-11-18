@@ -38,10 +38,7 @@ async def base_exception_handler(request: Request, exc: BaseAPIException) -> JSO
         - exc.details会作为data字段传递，可能包含敏感信息，生产环境需评估
     """
     logger.warning(f"API异常: {exc.msg}, 路径: {request.url.path}")
-    return JSONResponse(
-        status_code=exc.code,
-        content=create_error_response(exc.msg, exc.code, exc.details)
-    )
+    return JSONResponse(status_code=exc.code, content=create_error_response(exc.msg, exc.code, exc.details))
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
@@ -68,10 +65,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         - 此处理器确保框架异常也遵循统一响应格式
     """
     logger.warning(f"HTTP异常: {exc.detail}, 路径: {request.url.path}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=create_error_response(exc.detail, exc.status_code)
-    )
+    return JSONResponse(status_code=exc.status_code, content=create_error_response(exc.detail, exc.status_code))
 
 
 async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
@@ -112,7 +106,7 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> 
 
     return JSONResponse(
         status_code=RESPONSE_CODE["DATABASE_ERROR"],
-        content=create_error_response(error_msg, RESPONSE_CODE["DATABASE_ERROR"])
+        content=create_error_response(error_msg, RESPONSE_CODE["DATABASE_ERROR"]),
     )
 
 
@@ -148,19 +142,13 @@ async def validation_exception_handler(request: Request, exc: ValidationError) -
 
     errors = []
     for error in exc.errors():
-        errors.append({
-            "field": ".".join(str(loc) for loc in error["loc"]),
-            "message": error["msg"],
-            "type": error["type"]
-        })
+        errors.append(
+            {"field": ".".join(str(loc) for loc in error["loc"]), "message": error["msg"], "type": error["type"]}
+        )
 
     return JSONResponse(
         status_code=RESPONSE_CODE["VALIDATION_ERROR"],
-        content=create_error_response(
-            "参数验证失败",
-            RESPONSE_CODE["VALIDATION_ERROR"],
-            {"errors": errors}
-        )
+        content=create_error_response("参数验证失败", RESPONSE_CODE["VALIDATION_ERROR"], {"errors": errors}),
     )
 
 
@@ -197,19 +185,13 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
 
     errors = []
     for error in exc.errors():
-        errors.append({
-            "field": ".".join(str(loc) for loc in error["loc"]),
-            "message": error["msg"],
-            "type": error["type"]
-        })
+        errors.append(
+            {"field": ".".join(str(loc) for loc in error["loc"]), "message": error["msg"], "type": error["type"]}
+        )
 
     return JSONResponse(
         status_code=RESPONSE_CODE["VALIDATION_ERROR"],
-        content=create_error_response(
-            "参数验证失败",
-            RESPONSE_CODE["VALIDATION_ERROR"],
-            {"errors": errors}
-        )
+        content=create_error_response("参数验证失败", RESPONSE_CODE["VALIDATION_ERROR"], {"errors": errors}),
     )
 
 
@@ -242,7 +224,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
     return JSONResponse(
         status_code=RESPONSE_CODE["SERVER_ERROR"],
-        content=create_error_response("服务器内部错误", RESPONSE_CODE["SERVER_ERROR"])
+        content=create_error_response("服务器内部错误", RESPONSE_CODE["SERVER_ERROR"]),
     )
 
 

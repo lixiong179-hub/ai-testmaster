@@ -11,7 +11,7 @@ def _jaccard_similarity(a: str, b: str) -> float:
         return 0.0
 
     def _to_ngrams(text: str, n: int = 2) -> set:
-        return {text[i:i+n] for i in range(len(text) - n + 1)} if len(text) >= n else {text}
+        return {text[i : i + n] for i in range(len(text) - n + 1)} if len(text) >= n else {text}
 
     set_a = _to_ngrams(a)
     set_b = _to_ngrams(b)
@@ -33,8 +33,9 @@ def _dedup_cases_by_title(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if _jaccard_similarity(title, existing_title) > _TITLE_SIMILARITY_THRESHOLD:
                 is_dup = True
                 logger.info(
-                    "去重：标题相似度过高，丢弃 \"{}\"（与 \"{}\" 相似）",
-                    title[:30], existing_title[:30],
+                    '去重：标题相似度过高，丢弃 "{}"（与 "{}" 相似）',
+                    title[:30],
+                    existing_title[:30],
                 )
                 break
         if not is_dup:
@@ -94,11 +95,12 @@ def _dedup_cases_global(
             for existing_title in kept_titles:
                 if _jaccard_similarity(title, existing_title) > _TITLE_SIMILARITY_THRESHOLD:
                     is_dup = True
-                    source = entry.get("test_point", {}).get("id") or \
-                             entry.get("task", {}).get("task_id", "unknown")
+                    source = entry.get("test_point", {}).get("id") or entry.get("task", {}).get("task_id", "unknown")
                     logger.info(
-                        "全局去重：丢弃 \"{}\"（来源: {}，与 \"{}\" 相似）",
-                        title[:30], source, existing_title[:30],
+                        '全局去重：丢弃 "{}"（来源: {}，与 "{}" 相似）',
+                        title[:30],
+                        source,
+                        existing_title[:30],
                     )
                     break
 
@@ -108,11 +110,11 @@ def _dedup_cases_global(
             # 标题去重通过后，追加步骤哈希去重
             step_hash = _compute_step_hash(case)
             if step_hash and step_hash in seen_step_hashes:
-                source = entry.get("test_point", {}).get("id") or \
-                         entry.get("task", {}).get("task_id", "unknown")
+                source = entry.get("test_point", {}).get("id") or entry.get("task", {}).get("task_id", "unknown")
                 logger.info(
-                    "全局步骤去重：丢弃 \"{}\"（来源: {}，步骤序列重复）",
-                    title[:30], source,
+                    '全局步骤去重：丢弃 "{}"（来源: {}，步骤序列重复）',
+                    title[:30],
+                    source,
                 )
                 continue
 

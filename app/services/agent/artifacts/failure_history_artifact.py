@@ -3,6 +3,7 @@
 承载最近 N 次同类失败的修复策略与置信度，用于 LocatorHealingAgent 与
 FailureAnalysisAgent 跨会话经验复用，避免重复试错。
 """
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -89,9 +89,7 @@ class MissingReviewError(ValueError):
 class CooldownNotElapsedError(ValueError):
     def __init__(self, remaining_hours: float):
         self.remaining_hours = remaining_hours
-        super().__init__(
-            f"Cooldown not elapsed, {remaining_hours:.1f} hours remaining"
-        )
+        super().__init__(f"Cooldown not elapsed, {remaining_hours:.1f} hours remaining")
 
 
 class MissingDeprecateReasonError(ValueError):

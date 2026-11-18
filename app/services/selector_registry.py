@@ -1,5 +1,5 @@
-"""选择器注册表 - 管理页面元素选择器的注册与查询。
-"""
+"""选择器注册表 - 管理页面元素选择器的注册与查询。"""
+
 import json
 import os
 from loguru import logger

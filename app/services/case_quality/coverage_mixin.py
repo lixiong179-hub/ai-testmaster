@@ -25,6 +25,7 @@ T1 多维覆盖率（替代旧版单一 locator 覆盖率）：
 T15 性能优化：
     支持通过 coverage_context 传入预取数据，避免循环内重复查询数据库。
 """
+
 from typing import Any
 from loguru import logger
 
@@ -54,7 +55,6 @@ _MIN_UI_LABEL_LEN = 2
 
 
 class CoverageMixin:
-
     def _analyze_coverage(
         self,
         steps: list[TestStep],
@@ -100,9 +100,12 @@ class CoverageMixin:
 
         # ---------- 综合：加权 + 动态重正 ----------
         weighted_rate = self._aggregate_coverage(
-            req_rate=req_rate, req_available=req_details.get("available", False),
-            ui_rate=ui_rate, ui_available=ui_details.get("available", False),
-            loc_rate=loc_rate, loc_available=loc_details.get("available", False),
+            req_rate=req_rate,
+            req_available=req_details.get("available", False),
+            ui_rate=ui_rate,
+            ui_available=ui_details.get("available", False),
+            loc_rate=loc_rate,
+            loc_available=loc_details.get("available", False),
         )
         score.coverage_rate = weighted_rate
         score.score = round(weighted_rate * 10, 2)
@@ -129,26 +132,16 @@ class CoverageMixin:
         当前 TestCase 仅支持单个 test_point_id，因此无法按“关联测试点数”
         计算连续值；改用 TestPoint.priority 表达该关联的业务重要性。
         """
-        project_point_priorities: dict[int, int] = (
-            ctx.get("project_test_point_priorities") or {}
-        )
+        project_point_priorities: dict[int, int] = ctx.get("project_test_point_priorities") or {}
         project_total = len(project_point_priorities)
 
         case_test_point_id = getattr(case, "test_point_id", None) if case else None
-        priority = (
-            project_point_priorities.get(case_test_point_id)
-            if case_test_point_id is not None else None
-        )
+        priority = project_point_priorities.get(case_test_point_id) if case_test_point_id is not None else None
         has_link = priority is not None
 
         # 维度可用：项目至少有一个测试点（否则该项目无法评估需求覆盖）
         available = project_total > 0
-        rate = (
-            _TEST_POINT_PRIORITY_WEIGHTS.get(
-                priority, _DEFAULT_TEST_POINT_PRIORITY_WEIGHT
-            )
-            if has_link else 0.0
-        )
+        rate = _TEST_POINT_PRIORITY_WEIGHTS.get(priority, _DEFAULT_TEST_POINT_PRIORITY_WEIGHT) if has_link else 0.0
 
         return rate, {
             "available": available,
@@ -182,9 +175,7 @@ class CoverageMixin:
             if not target:
                 continue
             steps_with_target += 1
-            if total_labels > 0 and any(
-                CoverageMixin._is_ui_match(target, lbl) for lbl in ui_labels
-            ):
+            if total_labels > 0 and any(CoverageMixin._is_ui_match(target, lbl) for lbl in ui_labels):
                 matched_steps += 1
 
         # 维度可用：项目有 UI 标签 且 用例至少有 1 步含 target_element
@@ -230,24 +221,16 @@ class CoverageMixin:
             }
 
         step_ids = [s.id for s in steps]
-        locators_by_step: dict[int, list[ElementLocator]] | None = ctx.get(
-            "locators_by_step"
-        )
+        locators_by_step: dict[int, list[ElementLocator]] | None = ctx.get("locators_by_step")
 
         if locators_by_step is not None:
             locators: list[ElementLocator] = []
             for sid in step_ids:
                 locators.extend(locators_by_step.get(sid, []))
         else:
-            locators = (
-                self.db.query(ElementLocator)
-                .filter(ElementLocator.step_id.in_(step_ids))
-                .all()
-            )
+            locators = self.db.query(ElementLocator).filter(ElementLocator.step_id.in_(step_ids)).all()
 
-        covered_step_ids: set[int] = {
-            loc.step_id for loc in locators if loc.step_id is not None
-        }
+        covered_step_ids: set[int] = {loc.step_id for loc in locators if loc.step_id is not None}
         covered_count = len(covered_step_ids)
         rate = covered_count / total_steps
 
@@ -263,9 +246,12 @@ class CoverageMixin:
 
     @staticmethod
     def _aggregate_coverage(
-        req_rate: float, req_available: bool,
-        ui_rate: float, ui_available: bool,
-        loc_rate: float, loc_available: bool,
+        req_rate: float,
+        req_available: bool,
+        ui_rate: float,
+        ui_available: bool,
+        loc_rate: float,
+        loc_available: bool,
     ) -> float:
         """加权聚合三维覆盖率。
 

@@ -1,5 +1,5 @@
-"""测试数据生成服务Mixin - 批量生成和保存测试数据。
-"""
+"""测试数据生成服务Mixin - 批量生成和保存测试数据。"""
+
 import json
 from typing import Any
 from loguru import logger
@@ -15,7 +15,7 @@ class TestDataGenServiceMixin:
             max_length=test_data.max_length,
             min_value=test_data.min_value,
             max_value=test_data.max_value,
-            enum_values=json.loads(test_data.enum_values) if test_data.enum_values else None
+            enum_values=json.loads(test_data.enum_values) if test_data.enum_values else None,
         )
         rule_config = json.loads(test_data.rule_config) if test_data.rule_config else None
         return self.generator.generate_data(
@@ -23,14 +23,10 @@ class TestDataGenServiceMixin:
             field_name=test_data.field_name,
             generation_rule=test_data.generation_rule,
             constraints=constraints,
-            rule_config=rule_config
+            rule_config=rule_config,
         )
 
-    def generate_step_data(
-        self,
-        step_id: int,
-        parameterizer: TestDataParameterizer | None = None
-    ) -> dict[str, str]:
+    def generate_step_data(self, step_id: int, parameterizer: TestDataParameterizer | None = None) -> dict[str, str]:
         test_data_list = self.get_test_data_by_step(step_id)
         result = {}
         for test_data in test_data_list:
@@ -40,12 +36,9 @@ class TestDataGenServiceMixin:
             result[test_data.field_name] = value
         return result
 
-    def generate_case_data(
-        self,
-        case_id: int,
-        context: ParameterContext | None = None
-    ) -> dict[int, dict[str, str]]:
+    def generate_case_data(self, case_id: int, context: ParameterContext | None = None) -> dict[int, dict[str, str]]:
         from app.models.test_case import TestCase
+
         test_case = self.db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             logger.warning(f"测试用例不存在: {case_id}")
@@ -58,11 +51,7 @@ class TestDataGenServiceMixin:
                 result[step.id] = step_data
         return result
 
-    def batch_create_test_data(
-        self,
-        step_id: int,
-        data_list: list[dict[str, Any]]
-    ) -> list[TestData]:
+    def batch_create_test_data(self, step_id: int, data_list: list[dict[str, Any]]) -> list[TestData]:
         created_list = []
         for data_config in data_list:
             try:
@@ -91,7 +80,7 @@ class TestDataGenServiceMixin:
                     enum_values=source_data.enum_values,
                     description=source_data.description,
                     is_required=source_data.is_required,
-                    sort_order=source_data.sort_order
+                    sort_order=source_data.sort_order,
                 )
                 copied_count += 1
             except Exception as e:
@@ -99,11 +88,7 @@ class TestDataGenServiceMixin:
         logger.info(f"复制测试数据完成: {copied_count} 条")
         return copied_count
 
-    def auto_generate_for_step(
-        self,
-        step_id: int,
-        action_description: str
-    ) -> list[TestData]:
+    def auto_generate_for_step(self, step_id: int, action_description: str) -> list[TestData]:
         created_list = []
         if "产品线" in action_description or "产品" in action_description:
             test_data = self.create_test_data(
@@ -112,7 +97,7 @@ class TestDataGenServiceMixin:
                 field_type=DataType.TEXT,
                 generation_rule=GenerationRule.RANDOM,
                 description="产品线名称",
-                is_required=True
+                is_required=True,
             )
             created_list.append(test_data)
         if "输入" in action_description or "填写" in action_description:
@@ -122,7 +107,7 @@ class TestDataGenServiceMixin:
                 field_type=DataType.TEXT,
                 generation_rule=GenerationRule.RANDOM,
                 description="输入值",
-                is_required=True
+                is_required=True,
             )
             created_list.append(test_data)
         if "选择" in action_description:
@@ -133,7 +118,7 @@ class TestDataGenServiceMixin:
                 generation_rule=GenerationRule.RANDOM,
                 enum_values=["选项1", "选项2", "选项3"],
                 description="选择值",
-                is_required=True
+                is_required=True,
             )
             created_list.append(test_data)
         if "日期" in action_description or "时间" in action_description:
@@ -143,7 +128,7 @@ class TestDataGenServiceMixin:
                 field_type=DataType.DATE,
                 generation_rule=GenerationRule.RANDOM,
                 description="日期",
-                is_required=True
+                is_required=True,
             )
             created_list.append(test_data)
         logger.info(f"自动推断生成测试数据: step_id={step_id}, count={len(created_list)}")

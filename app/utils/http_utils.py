@@ -9,6 +9,7 @@
 核心常量:
     - AUTH_FAILURE_KEYWORDS: 认证失败关键词（从constants导入）
 """
+
 import base64
 from typing import Any
 
@@ -33,7 +34,7 @@ def build_auth_headers(auth_type: str, auth_config: dict[str, Any]) -> dict[str,
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     }
 
     if auth_type == "basic":

@@ -1,4 +1,5 @@
 """Excel导入Mixin - 标准格式和功能用例格式的Excel导入。"""
+
 import re
 import time
 from loguru import logger
@@ -14,7 +15,14 @@ from app.services.case_number_service import CaseNumberService
 class ExcelImportMixin:
     """Excel导入：标准双Sheet格式、第三方功能用例格式。"""
 
-    def import_from_excel(self, file_path: str, project_id: int, user_id: int = 1, target_device: str | None = None, iteration_id: int | None = None) -> int | None:
+    def import_from_excel(
+        self,
+        file_path: str,
+        project_id: int,
+        user_id: int = 1,
+        target_device: str | None = None,
+        iteration_id: int | None = None,
+    ) -> int | None:
         try:
             import pandas as pd
 
@@ -23,30 +31,30 @@ class ExcelImportMixin:
                 logger.error(f"项目不存在: {project_id}")
                 return None
 
-            case_info_df = pd.read_excel(file_path, sheet_name='用例信息')
-            steps_df = pd.read_excel(file_path, sheet_name='测试步骤')
+            case_info_df = pd.read_excel(file_path, sheet_name="用例信息")
+            steps_df = pd.read_excel(file_path, sheet_name="测试步骤")
 
             if case_info_df.empty or steps_df.empty:
                 logger.error("Excel文件格式不正确，缺少必要的数据")
                 return None
 
             case_info = case_info_df.iloc[0]
-            original_case_no = str(case_info.get('用例编号', ''))
+            original_case_no = str(case_info.get("用例编号", ""))
             case_no = CaseNumberService.generate(project_id, self.db)
 
             test_case = TestCase(
                 project_id=project_id,
                 case_no=case_no,
                 legacy_case_no=original_case_no if original_case_no else None,
-                module=str(case_info.get('所属模块', '默认模块')),
-                title=str(case_info.get('用例标题', '未命名用例')),
-                precondition=str(case_info.get('前置条件', '')),
-                expected_result=str(case_info.get('预期结果', '')),
-                priority=int(case_info.get('优先级', 2)),
+                module=str(case_info.get("所属模块", "默认模块")),
+                title=str(case_info.get("用例标题", "未命名用例")),
+                precondition=str(case_info.get("前置条件", "")),
+                expected_result=str(case_info.get("预期结果", "")),
+                priority=int(case_info.get("优先级", 2)),
                 case_type="ui_automation",
                 target_device=target_device,
                 generate_status=1,
-                steps_json=[]
+                steps_json=[],
             )
             self.db.add(test_case)
             self.db.flush()
@@ -54,31 +62,31 @@ class ExcelImportMixin:
             for _, row in steps_df.iterrows():
                 step = TestStep(
                     test_case_id=test_case.id,
-                    step_number=int(row.get('步骤编号', 1)),
-                    action=str(row.get('操作步骤', '')),
-                    expected_result=str(row.get('预期结果', '')),
-                    is_business_view=1 if str(row.get('业务视图', '是')) == '是' else 0,
-                    is_technical_view=1 if str(row.get('技术视图', '是')) == '是' else 0,
-                    has_locator=1 if str(row.get('已定位', '否')) == '是' else 0,
-                    locator_status=str(row.get('定位状态', LocatorStatus.PENDING.value))
+                    step_number=int(row.get("步骤编号", 1)),
+                    action=str(row.get("操作步骤", "")),
+                    expected_result=str(row.get("预期结果", "")),
+                    is_business_view=1 if str(row.get("业务视图", "是")) == "是" else 0,
+                    is_technical_view=1 if str(row.get("技术视图", "是")) == "是" else 0,
+                    has_locator=1 if str(row.get("已定位", "否")) == "是" else 0,
+                    locator_status=str(row.get("定位状态", LocatorStatus.PENDING.value)),
                 )
                 self.db.add(step)
                 self.db.flush()
 
-                css_val = row.get('CSS选择器', '')
-                xpath_val = row.get('XPath', '')
-                type_val = row.get('元素类型', '')
+                css_val = row.get("CSS选择器", "")
+                xpath_val = row.get("XPath", "")
+                type_val = row.get("元素类型", "")
 
-                css_selector = str(css_val) if pd.notna(css_val) and css_val != '' else ''
-                xpath = str(xpath_val) if pd.notna(xpath_val) and xpath_val != '' else ''
-                element_type = str(type_val) if pd.notna(type_val) and type_val != '' else ''
+                css_selector = str(css_val) if pd.notna(css_val) and css_val != "" else ""
+                xpath = str(xpath_val) if pd.notna(xpath_val) and xpath_val != "" else ""
+                element_type = str(type_val) if pd.notna(type_val) and type_val != "" else ""
 
                 if css_selector or xpath:
                     locator = ElementLocator(
                         step_id=step.id,
                         css_selector=css_selector if css_selector else None,
                         xpath=xpath if xpath else None,
-                        element_type=element_type if element_type else None
+                        element_type=element_type if element_type else None,
                     )
                     self.db.add(locator)
 
@@ -90,7 +98,14 @@ class ExcelImportMixin:
             logger.error(f"从Excel导入失败: {e}")
             return None
 
-    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块", target_device: str | None = None, iteration_id: int | None = None) -> list[int]:
+    def import_functional_excel(
+        self,
+        file_path: str,
+        project_id: int,
+        module: str = "默认模块",
+        target_device: str | None = None,
+        iteration_id: int | None = None,
+    ) -> list[int]:
         try:
             import pandas as pd
 
@@ -110,9 +125,9 @@ class ExcelImportMixin:
 
             for _, row in df.iterrows():
                 # 判断是否为模块分组标题行：操作步骤列为空，且第一列（用例序号）有非数字值
-                raw_step = row.get('操作步骤', row.get('步骤描述', None))
+                raw_step = row.get("操作步骤", row.get("步骤描述", None))
                 first_col = row.iloc[0] if len(row) > 0 else None
-                is_module_header = (pd.isna(raw_step) or str(raw_step).strip() == '')
+                is_module_header = pd.isna(raw_step) or str(raw_step).strip() == ""
                 if is_module_header:
                     # 模块标题行：提取模块名（第一列的值）
                     if first_col is not None and not pd.isna(first_col):
@@ -122,31 +137,31 @@ class ExcelImportMixin:
                             current_module = first_val
                     continue
 
-                title = str(row.get('用例描述', row.get('标题', ''))).strip()
+                title = str(row.get("用例描述", row.get("标题", ""))).strip()
                 if not title:
                     continue
 
-                case_no = str(row.get('执行用例ID', '')).strip()
+                case_no = str(row.get("执行用例ID", "")).strip()
                 # 用例序号是模块内序号（1,2,3...），不能作为唯一编号；仅当包含字母时视为真实编号
-                raw_seq = str(row.get('用例序号', '')).strip()
+                raw_seq = str(row.get("用例序号", "")).strip()
                 if not case_no and raw_seq and not raw_seq.isdigit():
                     case_no = raw_seq
                 original_case_no = case_no if case_no else None
                 case_no = CaseNumberService.generate(project_id, self.db)
 
                 # 模块名优先使用从合并行提取的 current_module，其次从列读取（兼容旧格式）
-                col_module = row.get('所属模块', row.get('所属分组', None))
+                col_module = row.get("所属模块", row.get("所属分组", None))
                 if col_module is not None and not pd.isna(col_module) and str(col_module).strip():
                     group = str(col_module).strip()
                 else:
                     group = current_module
-                precondition = str(row.get('初始条件', row.get('前置条件', ''))).strip()
-                step_desc = str(row.get('操作步骤', row.get('步骤描述', ''))).strip()
-                expected = str(row.get('期望结果', row.get('预期结果', ''))).strip()
-                case_type = str(row.get('用例类型', 'UI自动化')).strip()
-                priority_str = str(row.get('优先级', row.get('用例等级', 'P2'))).strip()
+                precondition = str(row.get("初始条件", row.get("前置条件", ""))).strip()
+                step_desc = str(row.get("操作步骤", row.get("步骤描述", ""))).strip()
+                expected = str(row.get("期望结果", row.get("预期结果", ""))).strip()
+                case_type = str(row.get("用例类型", "UI自动化")).strip()
+                priority_str = str(row.get("优先级", row.get("用例等级", "P2"))).strip()
 
-                priority_map = {'P0': 1, 'P1': 1, 'P2': 2, 'P3': 3}
+                priority_map = {"P0": 1, "P1": 1, "P2": 2, "P3": 3}
                 priority = priority_map.get(priority_str.upper(), 2)
 
                 steps = self._parse_functional_steps(step_desc, expected)
@@ -158,12 +173,14 @@ class ExcelImportMixin:
                     module=group,
                     title=title,
                     precondition=precondition,
-                    expected_result=expected.replace('\\n', '\n'),
+                    expected_result=expected.replace("\\n", "\n"),
                     priority=priority,
-                    case_type="ui_automation" if case_type in ('UI自动化', '功能测试', 'UI', '功能') else "api_automation",
+                    case_type="ui_automation"
+                    if case_type in ("UI自动化", "功能测试", "UI", "功能")
+                    else "api_automation",
                     target_device=target_device,
                     generate_status=1,
-                    steps_json=[s.to_dict() for s in steps]
+                    steps_json=[s.to_dict() for s in steps],
                 )
                 self.db.add(test_case)
                 self.db.flush()
@@ -177,7 +194,7 @@ class ExcelImportMixin:
                         is_business_view=1,
                         is_technical_view=0,
                         has_locator=0,
-                        locator_status=LocatorStatus.PENDING.value
+                        locator_status=LocatorStatus.PENDING.value,
                     )
                     self.db.add(step)
 
@@ -196,10 +213,9 @@ class ExcelImportMixin:
             timestamp = int(time.time())
             return f"TC{project_id}_{timestamp}"
 
-        existing = self.db.query(TestCase).filter(
-            TestCase.case_no == original_case_no,
-            TestCase.is_deleted.is_(False)
-        ).first()
+        existing = (
+            self.db.query(TestCase).filter(TestCase.case_no == original_case_no, TestCase.is_deleted.is_(False)).first()
+        )
 
         if not existing:
             return original_case_no
@@ -207,10 +223,9 @@ class ExcelImportMixin:
         counter = 1
         while True:
             new_case_no = f"{original_case_no}_{project_id}_{counter}"
-            existing = self.db.query(TestCase).filter(
-                TestCase.case_no == new_case_no,
-                TestCase.is_deleted.is_(False)
-            ).first()
+            existing = (
+                self.db.query(TestCase).filter(TestCase.case_no == new_case_no, TestCase.is_deleted.is_(False)).first()
+            )
             if not existing:
                 logger.info(f"用例编号 '{original_case_no}' 已存在，自动重命名为 '{new_case_no}'")
                 return new_case_no
@@ -218,7 +233,7 @@ class ExcelImportMixin:
 
     def _parse_functional_steps(self, step_desc: str, expected: str) -> list[BusinessStepView]:
         steps = []
-        step_pattern = r'(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)'
+        step_pattern = r"(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)"
         step_matches = re.findall(step_pattern, step_desc, re.DOTALL)
         expected_matches = re.findall(step_pattern, expected, re.DOTALL)
 
@@ -229,14 +244,14 @@ class ExcelImportMixin:
             expected_dict = {_extract_num(m): m[2].strip() for m in expected_matches}
             for m in step_matches:
                 step_num = _extract_num(m)
-                action = m[2].strip().replace('\\n', '\n')
-                exp = expected_dict.get(step_num, '').replace('\\n', '\n')
+                action = m[2].strip().replace("\\n", "\n")
+                exp = expected_dict.get(step_num, "").replace("\\n", "\n")
                 steps.append(BusinessStepView(step_number=step_num, action=action, expected_result=exp))
         else:
-            step_lines = [s.strip() for s in re.split(r'\r?\n', step_desc) if s.strip()]
-            expected_lines = [s.strip() for s in re.split(r'\r?\n', expected) if s.strip()]
+            step_lines = [s.strip() for s in re.split(r"\r?\n", step_desc) if s.strip()]
+            expected_lines = [s.strip() for s in re.split(r"\r?\n", expected) if s.strip()]
             for i, action in enumerate(step_lines, 1):
-                exp = expected_lines[i-1] if i <= len(expected_lines) else ''
+                exp = expected_lines[i - 1] if i <= len(expected_lines) else ""
                 steps.append(BusinessStepView(step_number=i, action=action, expected_result=exp))
 
         return steps if steps else [BusinessStepView(1, step_desc, expected)]

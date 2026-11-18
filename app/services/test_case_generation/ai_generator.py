@@ -10,6 +10,7 @@ ai_prompt_builder.py 中 build_generation_prompt/build_ui_spec_prompt 历史上�
 构造函数 db 可选（兼容无参实例化的单元测试），对外保持 generate_test_case_for_point
 公开方法签名兼容。
 """
+
 import asyncio
 import copy
 import hashlib
@@ -42,6 +43,7 @@ def _get_openai_client() -> "AsyncOpenAIClient":
     asyncio.to_thread 包装开销，并启用单次调用硬超时。
     """
     from app.ai.openai_client import AsyncOpenAIClient
+
     if not hasattr(_get_openai_client, "_instance"):
         with _get_openai_client._lock:
             if not hasattr(_get_openai_client, "_instance"):
@@ -135,8 +137,24 @@ class AiGenerator:
         if not has_ui:
             derived_case_type = TEST_CATEGORY_MANUAL
         else:
-            ui_keywords = ['按钮', '表单', '输入框', '下拉框', '复选框', '单选框', '链接', '导航',
-                           'button', 'input', 'form', 'dropdown', 'checkbox', 'radio', 'link', 'menu']
+            ui_keywords = [
+                "按钮",
+                "表单",
+                "输入框",
+                "下拉框",
+                "复选框",
+                "单选框",
+                "链接",
+                "导航",
+                "button",
+                "input",
+                "form",
+                "dropdown",
+                "checkbox",
+                "radio",
+                "link",
+                "menu",
+            ]
             ui_has_interactive = any(k in ui_description.lower() for k in ui_keywords)
             derived_case_type = TEST_CATEGORY_UI_AUTO if ui_has_interactive else TEST_CATEGORY_MANUAL
 
@@ -169,7 +187,8 @@ class AiGenerator:
         让 AI 在第 2/3 轮修复问题，提升一次通过率。流式与非流式端点共用此闭环。
         """
         from app.services.case_quality.quality_feedback_loop import (
-            build_quality_feedback_text, run_quality_feedback_loop,
+            build_quality_feedback_text,
+            run_quality_feedback_loop,
         )
 
         test_point = context.get("test_point", {})
@@ -219,7 +238,9 @@ class AiGenerator:
 
         # 调用共享 3 轮反馈闭环（含 quality_signals 注入）
         final_case, status, _ = await run_quality_feedback_loop(
-            first_case, _regen_with_feedback, build_quality_feedback_text,
+            first_case,
+            _regen_with_feedback,
+            build_quality_feedback_text,
         )
 
         # 只缓存 passed 用例，避免低质量用例污染缓存
@@ -242,7 +263,9 @@ class AiGenerator:
         case["_extra_cases"] = validated_extras
 
     async def _call_ai_and_parse(
-        self, prompt: str, min_case_count: int = 1,
+        self,
+        prompt: str,
+        min_case_count: int = 1,
     ) -> dict[str, Any] | None:
         """调用 AI 并解析响应，含收紧的重试策略。
 
@@ -275,9 +298,7 @@ class AiGenerator:
                     if not cases_list:
                         raise ValueError("AI返回的用例数组为空")
                     if len(cases_list) < min_case_count:
-                        logger.warning(
-                            f"AI返回用例数 {len(cases_list)} 少于期望 {min_case_count}"
-                        )
+                        logger.warning(f"AI返回用例数 {len(cases_list)} 少于期望 {min_case_count}")
                     primary_case = cases_list[0]
                     primary_case["_extra_cases"] = cases_list[1:]
                     return primary_case

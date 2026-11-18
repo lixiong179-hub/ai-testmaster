@@ -10,6 +10,7 @@
     - app.models.test_case : TestCase
     - app.services.config_service : LINEAGE_CHAIN_WARNING_LENGTH
 """
+
 import logging
 
 from pydantic import BaseModel
@@ -24,6 +25,7 @@ MAX_DESCENDANT_DEPTH = 10
 
 class LineageNode(BaseModel):
     """血缘树节点。"""
+
     id: int
     case_no: str
     title: str
@@ -39,6 +41,7 @@ class LineageNode(BaseModel):
 
 class LineageResult(BaseModel):
     """血缘查询结果。"""
+
     root: LineageNode
     ancestors: list[LineageNode] = []
     chain_length: int = 0
@@ -99,11 +102,7 @@ def _trace_ancestors(db: Session, case: TestCase) -> list[LineageNode]:
     if current_id is None:
         return ancestors
 
-    all_ancestors = (
-        db.query(TestCase)
-        .filter(TestCase.id != case.id, TestCase.is_deleted.is_(False))
-        .all()
-    )
+    all_ancestors = db.query(TestCase).filter(TestCase.id != case.id, TestCase.is_deleted.is_(False)).all()
     ancestor_map: dict[int, TestCase] = {c.id: c for c in all_ancestors}
 
     while current_id is not None:
@@ -137,9 +136,7 @@ def _build_descendant_tree(db: Session, node: LineageNode) -> None:
         node: 根节点（就地修改 children）。
     """
     all_descendants = (
-        db.query(TestCase)
-        .filter(TestCase.parent_case_id.isnot(None), TestCase.is_deleted.is_(False))
-        .all()
+        db.query(TestCase).filter(TestCase.parent_case_id.isnot(None), TestCase.is_deleted.is_(False)).all()
     )
 
     children_map: dict[int, list[TestCase]] = {}
@@ -189,14 +186,12 @@ def _check_chain_warning(chain_length: int) -> tuple:
     """
     try:
         from app.services.config_service import get_config
+
         threshold = int(get_config("LINEAGE_CHAIN_WARNING_LENGTH", 3))
     except Exception:
         threshold = 3
 
     warning = None
     if chain_length >= threshold:
-        warning = (
-            f"血缘链长度 {chain_length} 已达警告阈值 {threshold}，"
-            f"建议检查是否存在过度衍生"
-        )
+        warning = f"血缘链长度 {chain_length} 已达警告阈值 {threshold}，建议检查是否存在过度衍生"
     return (warning, threshold)

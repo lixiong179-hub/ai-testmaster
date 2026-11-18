@@ -1,4 +1,5 @@
 """成本统计数据模型定义。"""
+
 from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -7,6 +8,7 @@ from datetime import datetime
 @dataclass
 class CostStatistics:
     """成本统计数据"""
+
     total_steps: int
     ai_vision_calls: int
     cache_hits: int
@@ -24,6 +26,7 @@ class CostStatistics:
 @dataclass
 class CostReport:
     """成本报表"""
+
     report_id: str
     project_id: int
     start_date: datetime

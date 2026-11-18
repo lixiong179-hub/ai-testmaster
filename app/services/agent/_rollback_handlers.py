@@ -16,6 +16,7 @@
     - handler 内部仅执行补偿动作，不写审计记录（由 audit_service.rollback_action 统一写入）
     - handler 不调用 commit，事务边界由调用方管理
 """
+
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
@@ -32,9 +33,7 @@ from app.utils.db_time import utcnow
 
 
 # RollbackHandler 协议：异步可调用，接收 (db, original_audit) 返回补偿详情 dict
-RollbackHandler = Callable[
-    [Session | AsyncSession, AgentAudit], Awaitable[dict[str, object]]
-]
+RollbackHandler = Callable[[Session | AsyncSession, AgentAudit], Awaitable[dict[str, object]]]
 
 
 _REGISTRY: dict[str, RollbackHandler] = {}
@@ -51,7 +50,8 @@ def get_rollback_handler(action_type: str) -> RollbackHandler | None:
 
 
 async def _handle_create_test_case(
-    db: Session | AsyncSession, original_audit: AgentAudit,
+    db: Session | AsyncSession,
+    original_audit: AgentAudit,
 ) -> dict[str, object]:
     """回滚 create_test_case：软删除对应测试用例。
 
@@ -81,9 +81,7 @@ async def _handle_create_test_case(
 
     await execute_async(
         db,
-        update(TestCase)
-        .where(TestCase.id == test_case_id)
-        .values(is_deleted=True, deleted_at=utcnow()),
+        update(TestCase).where(TestCase.id == test_case_id).values(is_deleted=True, deleted_at=utcnow()),
     )
     return {
         "deleted_test_case_id": test_case_id,
@@ -92,7 +90,8 @@ async def _handle_create_test_case(
 
 
 async def _handle_update_locator(
-    db: Session | AsyncSession, original_audit: AgentAudit,
+    db: Session | AsyncSession,
+    original_audit: AgentAudit,
 ) -> dict[str, object]:
     """回滚 update_locator：将 ElementLocator.css_selector 恢复为 old_selector。
 

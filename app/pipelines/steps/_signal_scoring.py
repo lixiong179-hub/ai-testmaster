@@ -22,10 +22,14 @@ def _check_user_confirmed(db: Any, iteration_id: int) -> bool:
         return False
     from app.models.iteration import IterationInput
 
-    supplement = db.query(IterationInput).filter(
-        IterationInput.iteration_id == iteration_id,
-        IterationInput.kind == "supplement",
-    ).first()
+    supplement = (
+        db.query(IterationInput)
+        .filter(
+            IterationInput.iteration_id == iteration_id,
+            IterationInput.kind == "supplement",
+        )
+        .first()
+    )
     return supplement is not None
 
 

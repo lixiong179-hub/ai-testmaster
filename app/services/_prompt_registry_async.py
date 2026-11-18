@@ -64,8 +64,7 @@ class _PromptRegistryAsyncMixin:
             latest = (await self._db.execute(latestStmt)).scalar_one_or_none()
             if latest and latest.prompt_hash == prompt_hash:
                 raise ValueError(
-                    f"Prompt key='{key}' 最新版本 v{latest.prompt_version} "
-                    f"内容与本次注册完全相同，拒绝重复注册"
+                    f"Prompt key='{key}' 最新版本 v{latest.prompt_version} 内容与本次注册完全相同，拒绝重复注册"
                 )
 
         hasDefaultStmt = select(PromptTemplate).where(
@@ -185,8 +184,6 @@ class _PromptRegistryAsyncMixin:
             PromptTemplate 列表。
         """
         stmt = (
-            select(PromptTemplate)
-            .where(PromptTemplate.prompt_key == key)
-            .order_by(asc(PromptTemplate.prompt_version))
+            select(PromptTemplate).where(PromptTemplate.prompt_key == key).order_by(asc(PromptTemplate.prompt_version))
         )
         return list((await self._db.execute(stmt)).scalars().all())

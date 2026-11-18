@@ -16,6 +16,7 @@
     async + asyncio.to_thread 模式，为每次调用新建独立 sync 会话，
     避免与 get_current_user 注入的 async 会话混用。
 """
+
 import asyncio
 from typing import Any
 from collections.abc import Callable
@@ -47,19 +48,11 @@ from app.services.impact_analysis.integration_service import TIAIntegrationServi
 router = APIRouter(tags=["TIA智能调度"])
 
 
-def _verify_project_owner(
-    db: Session, project_id: int, user_id: int
-) -> None:
+def _verify_project_owner(db: Session, project_id: int, user_id: int) -> None:
     """校验项目归属当前用户，不存在或无权限抛 403。"""
-    result = db.execute(
-        select(Project).where(
-            Project.id == project_id, Project.user_id == user_id
-        )
-    )
+    result = db.execute(select(Project).where(Project.id == project_id, Project.user_id == user_id))
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
 
 def _run_sync(fn: Callable[[Session], Any]) -> Any:
@@ -95,9 +88,7 @@ async def build_schedule_plan(
     3. git diff 失败 → 返回全量执行计划。
     """
     try:
-        await asyncio.to_thread(
-            _verify_project_owner, db, project_id, current_user.id
-        )
+        await asyncio.to_thread(_verify_project_owner, db, project_id, current_user.id)
 
         def _do(sync_db: Session) -> Any:
             service = TIAIntegrationService(db=sync_db)
@@ -144,18 +135,12 @@ async def list_coverage_maps(
 ) -> dict[str, Any]:
     """分页查询项目覆盖率映射，支持按用例 ID / 文件路径过滤。"""
     try:
-        await asyncio.to_thread(
-            _verify_project_owner, db, project_id, current_user.id
-        )
+        await asyncio.to_thread(_verify_project_owner, db, project_id, current_user.id)
 
         def _do(sync_db: Session) -> tuple[list[TestCoverageMap], int]:
-            query = select(TestCoverageMap).where(
-                TestCoverageMap.project_id == project_id
-            )
+            query = select(TestCoverageMap).where(TestCoverageMap.project_id == project_id)
             if test_case_id is not None:
-                query = query.where(
-                    TestCoverageMap.test_case_id == test_case_id
-                )
+                query = query.where(TestCoverageMap.test_case_id == test_case_id)
             if file_path is not None:
                 query = query.where(TestCoverageMap.file_path == file_path)
 
@@ -164,9 +149,7 @@ async def list_coverage_maps(
 
             rows = (
                 sync_db.execute(
-                    query.order_by(TestCoverageMap.id.desc())
-                    .offset((page - 1) * page_size)
-                    .limit(page_size)
+                    query.order_by(TestCoverageMap.id.desc()).offset((page - 1) * page_size).limit(page_size)
                 )
                 .scalars()
                 .all()
@@ -175,9 +158,7 @@ async def list_coverage_maps(
 
         rows, total = await asyncio.to_thread(_run_sync, _do)
         items = [CoverageMapItem.model_validate(r) for r in rows]
-        data = CoverageListResponse(
-            items=items, total=total, page=page, page_size=page_size
-        )
+        data = CoverageListResponse(items=items, total=total, page=page, page_size=page_size)
         return create_response(data=data.model_dump(), msg="获取成功")
     except HTTPException:
         raise
@@ -198,25 +179,27 @@ async def get_coverage_stats(
 ) -> dict[str, Any]:
     """查询项目级覆盖率统计：映射总数、唯一文件数、唯一用例数。"""
     try:
-        await asyncio.to_thread(
-            _verify_project_owner, db, project_id, current_user.id
-        )
+        await asyncio.to_thread(_verify_project_owner, db, project_id, current_user.id)
 
         def _do(sync_db: Session) -> dict:
-            base_query = select(TestCoverageMap).where(
-                TestCoverageMap.project_id == project_id
+            base_query = select(TestCoverageMap).where(TestCoverageMap.project_id == project_id)
+            total_mappings = sync_db.execute(select(func.count()).select_from(base_query.subquery())).scalar() or 0
+            unique_files = (
+                sync_db.execute(
+                    select(func.count(func.distinct(TestCoverageMap.file_path))).where(
+                        TestCoverageMap.project_id == project_id
+                    )
+                ).scalar()
+                or 0
             )
-            total_mappings = sync_db.execute(
-                select(func.count()).select_from(base_query.subquery())
-            ).scalar() or 0
-            unique_files = sync_db.execute(
-                select(func.count(func.distinct(TestCoverageMap.file_path)))
-                .where(TestCoverageMap.project_id == project_id)
-            ).scalar() or 0
-            unique_cases = sync_db.execute(
-                select(func.count(func.distinct(TestCoverageMap.test_case_id)))
-                .where(TestCoverageMap.project_id == project_id)
-            ).scalar() or 0
+            unique_cases = (
+                sync_db.execute(
+                    select(func.count(func.distinct(TestCoverageMap.test_case_id))).where(
+                        TestCoverageMap.project_id == project_id
+                    )
+                ).scalar()
+                or 0
+            )
             return {
                 "total_mappings": int(total_mappings),
                 "unique_files": int(unique_files),
@@ -254,9 +237,7 @@ async def ingest_coverage(
     实现采用 delete + insert 模式保证幂等：同用例重跑覆盖率时不会残留过期行。
     """
     try:
-        await asyncio.to_thread(
-            _verify_project_owner, db, project_id, current_user.id
-        )
+        await asyncio.to_thread(_verify_project_owner, db, project_id, current_user.id)
 
         if not body.json_path and not body.json_content:
             raise HTTPException(
@@ -318,18 +299,12 @@ async def clear_coverage_maps(
     业务用途：覆盖率数据过期或重置 TIA 时调用。
     """
     try:
-        await asyncio.to_thread(
-            _verify_project_owner, db, project_id, current_user.id
-        )
+        await asyncio.to_thread(_verify_project_owner, db, project_id, current_user.id)
 
         def _do(sync_db: Session) -> int:
-            query = select(TestCoverageMap).where(
-                TestCoverageMap.project_id == project_id
-            )
+            query = select(TestCoverageMap).where(TestCoverageMap.project_id == project_id)
             if test_case_id is not None:
-                query = query.where(
-                    TestCoverageMap.test_case_id == test_case_id
-                )
+                query = query.where(TestCoverageMap.test_case_id == test_case_id)
             rows = sync_db.execute(query).scalars().all()
             count = len(rows)
             for row in rows:

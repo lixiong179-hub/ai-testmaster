@@ -3,6 +3,7 @@
 负责创建参数化解析器、生成步骤测试数据、替换操作描述中的参数占位符。
 与TestDataService和TestDataParameterizer协作完成测试数据的参数化。
 """
+
 from loguru import logger
 
 from app.services.test_data.parameterizer_mixin import TestDataParameterizer
@@ -10,7 +11,6 @@ from app.services.test_data_parameterizer import ParameterContext
 
 
 class TestDataMixin:
-
     def _create_parameterizer(self, execution_id: int, case_id: int) -> TestDataParameterizer | None:
         """创建参数化解析器。
 
@@ -24,15 +24,11 @@ class TestDataMixin:
         if not self.enable_test_data_param or not self.test_data_service:
             return None
 
-        context = ParameterContext(
-            execution_id=f"EXEC_{execution_id}"
-        )
+        context = ParameterContext(execution_id=f"EXEC_{execution_id}")
         return TestDataParameterizer(context)
 
     def _generate_step_test_data(
-        self,
-        step_id: int,
-        parameterizer: TestDataParameterizer | None = None
+        self, step_id: int, parameterizer: TestDataParameterizer | None = None
     ) -> dict[str, str]:
         """生成步骤的测试数据。
 
@@ -52,11 +48,7 @@ class TestDataMixin:
             logger.warning(f"生成测试数据失败: {e}")
             return {}
 
-    def _substitute_parameters_in_action(
-        self,
-        action: str,
-        test_data: dict[str, str]
-    ) -> str:
+    def _substitute_parameters_in_action(self, action: str, test_data: dict[str, str]) -> str:
         """替换操作描述中的参数占位符。
 
         支持 ${field_name} 格式的占位符替换。

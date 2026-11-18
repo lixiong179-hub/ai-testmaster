@@ -2,6 +2,7 @@
 
 评审快照与不可变决策记录，支持正向/反向/合并评审。
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -30,14 +31,19 @@ class IterationReview(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     iteration_id = Column(
-        Integer, ForeignKey("iterations.id", ondelete="CASCADE"), nullable=False,
+        Integer,
+        ForeignKey("iterations.id", ondelete="CASCADE"),
+        nullable=False,
     )
     kind = Column(
-        String(20), nullable=False,
+        String(20),
+        nullable=False,
         comment="评审类型：forward/backward/merged",
     )
     status = Column(
-        String(20), nullable=False, default="draft",
+        String(20),
+        nullable=False,
+        default="draft",
         comment="评审状态：draft/in_progress/finalized/cancelled",
     )
     created_at = Column(DateTime, nullable=False, default=utcnow)
@@ -45,10 +51,14 @@ class IterationReview(Base):
     finalized_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     decisions = relationship(
-        "ReviewDecision", back_populates="review", cascade="all, delete-orphan",
+        "ReviewDecision",
+        back_populates="review",
+        cascade="all, delete-orphan",
     )
     locks = relationship(
-        "ReviewLock", back_populates="review", cascade="all, delete-orphan",
+        "ReviewLock",
+        back_populates="review",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -65,10 +75,13 @@ class ReviewDecision(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     review_id = Column(
-        Integer, ForeignKey("iteration_review.id", ondelete="CASCADE"), nullable=False,
+        Integer,
+        ForeignKey("iteration_review.id", ondelete="CASCADE"),
+        nullable=False,
     )
     target_kind = Column(
-        String(20), nullable=False,
+        String(20),
+        nullable=False,
         comment="目标类型：case/testpoint/capability",
     )
     target_id = Column(Integer, nullable=False)
@@ -109,7 +122,9 @@ class ReviewLock(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     review_id = Column(
-        Integer, ForeignKey("iteration_review.id", ondelete="CASCADE"), nullable=False,
+        Integer,
+        ForeignKey("iteration_review.id", ondelete="CASCADE"),
+        nullable=False,
     )
     target_kind = Column(String(20), nullable=False)
     target_id = Column(Integer, nullable=False)

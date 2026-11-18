@@ -8,6 +8,7 @@
 
 依赖：APScheduler 周期触发 + pymysql 直连从库执行 SHOW REPLICA STATUS
 """
+
 import logging
 import threading
 import time
@@ -40,6 +41,7 @@ def probe_replica_lag() -> float | None:
 
     try:
         import pymysql
+
         conn = pymysql.connect(
             _parse_host(settings.DATABASE_URL_SLAVE),
             user=_parse_user(settings.DATABASE_URL_SLAVE),

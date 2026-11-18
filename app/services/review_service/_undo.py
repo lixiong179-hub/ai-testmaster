@@ -27,14 +27,10 @@ def undo_decision(
 
     review = db.get(IterationReview, decision.review_id)
     if review is None or not review.is_finalized():
-        raise ReviewNotFinalizedError(
-            f"Cannot undo decision {decision_id}: review not finalized"
-        )
+        raise ReviewNotFinalizedError(f"Cannot undo decision {decision_id}: review not finalized")
 
     if review.finalized_at is None:
-        raise ReviewNotFinalizedError(
-            f"Cannot undo decision {decision_id}: finalized_at is None"
-        )
+        raise ReviewNotFinalizedError(f"Cannot undo decision {decision_id}: finalized_at is None")
 
     elapsed = utcnow() - review.finalized_at
     elapsed_minutes = round(elapsed.total_seconds() / 60, 1)
@@ -55,9 +51,7 @@ def undo_decision(
     decision.human_reason = None
     decision.final_verdict = decision.ai_verdict or "keep"
     decision.conflict_marker = False
-    decision.accepted_low_confidence = (
-        decision.ai_confidence is not None and decision.ai_confidence < 70
-    )
+    decision.accepted_low_confidence = decision.ai_confidence is not None and decision.ai_confidence < 70
     decision.decided_at = utcnow()
 
     audit = AuditLog(
@@ -82,9 +76,7 @@ def undo_decision(
 
 
 def _reverse_lifecycle(db: Session, case_id: int) -> None:
-    case: TestCase | None = (
-        db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    )
+    case: TestCase | None = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if case is None:
         return
 
@@ -115,7 +107,9 @@ def _deprecate_child_cases(db: Session, parent_case_id: int) -> None:
         if child.lifecycle_status not in ("deprecated", "archived"):
             try:
                 lifecycle_transition(
-                    db, case_id=child.id, to_status="deprecated",
+                    db,
+                    case_id=child.id,
+                    to_status="deprecated",
                     reason="parent_case_restored",
                 )
             except Exception as e:
@@ -128,9 +122,7 @@ def _restore_archived_case(db: Session, archived_case: TestCase) -> None:
         base_no = base_no.rsplit("-v", 1)[0]
 
     existing = (
-        db.query(TestCase)
-        .filter(TestCase.case_no.like(f"{base_no}-restored%"), TestCase.is_deleted.is_(False))
-        .count()
+        db.query(TestCase).filter(TestCase.case_no.like(f"{base_no}-restored%"), TestCase.is_deleted.is_(False)).count()
     )
     case_no = f"{base_no}-restored-{existing + 1}" if existing > 0 else f"{base_no}-restored"
 
@@ -171,14 +163,10 @@ def undo_finalize(
         return None
 
     if not review.is_finalized():
-        raise ReviewNotFinalizedError(
-            f"Review {review_id} is not finalized"
-        )
+        raise ReviewNotFinalizedError(f"Review {review_id} is not finalized")
 
     if review.finalized_at is None:
-        raise ReviewNotFinalizedError(
-            f"Review {review_id} has no finalized_at"
-        )
+        raise ReviewNotFinalizedError(f"Review {review_id} has no finalized_at")
 
     elapsed = utcnow() - review.finalized_at
     elapsed_minutes = round(elapsed.total_seconds() / 60, 1)
@@ -188,9 +176,7 @@ def undo_finalize(
             f"Undo window expired: {elapsed_minutes}min > {REVIEW_UNDO_WINDOW_MINUTES}min"
         )
 
-    all_decisions = (
-        db.query(ReviewDecision).filter(ReviewDecision.review_id == review_id).all()
-    )
+    all_decisions = db.query(ReviewDecision).filter(ReviewDecision.review_id == review_id).all()
 
     rolled_back_count = 0
     for decision in all_decisions:
@@ -205,9 +191,7 @@ def undo_finalize(
             decision.human_reason = None
             decision.final_verdict = decision.ai_verdict or "keep"
             decision.conflict_marker = False
-            decision.accepted_low_confidence = (
-                decision.ai_confidence is not None and decision.ai_confidence < 70
-            )
+            decision.accepted_low_confidence = decision.ai_confidence is not None and decision.ai_confidence < 70
             decision.decided_at = utcnow()
 
             savepoint.commit()
@@ -216,7 +200,8 @@ def undo_finalize(
             savepoint.rollback()
             logger.warning(
                 "undo_finalize: failed to rollback decision_id={}, target_id={}",
-                decision.id, decision.target_id,
+                decision.id,
+                decision.target_id,
             )
 
     review.status = ReviewStatus.IN_PROGRESS.value
@@ -242,6 +227,7 @@ def undo_finalize(
 def _record_undo_metric(db: Session, target_id: int | None) -> None:
     try:
         from app.services.metrics_service import record_metric
+
         record_metric(
             "review_undo",
             detail={"target_id": target_id},

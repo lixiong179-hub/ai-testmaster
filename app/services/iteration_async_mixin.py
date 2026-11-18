@@ -18,6 +18,7 @@
         service = IterationService(db)
         iteration = await service.create_iteration_async(...)
 """
+
 import asyncio
 
 from app.models.iteration import Iteration, IterationInput
@@ -101,9 +102,7 @@ class IterationAsyncMixin:
         """按项目查询迭代列表（eager-load inputs）。"""
         from app.services.iteration_service import list_iterations
 
-        return await asyncio.to_thread(
-            list_iterations, self.db, project_id, skip=skip, limit=limit
-        )
+        return await asyncio.to_thread(list_iterations, self.db, project_id, skip=skip, limit=limit)
 
     async def get_iteration_async(self, iteration_id: int) -> Iteration | None:
         """获取迭代详情（含 inputs）。"""
@@ -124,9 +123,7 @@ class IterationAsyncMixin:
         """
         from app.services.iteration_service import transition_iteration_status
 
-        return await asyncio.to_thread(
-            transition_iteration_status, self.db, iteration_id, to_status
-        )
+        return await asyncio.to_thread(transition_iteration_status, self.db, iteration_id, to_status)
 
     async def finalize_iteration_async(self, iteration_id: int) -> Iteration:
         """定稿迭代。
@@ -143,13 +140,9 @@ class IterationAsyncMixin:
         """获取项目的迭代数量（用于分页计算总条数）。"""
         from app.crud.iteration import get_iterations_count_by_project
 
-        return await asyncio.to_thread(
-            get_iterations_count_by_project, self.db, project_id
-        )
+        return await asyncio.to_thread(get_iterations_count_by_project, self.db, project_id)
 
-    async def update_iteration_async(
-        self, iteration_id: int, **kwargs
-    ) -> Iteration | None:
+    async def update_iteration_async(self, iteration_id: int, **kwargs) -> Iteration | None:
         """更新迭代。
 
         行为与 `crud.iteration.update_iteration` 一致（禁止直接改 status，
@@ -160,9 +153,7 @@ class IterationAsyncMixin:
         """
         from app.crud.iteration import update_iteration
 
-        updated = await asyncio.to_thread(
-            update_iteration, self.db, iteration_id, **kwargs
-        )
+        updated = await asyncio.to_thread(update_iteration, self.db, iteration_id, **kwargs)
         if updated is None:
             return None
         return await self.get_iteration_async(iteration_id)

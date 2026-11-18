@@ -25,6 +25,7 @@ HITL（Human-in-the-Loop）审批、回滚操作与事后回溯。
     3. 回滚操作写入新审计记录，action_type 标记为 rollback_<原action_type>，
        action_detail 中含原审计 ID 与回滚原因。
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -72,6 +73,7 @@ class AgentAudit(Base):
         - HITL 审批端点检索 pending 动作并标记审批结果
         - 回滚端点根据 action_type 调用对应回滚处理器
     """
+
     __tablename__ = "agent_audits"
     __table_args__ = (
         # 复合索引：覆盖按会话+迭代维度检索审计记录的高频查询
@@ -81,10 +83,14 @@ class AgentAudit(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="审计记录主键ID")
-    session_id = Column(BigInteger, ForeignKey("agent_sessions.id", ondelete="CASCADE"), nullable=False, index=True, comment="会话ID")
+    session_id = Column(
+        BigInteger, ForeignKey("agent_sessions.id", ondelete="CASCADE"), nullable=False, index=True, comment="会话ID"
+    )
     iteration = Column(Integer, nullable=False, comment="触发审计的迭代轮次")
 
-    action_type = Column(String(64), nullable=False, comment="动作类型: tool_call/create_test_case/update_locator/rollback_*")
+    action_type = Column(
+        String(64), nullable=False, comment="动作类型: tool_call/create_test_case/update_locator/rollback_*"
+    )
     # JSON 详情：含工具名/参数/结果/资源 ID 等动作上下文
     # 结构示例：
     #   - tool_call: {"tool_name": "create_test_case", "arguments": {...}, "result": {...}}

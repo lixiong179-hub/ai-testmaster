@@ -1,4 +1,5 @@
 """移动端AI动作解析Mixin - 自然语言描述到动作类型的解析。"""
+
 import re
 
 from app.services.mobile_ai_executor.types import MobileActionType
@@ -71,6 +72,6 @@ class MobileActionParserMixin:
         match = re.search(r"([\w.]+)/([\w.]+)", description)
         if match:
             package, activity = match.group(1), match.group(2)
-            if re.match(r'^[a-zA-Z]', package) and re.match(r'^\.?[a-zA-Z]', activity):
+            if re.match(r"^[a-zA-Z]", package) and re.match(r"^\.?[a-zA-Z]", activity):
                 return package, activity
         return None

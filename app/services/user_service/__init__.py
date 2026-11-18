@@ -1,4 +1,3 @@
-
 """用户服务模块 - 统一导出用户相关服务。
 
 本模块作为用户服务的对外统一入口，将分散在不同模块中的用户管理、
@@ -20,31 +19,36 @@
 Note: PermissionService/RoleService are imported lazily to avoid circular import:
     permission_service -> user_service.user_service -> user_service.__init__ -> permission_service
 """
+
 from app.services.user_service.user_service import UserService, pwd_context
 
 
 def __getattr__(name):
     """Lazy import to break circular dependency with permission_service."""
-    if name == 'RoleService':
+    if name == "RoleService":
         from app.services.role_service.role_service import RoleService
+
         return RoleService
-    if name == 'PermissionService':
+    if name == "PermissionService":
         from app.services.permission_service import PermissionService
+
         return PermissionService
-    if name == 'UserRoleService':
+    if name == "UserRoleService":
         from app.services.permission_service import UserRoleService
+
         return UserRoleService
-    if name == 'RBACService':
+    if name == "RBACService":
         from app.services.permission_service import RBACService
+
         return RBACService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
-    'UserService',
-    'RoleService',
-    'PermissionService',
-    'UserRoleService',
-    'RBACService',
-    'pwd_context',
+    "UserService",
+    "RoleService",
+    "PermissionService",
+    "UserRoleService",
+    "RBACService",
+    "pwd_context",
 ]

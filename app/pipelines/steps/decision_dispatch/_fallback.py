@@ -8,9 +8,13 @@ from app.pipelines.context import PipelineContext
 
 def _empty_stats() -> dict[str, int]:
     return {
-        "keep_count": 0, "modify_count": 0, "create_count": 0,
-        "locator_fix_count": 0, "deprecate_count": 0,
-        "skip_count": 0, "conflict_count": 0,
+        "keep_count": 0,
+        "modify_count": 0,
+        "create_count": 0,
+        "locator_fix_count": 0,
+        "deprecate_count": 0,
+        "skip_count": 0,
+        "conflict_count": 0,
     }
 
 
@@ -90,9 +94,13 @@ def _dispatch_fallback(
             "generation_tasks": fallback_tasks,
             "deprecation_suggestions": [],
             "stats": {
-                "keep_count": 0, "modify_count": 0, "create_count": fallback_count,
-                "locator_fix_count": 0, "deprecate_count": 0,
-                "skip_count": 0, "conflict_count": 0,
+                "keep_count": 0,
+                "modify_count": 0,
+                "create_count": fallback_count,
+                "locator_fix_count": 0,
+                "deprecate_count": 0,
+                "skip_count": 0,
+                "conflict_count": 0,
             },
             "total_tasks": fallback_count,
             "total_deprecations": 0,

@@ -15,16 +15,11 @@ UI原型管理模块（聚合入口）
 所有端点均需要Bearer令牌认证。
 """
 
-from app.api.v1.endpoints.ui_prototype import (
-    router,
-    UPLOAD_DIR,
-    _ensure_upload_dir,
-    _build_screen_response
-)
+from app.api.v1.endpoints.ui_prototype import router, UPLOAD_DIR, _ensure_upload_dir, _build_screen_response
 
 __all__ = [
-    'router',
-    'UPLOAD_DIR',
-    '_ensure_upload_dir',
-    '_build_screen_response',
+    "router",
+    "UPLOAD_DIR",
+    "_ensure_upload_dir",
+    "_build_screen_response",
 ]

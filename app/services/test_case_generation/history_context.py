@@ -3,6 +3,7 @@
 纯计算 + 只读 ORM 查询，不含 HTTP 语义；供端点层与
 `_history_scoring_mixin` 共用。保持原函数名以兼容既有调用点与测试 patch 目标。
 """
+
 import json
 import re
 from datetime import datetime, UTC
@@ -37,7 +38,7 @@ def _extract_terms(*parts: Any) -> set[str]:
             continue
         terms.add(token)
         if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
-            terms.update(token[i:i + 2] for i in range(len(token) - 1))
+            terms.update(token[i : i + 2] for i in range(len(token) - 1))
     return {term for term in terms if len(term) >= 2}
 
 
@@ -49,12 +50,14 @@ def _score_terms(terms: set[str], *parts: Any) -> int:
 
 
 def _infer_design_tag(case: TestCase, steps: Any) -> str:
-    text = " ".join([
-        case.title or "",
-        case.summary or "",
-        case.expected_result or "",
-        _safe_text(steps),
-    ])
+    text = " ".join(
+        [
+            case.title or "",
+            case.summary or "",
+            case.expected_result or "",
+            _safe_text(steps),
+        ]
+    )
     if any(keyword in text for keyword in ("空", "为空", "必填", "超长", "最大", "最小", "边界", "长度")):
         return "边界值"
     if any(keyword in text for keyword in ("失败", "错误", "异常", "无权限", "断网", "超时", "锁定")):

@@ -24,6 +24,7 @@
     - cryptography.hazmat.primitives.kdf.pbkdf2: PBKDF2密钥派生
     - app.core.config.settings: 加密密钥和盐值配置
 """
+
 import base64
 import secrets
 from cryptography.fernet import Fernet

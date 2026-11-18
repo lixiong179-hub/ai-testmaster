@@ -10,6 +10,7 @@ A/B测试指标服务
       PrimarySessionLocal() 独立 sync 会话写入指标）
     - async 方法（*_async）供 ab_test endpoint 在 AsyncSession 上下文调用
 """
+
 import math
 from typing import Any
 
@@ -74,9 +75,7 @@ class ABTestService:
             ValueError: metric_name不在合法白名单内
         """
         if metric_name not in VALID_METRIC_NAMES:
-            raise ValueError(
-                f"非法指标名称: {metric_name}，合法值为: {sorted(VALID_METRIC_NAMES)}"
-            )
+            raise ValueError(f"非法指标名称: {metric_name}，合法值为: {sorted(VALID_METRIC_NAMES)}")
         row = ABTestMetric(
             experiment_id=experiment_id,
             variant=variant,
@@ -132,11 +131,7 @@ class ABTestService:
             for name, values in metrics.items():
                 count = len(values)
                 mean_val = sum(values) / count if count > 0 else 0.0
-                variance = (
-                    sum((v - mean_val) ** 2 for v in values) / count
-                    if count > 0
-                    else 0.0
-                )
+                variance = sum((v - mean_val) ** 2 for v in values) / count if count > 0 else 0.0
                 std_dev = math.sqrt(variance)
                 variant_stats[name] = {
                     "mean": round(mean_val, 6),
@@ -166,10 +161,7 @@ class ABTestService:
         if project_ids is not None:
             query = query.filter(ABTestMetric.project_id.in_(project_ids))
         results = query.group_by(ABTestMetric.experiment_id).order_by(ABTestMetric.experiment_id).all()
-        return [
-            {"experiment_id": row.experiment_id, "sample_count": row.sample_count}
-            for row in results
-        ]
+        return [{"experiment_id": row.experiment_id, "sample_count": row.sample_count} for row in results]
 
     async def record_metric_async(
         self,
@@ -199,9 +191,7 @@ class ABTestService:
             ValueError: metric_name不在合法白名单内
         """
         if metric_name not in VALID_METRIC_NAMES:
-            raise ValueError(
-                f"非法指标名称: {metric_name}，合法值为: {sorted(VALID_METRIC_NAMES)}"
-            )
+            raise ValueError(f"非法指标名称: {metric_name}，合法值为: {sorted(VALID_METRIC_NAMES)}")
         row = ABTestMetric(
             experiment_id=experiment_id,
             variant=variant,
@@ -255,11 +245,7 @@ class ABTestService:
             for name, values in metrics.items():
                 count = len(values)
                 mean_val = sum(values) / count if count > 0 else 0.0
-                variance = (
-                    sum((v - mean_val) ** 2 for v in values) / count
-                    if count > 0
-                    else 0.0
-                )
+                variance = sum((v - mean_val) ** 2 for v in values) / count if count > 0 else 0.0
                 std_dev = math.sqrt(variance)
                 variant_stats[name] = {
                     "mean": round(mean_val, 6),
@@ -290,7 +276,4 @@ class ABTestService:
             stmt = stmt.where(ABTestMetric.project_id.in_(project_ids))
         stmt = stmt.group_by(ABTestMetric.experiment_id).order_by(ABTestMetric.experiment_id)
         results = (await self.db.execute(stmt)).all()
-        return [
-            {"experiment_id": row.experiment_id, "sample_count": row.sample_count}
-            for row in results
-        ]
+        return [{"experiment_id": row.experiment_id, "sample_count": row.sample_count} for row in results]

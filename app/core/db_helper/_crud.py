@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import TypeVar
 from loguru import logger
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class DatabaseHelper:

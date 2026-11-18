@@ -15,9 +15,10 @@ def init_db() -> None:
 
     try:
         from app.db.smart_sync import smart_sync_database
+
         sync_report = smart_sync_database(Base, auto_fix=True)
 
-        if sync_report.get('fixed', 0) > 0:
+        if sync_report.get("fixed", 0) > 0:
             logger.warning(f"数据库自动修复: {sync_report['summary']}")
         else:
             logger.info("数据库表结构已完全同步")

@@ -85,6 +85,7 @@ def require_initialized(func: Callable) -> Callable:
             logger.error(error_msg)
             raise BrowserNotInitializedError(error_msg)
         return await func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -110,6 +111,7 @@ def handle_browser_errors(func: Callable) -> Callable:
             logger.error(error_msg)
             logger.debug(traceback.format_exc())
             raise BrowserError(error_msg) from e
+
     return wrapper
 
 
@@ -135,18 +137,19 @@ class BrowserControllerV2(DefectCaptureMixin):
         self._request_start_times: dict[str, float] = {}
         self._defect_listeners_registered: bool = False
 
-    async def initialize(self) -> 'BrowserControllerV2':
+    async def initialize(self) -> "BrowserControllerV2":
         if self._is_initialized:
             logger.warning("浏览器已经初始化")
             return self
         try:
             from playwright.async_api import async_playwright
+
             logger.info(f"正在启动 {self.config.browser_type.value} 浏览器...")
             self._playwright = await async_playwright().start()
             browser_type_map = {
                 BrowserType.CHROMIUM: self._playwright.chromium,
                 BrowserType.FIREFOX: self._playwright.firefox,
-                BrowserType.WEBKIT: self._playwright.webkit
+                BrowserType.WEBKIT: self._playwright.webkit,
             }
             browser_launcher = browser_type_map[self.config.browser_type]
             launch_options: dict[str, Any] = {
@@ -166,7 +169,7 @@ class BrowserControllerV2(DefectCaptureMixin):
                     "--disable-blink-features=AutomationControlled",
                     "--exclude-switches=enable-automation",
                     "--disable-infobars",
-                ]
+                ],
             }
             if self.config.proxy_server:
                 launch_options["proxy"] = {"server": self.config.proxy_server}
@@ -177,28 +180,23 @@ class BrowserControllerV2(DefectCaptureMixin):
                         proxy_config["password"] = self.config.proxy_password
             self._browser = await browser_launcher.launch(**launch_options)
             context_options: dict[str, Any] = {
-                "viewport": {
-                    "width": self.config.viewport_width,
-                    "height": self.config.viewport_height
-                },
+                "viewport": {"width": self.config.viewport_width, "height": self.config.viewport_height},
                 "device_scale_factor": self.config.device_scale_factor,
                 "locale": self.config.locale,
                 "timezone_id": self.config.timezone_id,
-                "screen": {
-                    "width": self.config.viewport_width,
-                    "height": self.config.viewport_height
-                }
+                "screen": {"width": self.config.viewport_width, "height": self.config.viewport_height},
             }
             if self.config.user_agent:
                 context_options["user_agent"] = self.config.user_agent
             if self.config.record_video:
                 import os
+
                 video_dir = self.config.video_dir or "./videos"
                 os.makedirs(video_dir, exist_ok=True)
                 context_options["record_video_dir"] = video_dir
                 context_options["record_video_size"] = {
                     "width": self.config.video_size[0],
-                    "height": self.config.video_size[1]
+                    "height": self.config.video_size[1],
                 }
                 logger.info(f"已启用视频录制，保存目录: {video_dir}")
             self._context = await self._browser.new_context(**context_options)
@@ -207,6 +205,7 @@ class BrowserControllerV2(DefectCaptureMixin):
             self._page = await self._context.new_page()
             try:
                 from playwright_stealth import Stealth
+
                 stealth = Stealth()
                 await stealth.apply_stealth_async(self._page)
                 logger.info("已应用stealth模式隐藏自动化特征")

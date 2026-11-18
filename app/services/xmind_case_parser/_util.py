@@ -3,7 +3,6 @@ from loguru import logger
 
 
 class _UtilMixin:
-
     XMAP_NS = "urn:xmind:xmap:xmlns:content:2.0"
     NS = {"xmap": XMAP_NS}
     MODULE_MAX_LEN = 100
@@ -49,9 +48,15 @@ class _UtilMixin:
             return None
 
         priority_map = {
-            "priority-1": 1, "priority-2": 2, "priority-3": 3,
-            "smiley-smile": 1, "smiley-neutral": 2, "smiley-cry": 3,
-            "task-done": 1, "task-start": 2, "task-undo": 3,
+            "priority-1": 1,
+            "priority-2": 2,
+            "priority-3": 3,
+            "smiley-smile": 1,
+            "smiley-neutral": 2,
+            "smiley-cry": 3,
+            "task-done": 1,
+            "task-start": 2,
+            "task-undo": 3,
         }
         for ref in marker_refs.findall("xmap:marker-ref", self.NS):
             marker_id = ref.get("marker-id", "")

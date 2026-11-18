@@ -33,6 +33,7 @@
 - Role系列 -> app.models.user.Role
 - Permission系列 -> app.models.user.Permission
 """
+
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, validator
 
@@ -45,15 +46,18 @@ class UserBase(BaseModel):
     验证规则：用户名3-50字符，邮箱格式校验，手机号11-20位纯数字
     与Model映射：对应 User Model 的 username/email/phone 字段
     """
+
     username: str = Field(..., min_length=3, max_length=50, description="用户名")  # 必填，唯一标识，与User.username对应
     email: EmailStr = Field(..., description="邮箱")  # 必填，EmailStr自动校验格式，与User.email对应
-    phone: str | None = Field(None, min_length=11, max_length=20, description="手机号")  # 可选，11-20位，默认None表示未填写
+    phone: str | None = Field(
+        None, min_length=11, max_length=20, description="手机号"
+    )  # 可选，11-20位，默认None表示未填写
 
-    @validator('phone')
+    @validator("phone")
     def validate_phone(cls, v):
         """验证手机号：非空时必须为纯数字"""
         if v and not v.isdigit():
-            raise ValueError('手机号必须是数字')
+            raise ValueError("手机号必须是数字")
         return v
 
 
@@ -66,13 +70,14 @@ class UserCreate(UserBase):
     对应API：POST /api/v1/users/
     与Model映射：字段对应 User Model 的 username/email/phone/password_hash
     """
+
     password: str = Field(..., min_length=6, description="密码")  # 必填，最少6位，服务端存储为password_hash
 
-    @validator('password')
+    @validator("password")
     def validate_password(cls, v):
         """验证密码强度：最少6位"""
         if len(v) < 6:
-            raise ValueError('密码长度至少6位')
+            raise ValueError("密码长度至少6位")
         return v
 
 
@@ -85,15 +90,16 @@ class UserUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/users/{user_id}
     与Model映射：字段对应 User Model 的 email/phone/is_active
     """
+
     email: EmailStr | None = None  # 可选，更新邮箱
     phone: str | None = None  # 可选，更新手机号
     is_active: bool | None = None  # 可选，更新激活状态，True=启用/False=禁用
 
-    @validator('phone')
+    @validator("phone")
     def validate_phone(cls, v):
         """验证手机号：非空时必须为纯数字"""
         if v and not v.isdigit():
-            raise ValueError('手机号必须是数字')
+            raise ValueError("手机号必须是数字")
         return v
 
 
@@ -105,6 +111,7 @@ class UserInDB(UserBase):
     不直接暴露给API，避免泄露is_superuser等敏感字段
     与Model映射：完整映射 User Model 的所有业务字段
     """
+
     id: int  # 用户主键ID，与User.id对应
     is_active: bool  # 账户是否激活，与User.is_active对应
     is_superuser: bool  # 是否超级管理员，与User.is_superuser对应
@@ -124,6 +131,7 @@ class User(UserBase):
     对应API：GET /api/v1/users/{user_id}
     与Model映射：映射 User Model 的部分字段，不含password_hash/update_time
     """
+
     id: int  # 用户主键ID
     is_active: bool  # 账户是否激活
     is_superuser: bool  # 是否超级管理员
@@ -142,7 +150,8 @@ class UserWithRoles(User):
     嵌套关系：继承User，额外包含roles列表（嵌套Role Schema）
     对应API：GET /api/v1/users/{user_id}（含角色信息时）
     """
-    roles: list['Role'] = []  # 用户关联的角色列表，默认空列表，通过User.roles关系获取
+
+    roles: list["Role"] = []  # 用户关联的角色列表，默认空列表，通过User.roles关系获取
 
 
 class RoleBase(BaseModel):
@@ -153,6 +162,7 @@ class RoleBase(BaseModel):
     验证规则：角色名称1-50字符，描述最多200字符
     与Model映射：对应 Role Model 的 name/desc 字段
     """
+
     name: str = Field(..., min_length=1, max_length=50, description="角色名称")  # 必填，如"管理员"/"测试人员"
     desc: str | None = Field(None, max_length=200, description="角色描述")  # 可选，角色功能说明
 
@@ -166,7 +176,10 @@ class RoleCreate(RoleBase):
     对应API：POST /api/v1/roles/
     与Model映射：permissions字段对应 Role Model 的 JSON 类型 permissions 列
     """
-    permissions: list[str] | None = Field(None, description="权限列表")  # 可选，权限编码列表，如["user:read", "user:write"]
+
+    permissions: list[str] | None = Field(
+        None, description="权限列表"
+    )  # 可选，权限编码列表，如["user:read", "user:write"]
 
 
 class RoleUpdate(RoleBase):
@@ -177,6 +190,7 @@ class RoleUpdate(RoleBase):
     验证规则：所有字段可选，覆盖父类的必填约束为可选
     对应API：PUT/PATCH /api/v1/roles/{role_id}
     """
+
     # 更新场景允许部分字段缺省，因此覆盖父类字段为Optional
     name: str | None = Field(None, min_length=1, max_length=50, description="角色名称")  # 可选，更新角色名称
     desc: str | None = Field(None, max_length=200, description="角色描述")  # 可选，更新角色描述
@@ -191,6 +205,7 @@ class Role(RoleBase):
     对应API：GET /api/v1/roles/{role_id}
     与Model映射：映射 Role Model 的 id/name/desc/permissions/create_time
     """
+
     id: int  # 角色主键ID
     permissions: list[str] | None = None  # 权限编码列表，JSON存储，可能为空
     create_time: datetime  # 创建时间
@@ -208,8 +223,11 @@ class PermissionBase(BaseModel):
     验证规则：名称和编码1-50字符，类型为menu/button/api之一
     与Model映射：对应 Permission Model 的 name/code/type/parent_id 字段
     """
+
     name: str = Field(..., min_length=1, max_length=50, description="权限名称")  # 必填，如"用户管理"/"创建项目"
-    code: str = Field(..., min_length=1, max_length=50, description="权限编码")  # 必填，唯一标识，如"user:manage"/"project:create"
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="权限编码"
+    )  # 必填，唯一标识，如"user:manage"/"project:create"
     type: str = Field(..., description="权限类型：api/menu/data")  # 必填，区分菜单权限/按钮权限/接口权限
     parent_id: int | None = Field(None, description="父权限ID")  # 可选，支持树形权限结构，None表示顶级权限
 
@@ -222,6 +240,7 @@ class PermissionCreate(PermissionBase):
     验证规则：直接继承PermissionBase，所有字段必填（parent_id除外）
     对应API：POST /api/v1/permissions/
     """
+
     pass
 
 
@@ -233,6 +252,7 @@ class PermissionUpdate(PermissionBase):
     验证规则：所有字段可选，覆盖父类的必填约束为可选
     对应API：PUT/PATCH /api/v1/permissions/{permission_id}
     """
+
     # 更新场景允许部分字段缺省，因此覆盖父类字段为Optional
     name: str | None = Field(None, min_length=1, max_length=50, description="权限名称")  # 可选
     code: str | None = Field(None, min_length=1, max_length=50, description="权限编码")  # 可选
@@ -248,6 +268,7 @@ class Permission(PermissionBase):
     对应API：GET /api/v1/permissions/{permission_id}
     与Model映射：映射 Permission Model 的 id/name/code/type/parent_id/create_time
     """
+
     id: int  # 权限主键ID
     create_time: datetime  # 创建时间
 
@@ -263,6 +284,7 @@ class UserLogin(BaseModel):
     业务用途：用户名密码登录（与auth.py中LoginRequest功能类似，保留兼容旧接口）
     对应API：POST /api/v1/auth/login
     """
+
     username: str = Field(..., description="用户名")  # 必填，登录标识
     password: str = Field(..., description="密码")  # 必填，明文传输
 
@@ -273,6 +295,7 @@ class Token(BaseModel):
 
     业务用途：JWT令牌数据结构（与auth.py中TokenResponse功能类似，保留兼容旧接口）
     """
+
     access_token: str  # JWT访问令牌
     token_type: str  # 令牌类型，通常为"bearer"
     expires_in: int  # 有效期（秒）
@@ -285,6 +308,7 @@ class TokenData(BaseModel):
     业务用途：JWT令牌解码后提取的数据，用于身份识别
     仅包含user_id，服务端根据user_id查询完整用户信息
     """
+
     user_id: int | None = None  # 令牌中携带的用户ID，None表示无效令牌
 
 

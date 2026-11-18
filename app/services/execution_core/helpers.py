@@ -2,6 +2,7 @@
 
 包含项目/任务权限校验与可见字段过滤，保持原函数名以兼容既有调用点。
 """
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +25,7 @@ def _get_hidden_fields(db: Session, project_id: int) -> list:
     return config.hidden_fields or []
 
 
-async def _get_hidden_fields_async(
-    db: Session | AsyncSession, project_id: int
-) -> list:
+async def _get_hidden_fields_async(db: Session | AsyncSession, project_id: int) -> list:
     """异步版可见字段查询，替代 sync `_get_hidden_fields` 的 run_sync 桥接。
 
     经 `db_async_compat` 执行查询，同步 Session 与遗留 AsyncSession 均可驱动；
@@ -42,20 +41,14 @@ async def _get_hidden_fields_async(
     vis_service = VisibilityConfigService()
     global_config = vis_service.get_global_config()
 
-    result = await execute_async(
-        db, select(Project).where(Project.id == project_id)
-    )
+    result = await execute_async(db, select(Project).where(Project.id == project_id))
     project = result.scalars().first()
     if not project:
         return global_config.hidden_fields or []
 
     project_vis_config = None
     if getattr(project, "config", None):
-        vis_cfg = (
-            project.config.get("visibility_config")
-            if isinstance(project.config, dict)
-            else None
-        )
+        vis_cfg = project.config.get("visibility_config") if isinstance(project.config, dict) else None
         if vis_cfg and isinstance(vis_cfg, dict):
             try:
                 project_vis_config = VisibilityConfig.from_dict(vis_cfg)
@@ -69,21 +62,13 @@ async def _get_hidden_fields_async(
 
 
 def verify_project_permission(db: Session, project_id: int, user_id: int) -> Project:
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == user_id
-    ).first()
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == user_id).first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
     return project
 
 
-async def verify_project_permission_async(
-    db: Session | AsyncSession, project_id: int, user_id: int
-) -> Project:
+async def verify_project_permission_async(db: Session | AsyncSession, project_id: int, user_id: int) -> Project:
     """异步版项目权限校验，语义与 sync 版完全一致。"""
     from app.services.db_async_compat import execute_async
 
@@ -96,21 +81,12 @@ async def verify_project_permission_async(
     )
     project = result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
     return project
 
 
 def get_task_or_404(db: Session, task_id: int, project_id: int) -> TestTask:
-    task = db.query(TestTask).filter(
-        TestTask.id == task_id,
-        TestTask.project_id == project_id
-    ).first()
+    task = db.query(TestTask).filter(TestTask.id == task_id, TestTask.project_id == project_id).first()
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="任务不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     return task

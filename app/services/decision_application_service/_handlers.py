@@ -1,4 +1,3 @@
-
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -90,8 +89,11 @@ def _handle_deprecate(
         return _build_result(decision, success=False, error="deprecate_reason is required for deprecate")
     try:
         lifecycle_transition(
-            db, case_id=target_id, to_status="deprecated",
-            review_id=decision.review_id, reason=decision.deprecate_reason,
+            db,
+            case_id=target_id,
+            to_status="deprecated",
+            review_id=decision.review_id,
+            reason=decision.deprecate_reason,
             actor_id=actor_id,
         )
         return _build_result(decision, success=True)
@@ -130,25 +132,31 @@ def _handle_add_new(
         project_id = int(project_id_raw)
         iteration_name = f"supplement_add_new_{int(time.time() * 1000)}"
         iteration = Iteration(
-            project_id=project_id, name=iteration_name, version="v1.0",
-            description=candidate_desc, status="draft", created_by=actor_id,
+            project_id=project_id,
+            name=iteration_name,
+            version="v1.0",
+            description=candidate_desc,
+            status="draft",
+            created_by=actor_id,
         )
         db.add(iteration)
         db.flush()
         iteration_id = iteration.id
 
         payload_data = {
-            "source": "add_new_decision", "review_id": review_id,
-            "candidate_description": candidate_desc, "candidate_module": candidate_module,
-            "decision_comment": decision.modification_hint or "", "case_data": case_data,
+            "source": "add_new_decision",
+            "review_id": review_id,
+            "candidate_description": candidate_desc,
+            "candidate_module": candidate_module,
+            "decision_comment": decision.modification_hint or "",
+            "case_data": case_data,
         }
-        payload_hash = hashlib.sha256(
-            json.dumps(payload_data, sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()
+        payload_hash = hashlib.sha256(json.dumps(payload_data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         iteration_input = IterationInput(
             iteration_id=iteration_id,
             kind=IterationInputKind.SUPPLEMENT_FORM.value,
-            payload=payload_data, content_hash=payload_hash,
+            payload=payload_data,
+            content_hash=payload_hash,
         )
         db.add(iteration_input)
         db.flush()
@@ -158,7 +166,9 @@ def _handle_add_new(
         if scenario is None:
             return _build_result(decision, success=False, error="场景4配置未注册")
         run = pipeline_service.create_run(
-            db=db, iteration_id=iteration_id, input_hash=input_hash,
+            db=db,
+            iteration_id=iteration_id,
+            input_hash=input_hash,
             pipeline_version=scenario["version"],
         )
         db.flush()
@@ -166,8 +176,11 @@ def _handle_add_new(
 
         ai_client = create_ai_client()
         ctx = PipelineContext(
-            db=db, ai_client=ai_client, run=run,
-            iteration_id=iteration_id, user_id=actor_id,
+            db=db,
+            ai_client=ai_client,
+            run=run,
+            iteration_id=iteration_id,
+            user_id=actor_id,
         )
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -181,8 +194,10 @@ def _handle_add_new(
                 generated_count = len(case_ids) if isinstance(case_ids, list) else 0
             logger.info("_handle_add_new 成功: iteration_id={}, generated_count={}", iteration_id, generated_count)
             return ApplyResult(
-                target_kind=decision.target_kind, target_id=decision.target_id,
-                action=decision.merged_action, success=True,
+                target_kind=decision.target_kind,
+                target_id=decision.target_id,
+                action=decision.merged_action,
+                success=True,
             )
         else:
             error_msg = f"Pipeline 执行失败，状态: {run.status}"
@@ -201,26 +216,36 @@ def _handle_conflict(decision: ApplyDecision) -> ApplyResult:
 
 def _handle_pending_review(decision: ApplyDecision) -> ApplyResult:
     return ApplyResult(
-        target_kind=decision.target_kind, target_id=decision.target_id,
-        action=decision.merged_action, success=True,
-        deferred=True, deferred_reason="pending_review deferred for manual evaluation",
+        target_kind=decision.target_kind,
+        target_id=decision.target_id,
+        action=decision.merged_action,
+        success=True,
+        deferred=True,
+        deferred_reason="pending_review deferred for manual evaluation",
     )
 
 
 def _load_decisions_from_review(review_id: int, db: Session) -> list[ApplyDecision]:
     from app.models.review import IterationReview, ReviewDecision
+
     review = db.get(IterationReview, review_id)
     if review is None:
         return []
-    review_decisions = db.query(ReviewDecision).filter(
-        ReviewDecision.review_id == review_id,
-    ).all()
+    review_decisions = (
+        db.query(ReviewDecision)
+        .filter(
+            ReviewDecision.review_id == review_id,
+        )
+        .all()
+    )
     result: list[ApplyDecision] = []
     for rd in review_decisions:
         merged_action = _verdict_to_action(rd.final_verdict, rd.conflict_marker)
         ad = ApplyDecision(
-            target_kind=rd.target_kind, target_id=rd.target_id,
-            merged_action=merged_action, modification_hint=rd.modification_hint,
+            target_kind=rd.target_kind,
+            target_id=rd.target_id,
+            merged_action=merged_action,
+            modification_hint=rd.modification_hint,
             deprecate_reason=rd.deprecate_reason,
             confidence=rd.ai_confidence / 100.0 if rd.ai_confidence is not None else 0.0,
             review_id=review_id,

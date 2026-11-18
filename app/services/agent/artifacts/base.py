@@ -12,6 +12,7 @@
     - 可独立演进：新增 artifact 仅需新增文件 + 注册到 ArtifactRegistry，
         所有 Agent 的 prompt 自动包含新 artifact 描述段
 """
+
 from __future__ import annotations
 
 from typing import Any, ClassVar

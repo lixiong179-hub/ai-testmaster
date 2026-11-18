@@ -16,6 +16,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
@@ -40,25 +41,32 @@ class TestCaseData(Base):
         - 数据复用：同一组数据被多个用例引用
         - 参数映射：不同用例对同一数据的字段名映射
     """
+
     __test__ = False
     __tablename__ = "test_case_data"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 关联主键ID
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # 关联主键ID
 
     # 关联ID
-    test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True, comment="测试用例ID")  # 用例ID，级联删除
-    test_data_id = Column(Integer, ForeignKey("test_data.id", ondelete="CASCADE"), nullable=False, index=True, comment="测试数据ID")    # 数据ID，级联删除
+    test_case_id = Column(
+        Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True, comment="测试用例ID"
+    )  # 用例ID，级联删除
+    test_data_id = Column(
+        Integer, ForeignKey("test_data.id", ondelete="CASCADE"), nullable=False, index=True, comment="测试数据ID"
+    )  # 数据ID，级联删除
 
     # 参数映射配置（支持字段名映射）
     # 格式示例：{"用例参数名": "数据字段名"}，如 {"username": "account", "pwd": "password"}
-    parameter_mapping = Column(JSON, nullable=True, comment="参数映射配置（JSON格式）")                  # 字段名映射，解决用例与数据字段名不一致问题
+    parameter_mapping = Column(
+        JSON, nullable=True, comment="参数映射配置（JSON格式）"
+    )  # 字段名映射，解决用例与数据字段名不一致问题
 
     # 时间信息
-    create_time = Column(DateTime, nullable=False, default=utcnow, comment="创建时间")                  # 创建时间，UTC时区
+    create_time = Column(DateTime, nullable=False, default=utcnow, comment="创建时间")  # 创建时间，UTC时区
 
     # 关联关系
-    test_case = relationship("TestCase", backref="case_data_links")                                   # 关联的测试用例
-    test_data = relationship("TestData", backref="case_data_links")                                   # 关联的测试数据
+    test_case = relationship("TestCase", backref="case_data_links")  # 关联的测试用例
+    test_data = relationship("TestData", backref="case_data_links")  # 关联的测试数据
 
     def __repr__(self):
         """返回关联记录的字符串表示，便于调试和日志输出。"""

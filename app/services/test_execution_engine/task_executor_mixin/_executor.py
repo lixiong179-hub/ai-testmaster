@@ -17,7 +17,6 @@ from app.utils.db_time import utcnow
 
 
 class _ExecutorMixin(_HelpersMixin):
-
     @handle_execution_errors
     async def execute_test_case(
         self,
@@ -43,6 +42,7 @@ class _ExecutorMixin(_HelpersMixin):
         steps_json = test_case.steps_json
         if isinstance(steps_json, str):
             import json
+
             try:
                 steps_json = json.loads(steps_json)
             except (json.JSONDecodeError, TypeError):
@@ -65,6 +65,7 @@ class _ExecutorMixin(_HelpersMixin):
             action_type_str = step_data.get("action_type", "click").lower()
 
             from app.services.test_execution_engine.models import ActionType
+
             try:
                 action_type = ActionType(action_type_str)
             except ValueError:
@@ -200,7 +201,7 @@ class _ExecutorMixin(_HelpersMixin):
         return step_result
 
     async def _execute_click_action(self, element_info: dict, action_type: Any) -> None:
-        if not self.browser or not getattr(self.browser, '_page', None):
+        if not self.browser or not getattr(self.browser, "_page", None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
         css = element_info.get("css_selector")
@@ -212,7 +213,7 @@ class _ExecutorMixin(_HelpersMixin):
             await page.mouse.click(x, y)
 
     async def _execute_input_action(self, element_info: dict, input_value: str) -> None:
-        if not self.browser or not getattr(self.browser, '_page', None):
+        if not self.browser or not getattr(self.browser, "_page", None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
         css = element_info.get("css_selector")
@@ -225,7 +226,7 @@ class _ExecutorMixin(_HelpersMixin):
             await page.keyboard.type(input_value)
 
     async def _execute_hover_action(self, element_info: dict) -> None:
-        if not self.browser or not getattr(self.browser, '_page', None):
+        if not self.browser or not getattr(self.browser, "_page", None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
         css = element_info.get("css_selector")
@@ -237,14 +238,12 @@ class _ExecutorMixin(_HelpersMixin):
             await page.mouse.move(x, y)
 
     async def _execute_select_action(self, element_info: dict, value: str) -> None:
-        if not self.browser or not getattr(self.browser, '_page', None):
+        if not self.browser or not getattr(self.browser, "_page", None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
         css = element_info.get("css_selector")
         if css:
             await page.select_option(css, value)
 
-    async def _execute_generic_action(
-        self, action: str, element_info: dict, step_data: dict
-    ) -> None:
+    async def _execute_generic_action(self, action: str, element_info: dict, step_data: dict) -> None:
         logger.info(f"执行通用操作: {action}")

@@ -25,6 +25,7 @@
     当存储的验证码数量超过100时，自动清理过期记录。
     已使用记录集合保留最近1000条，防止内存泄漏。
 """
+
 import os
 import random
 import string
@@ -61,7 +62,7 @@ class CaptchaService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._store = {}  # {captcha_id: (code, expire_time)}
-            cls._instance._used = set()   # 已使用的captcha_id
+            cls._instance._used = set()  # 已使用的captcha_id
             cls._instance._ip_limits = defaultdict(list)  # IP频率限制
         return cls._instance
 
@@ -98,13 +99,10 @@ class CaptchaService:
 
         # 生成随机数字验证码
         chars = string.digits
-        code = ''.join(random.choices(chars, k=length))
+        code = "".join(random.choices(chars, k=length))
 
         # 生成唯一ID（32位随机字母数字组合）
-        captcha_id = ''.join(random.choices(
-            string.ascii_letters + string.digits,
-            k=32
-        ))
+        captcha_id = "".join(random.choices(string.ascii_letters + string.digits, k=32))
 
         # 存储验证码，5分钟过期
         expire_time = current_time + 300  # 5分钟
@@ -180,10 +178,7 @@ class CaptchaService:
             - 已使用记录集合保留最近1000条
         """
         current_time = time.time()
-        expired_keys = [
-            k for k, (_, exp) in self._store.items()
-            if current_time > exp
-        ]
+        expired_keys = [k for k, (_, exp) in self._store.items() if current_time > exp]
 
         for key in expired_keys:
             del self._store[key]

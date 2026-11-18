@@ -48,9 +48,7 @@ def _parse_ai_response(text: str, expected_count: int) -> list[dict[str, Any]] |
         return None
 
     if len(parsed) != expected_count:
-        logger.warning(
-            f"AI 返回 {len(parsed)} 条，期望 {expected_count} 条"
-        )
+        logger.warning(f"AI 返回 {len(parsed)} 条，期望 {expected_count} 条")
 
     return parsed
 
@@ -69,14 +67,14 @@ def _extract_case_objects(text: str) -> list[dict[str, Any]]:
     if cases_match:
         start = cases_match.end()
         end = text.rfind("]")
-        source = text[start:end if end > start else len(text)]
+        source = text[start : end if end > start else len(text)]
     else:
         array_start = text.find("[")
         array_end = text.rfind("]")
         if array_start == -1:
             source = text
         else:
-            source = text[array_start + 1:array_end if array_end > array_start else len(text)]
+            source = text[array_start + 1 : array_end if array_end > array_start else len(text)]
 
     decoder = json.JSONDecoder()
     results: list[dict[str, Any]] = []
@@ -99,7 +97,7 @@ def _extract_case_objects(text: str) -> list[dict[str, Any]]:
 def _normalize_case(raw: dict[str, Any], fallback_module: str) -> dict[str, Any]:
     module = raw.get("module", fallback_module) or fallback_module
     precondition = raw.get("precondition", "")
-    title = raw.get("title", "")[:XmindCaseParser.TITLE_MAX_LEN]
+    title = raw.get("title", "")[: XmindCaseParser.TITLE_MAX_LEN]
     expected_result = raw.get("expected_result", "")
     priority = raw.get("priority", 2)
     if priority not in (1, 2, 3):
@@ -109,27 +107,35 @@ def _normalize_case(raw: dict[str, Any], fallback_module: str) -> dict[str, Any]
     steps: list[dict[str, Any]] = []
     for idx, step in enumerate(raw_steps, 1):
         if isinstance(step, dict):
-            steps.append({
-                "step": idx,
-                "action": step.get("action", ""),
-                "expected_result": step.get("expected_result", ""),
-                "param": "",
-            })
+            steps.append(
+                {
+                    "step": idx,
+                    "action": step.get("action", ""),
+                    "expected_result": step.get("expected_result", ""),
+                    "param": "",
+                }
+            )
 
     if not steps and expected_result:
-        steps = [{
-            "step": 1,
-            "action": f"检查并确认：{title}",
-            "expected_result": expected_result,
-            "param": "",
-        }]
+        steps = [
+            {
+                "step": 1,
+                "action": f"检查并确认：{title}",
+                "expected_result": expected_result,
+                "param": "",
+            }
+        ]
 
     actions = [s["action"] for s in steps if s["action"]]
 
-    point = title[:XmindCaseParser.POINT_MAX_LEN] if title else (actions[0][:XmindCaseParser.POINT_MAX_LEN] if actions else "")
+    point = (
+        title[: XmindCaseParser.POINT_MAX_LEN]
+        if title
+        else (actions[0][: XmindCaseParser.POINT_MAX_LEN] if actions else "")
+    )
 
     return {
-        "module": module[:XmindCaseParser.MODULE_MAX_LEN],
+        "module": module[: XmindCaseParser.MODULE_MAX_LEN],
         "function": "",
         "title": title,
         "point": point,

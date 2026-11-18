@@ -7,6 +7,7 @@
 定位策略遵循“取首个可见”原则，覆盖中英文常见字段命名与提交按钮文案；
 page 对象由 SiteExplorer.explore 从 BrowserControllerV2.active_page 注入。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -23,7 +24,7 @@ _USERNAME_SELECTORS: tuple[str, ...] = (
     'input[name*="email" i]',
     'input[name*="name" i]',
     'input[type="text"]',
-    'input:not([type])',
+    "input:not([type])",
 )
 
 # 提交按钮候选选择器：覆盖标准 submit 与中英文登录按钮文案
@@ -44,9 +45,7 @@ class LoginMixin:
     依赖宿主类的 _detect_login_page 判定登录态与 _page_timeout_ms 控制等待。
     """
 
-    async def _login_with_selectors(
-        self, controller: BrowserControllerV2, credentials: dict[str, str]
-    ) -> bool:
+    async def _login_with_selectors(self, controller: BrowserControllerV2, credentials: dict[str, str]) -> bool:
         """用 CSS 选择器定位登录表单并提交，不依赖 AI，失败降级返回 False。
 
         成功判定：提交后页面不再含可见 password 输入框（宿主 _detect_login_page
@@ -99,9 +98,7 @@ class LoginMixin:
             logger.warning(f"选择器自动登录异常，降级为仅探索登录页: {e}")
             return False
 
-    async def _locate_first_visible(
-        self, page: Any, selectors: tuple[str, ...]
-    ) -> Any | None:
+    async def _locate_first_visible(self, page: Any, selectors: tuple[str, ...]) -> Any | None:
         """按候选选择器顺序取首个可见元素，全部不可见返回 None。
 
         用 locator.first + is_visible 逐个判定，避免 count() 误判隐藏元素；

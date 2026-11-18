@@ -8,6 +8,7 @@ Mixin组合:
     - MobileActionExecutorMixin: 动作执行（点击、输入、滑动等）
     - MobileRecognitionMixin: 元素识别与缓存管理
 """
+
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -15,8 +16,11 @@ from app.utils.adb_controller import AdbController
 from app.utils.uiautomator_helper import UIAutomatorHelper
 from app.utils.unified_vision_model import UnifiedVisionModel, create_vision_model
 from app.services.mobile_ai_executor.types import (
-    MobileActionType, MobileActionResult,
-    MobileAIError, MobileDeviceError, MobileRecognitionError,
+    MobileActionType,
+    MobileActionResult,
+    MobileAIError,
+    MobileDeviceError,
+    MobileRecognitionError,
 )
 from app.services.mobile_ai_executor.action_parser_mixin import MobileActionParserMixin
 from app.services.mobile_ai_executor.action_executor_mixin import MobileActionExecutorMixin

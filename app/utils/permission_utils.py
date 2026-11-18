@@ -15,6 +15,7 @@
     - app.models.project.Project
     - app.models.project_member.ProjectMember, ROLE_LEVEL
 """
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,9 +73,7 @@ def verify_project_permission(db: Session, project_id: int, user_id: int) -> Pro
     _raise_forbidden()
 
 
-async def verify_project_permission_async(
-    db: AsyncSession, project_id: int, user_id: int
-) -> Project:
+async def verify_project_permission_async(db: AsyncSession, project_id: int, user_id: int) -> Project:
     """验证用户是否有权限操作指定项目（异步）。
 
     语义与同步版完全一致（属主或项目成员通过）。

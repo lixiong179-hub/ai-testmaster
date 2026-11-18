@@ -79,9 +79,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 会话对象；不存在返回 None
         """
-        result = await execute_async(self.db,
-            select(UserSession).where(UserSession.id == session_id)
-        )
+        result = await execute_async(self.db, select(UserSession).where(UserSession.id == session_id))
         return result.scalar_one_or_none()
 
     async def revoke_session(self, session_id: int) -> UserSession | None:
@@ -95,9 +93,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 撤销后的会话对象；不存在返回 None
         """
-        result = await execute_async(self.db,
-            select(UserSession).where(UserSession.id == session_id)
-        )
+        result = await execute_async(self.db, select(UserSession).where(UserSession.id == session_id))
         session = result.scalar_one_or_none()
         if session is None:
             return None
@@ -119,9 +115,7 @@ class SessionService:
         Returns:
             bool: True 表示找到并撤销；False 表示未找到
         """
-        result = await execute_async(self.db,
-            select(UserSession).where(UserSession.refresh_jti == refresh_jti)
-        )
+        result = await execute_async(self.db, select(UserSession).where(UserSession.refresh_jti == refresh_jti))
         session = result.scalar_one_or_none()
         if session is None:
             return False
@@ -143,11 +137,12 @@ class SessionService:
             int: 撤销的会话数
         """
         # 先查询所有有效会话（需要 jti 加入黑名单）
-        result = await execute_async(self.db,
+        result = await execute_async(
+            self.db,
             select(UserSession).where(
                 UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
-            )
+            ),
         )
         sessions = result.scalars().all()
         if not sessions:
@@ -162,7 +157,7 @@ class SessionService:
                 UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
             )
-            .values(revoked_at=now)
+            .values(revoked_at=now),
         )
         await commit_async(self.db)
 
@@ -173,9 +168,7 @@ class SessionService:
         logger.info(f"撤销用户 {user_id} 的 {len(sessions)} 个会话")
         return len(sessions)
 
-    async def get_user_sessions(
-        self, user_id: int, include_revoked: bool = False
-    ) -> list[UserSession]:
+    async def get_user_sessions(self, user_id: int, include_revoked: bool = False) -> list[UserSession]:
         """查询用户会话列表。
 
         Args:
@@ -201,9 +194,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 会话对象；不存在返回 None
         """
-        result = await execute_async(self.db,
-            select(UserSession).where(UserSession.refresh_jti == refresh_jti)
-        )
+        result = await execute_async(self.db, select(UserSession).where(UserSession.refresh_jti == refresh_jti))
         return result.scalar_one_or_none()
 
     async def touch_session(self, refresh_jti: str) -> None:
@@ -213,9 +204,6 @@ class SessionService:
             refresh_jti: refresh_token 的 jti
         """
         await execute_async(
-            self.db,
-            update(UserSession)
-            .where(UserSession.refresh_jti == refresh_jti)
-            .values(last_active_at=utcnow())
+            self.db, update(UserSession).where(UserSession.refresh_jti == refresh_jti).values(last_active_at=utcnow())
         )
         await commit_async(self.db)

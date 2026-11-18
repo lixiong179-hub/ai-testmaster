@@ -10,6 +10,7 @@
 
 所有模型 extra="forbid"，响应模型额外开启 from_attributes 以支持 ORM 直接转换。
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,9 +27,7 @@ class SessionCreateRequest(BaseModel):
 
     agent_type: str = Field(..., description="Agent 类型，需在 AGENT_TYPE_VALUES 内")
     project_id: int = Field(..., description="项目 ID")
-    initial_artifacts: list[dict] = Field(
-        default_factory=list, description="初始 Artifacts 输入，Runtime 触发时消费"
-    )
+    initial_artifacts: list[dict] = Field(default_factory=list, description="初始 Artifacts 输入，Runtime 触发时消费")
 
 
 class SessionResponse(BaseModel):

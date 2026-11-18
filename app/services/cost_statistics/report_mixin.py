@@ -1,4 +1,5 @@
 """成本报表Mixin - 报表生成与优化建议。"""
+
 from typing import Any
 from datetime import datetime, timedelta
 from loguru import logger
@@ -19,10 +20,7 @@ class CostStatisticsReportMixin:
     CACHE_SAVINGS_RATE = 0.2
 
     def generate_cost_report(
-        self,
-        project_id: int,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None
+        self, project_id: int, start_date: datetime | None = None, end_date: datetime | None = None
     ) -> CostReport:
         if not end_date:
             end_date = utcnow()
@@ -44,7 +42,7 @@ class CostStatisticsReportMixin:
             case_statistics=case_stats,
             daily_statistics=daily_stats,
             optimization_suggestions=suggestions,
-            trend_data=trend_data
+            trend_data=trend_data,
         )
         logger.info(f"成本报表生成完成: {report.report_id}")
         return report
@@ -55,39 +53,39 @@ class CostStatisticsReportMixin:
         suggestions = []
 
         if overall_stats.ai_dependency_rate > self.AI_DEPENDENCY_THRESHOLD:
-            potential_savings = (
-                overall_stats.ai_vision_calls * self.COST_PER_AI_VISION_CALL * self.LOCATOR_SAVINGS_RATE
+            potential_savings = overall_stats.ai_vision_calls * self.COST_PER_AI_VISION_CALL * self.LOCATOR_SAVINGS_RATE
+            suggestions.append(
+                {
+                    "type": "补充元素定位",
+                    "description": f"AI依赖率较高({overall_stats.ai_dependency_rate}%)，建议为更多步骤补充元素定位信息",
+                    "potential_savings": round(potential_savings, 2),
+                    "priority": "high",
+                    "impact": "可显著降低AI视觉成本",
+                }
             )
-            suggestions.append({
-                "type": "补充元素定位",
-                "description": f"AI依赖率较高({overall_stats.ai_dependency_rate}%)，建议为更多步骤补充元素定位信息",
-                "potential_savings": round(potential_savings, 2),
-                "priority": "high",
-                "impact": "可显著降低AI视觉成本"
-            })
 
         if overall_stats.total_steps >= self.BATCH_RECOGNITION_MIN_STEPS:
-            batch_savings = (
-                overall_stats.total_steps * self.COST_PER_AI_VISION_CALL * self.BATCH_SAVINGS_RATE
+            batch_savings = overall_stats.total_steps * self.COST_PER_AI_VISION_CALL * self.BATCH_SAVINGS_RATE
+            suggestions.append(
+                {
+                    "type": "启用批量识别",
+                    "description": "用例步骤较多，建议使用批量元素识别功能",
+                    "potential_savings": round(batch_savings, 2),
+                    "priority": "medium",
+                    "impact": "减少AI调用次数",
+                }
             )
-            suggestions.append({
-                "type": "启用批量识别",
-                "description": "用例步骤较多，建议使用批量元素识别功能",
-                "potential_savings": round(batch_savings, 2),
-                "priority": "medium",
-                "impact": "减少AI调用次数"
-            })
 
         if overall_stats.cache_hit_rate < self.CACHE_HIT_RATE_THRESHOLD:
-            cache_savings = (
-                overall_stats.total_steps * self.COST_PER_AI_VISION_CALL * self.CACHE_SAVINGS_RATE
+            cache_savings = overall_stats.total_steps * self.COST_PER_AI_VISION_CALL * self.CACHE_SAVINGS_RATE
+            suggestions.append(
+                {
+                    "type": "优化缓存策略",
+                    "description": f"缓存命中率较低({overall_stats.cache_hit_rate}%)，建议优化定位缓存策略",
+                    "potential_savings": round(cache_savings, 2),
+                    "priority": "medium",
+                    "impact": "提升缓存利用率",
+                }
             )
-            suggestions.append({
-                "type": "优化缓存策略",
-                "description": f"缓存命中率较低({overall_stats.cache_hit_rate}%)，建议优化定位缓存策略",
-                "potential_savings": round(cache_savings, 2),
-                "priority": "medium",
-                "impact": "提升缓存利用率"
-            })
 
         return suggestions

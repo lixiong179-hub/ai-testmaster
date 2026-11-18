@@ -17,6 +17,7 @@
         GET    /projects/{project_id}/visual-ai/diffs               列出 Diff
         POST   /projects/{project_id}/visual-ai/diffs/{id}/approve  审批 Diff
 """
+
 from __future__ import annotations
 
 import base64
@@ -60,20 +61,14 @@ from app.services.visual_ai.comparison_engine import ComparisonEngine
 router = APIRouter(tags=["Visual AI 视觉回归"])
 
 
-async def _verify_project_owner(
-    db: Session, project_id: int, user_id: int
-) -> None:
+async def _verify_project_owner(db: Session, project_id: int, user_id: int) -> None:
     """校验项目归属当前用户，不存在或无权限抛 403。"""
     result = await execute_async(
         db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == user_id
-        ),
+        select(Project).where(Project.id == project_id, Project.user_id == user_id),
     )
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
 
 def _decode_base64(b64_str: str) -> bytes:
@@ -219,7 +214,9 @@ async def update_baseline(
         match_level=body.match_level,
         dom_snapshot_bytes=dom_bytes,
     )
-    return create_response(data=BaselineResponse.model_validate(new_baseline.to_dict()).model_dump(), msg="基线更新成功")
+    return create_response(
+        data=BaselineResponse.model_validate(new_baseline.to_dict()).model_dump(), msg="基线更新成功"
+    )
 
 
 @router.delete(

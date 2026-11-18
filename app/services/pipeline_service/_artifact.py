@@ -20,15 +20,14 @@ def create_artifact(
     provenance: dict | None = None,
 ) -> Artifact:
     from app.models.pipeline import PipelineRun
+
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
     if run is None:
         raise PipelineRunValidationError(f"run_id={run_id} 不存在")
 
     existing = db.query(Artifact).filter(Artifact.content_hash == content_hash).first()
     if existing:
-        duplicate_hash = hashlib.sha256(
-            f"{content_hash}:{run_id}:{kind}".encode()
-        ).hexdigest()
+        duplicate_hash = hashlib.sha256(f"{content_hash}:{run_id}:{kind}".encode()).hexdigest()
         artifact = Artifact(
             run_id=run_id,
             kind=kind,

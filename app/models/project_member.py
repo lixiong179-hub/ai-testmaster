@@ -22,8 +22,14 @@
 """
 
 from sqlalchemy import (
-    BigInteger, Column, DateTime, ForeignKey, Integer, String,
-    UniqueConstraint, Index,
+    BigInteger,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -61,6 +67,7 @@ class ProjectMember(Base):
     约束：
         - (project_id, user_id) 唯一约束，防止同一用户在同一项目中有多条成员记录
     """
+
     __tablename__ = "project_members"
     __table_args__ = (
         # 唯一约束：同一用户在同一项目中只能有一条成员记录
@@ -70,7 +77,9 @@ class ProjectMember(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="成员记录主键ID")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="用户ID")
     role = Column(String(20), nullable=False, default="member", comment="成员角色: owner/admin/member/viewer")
     created_at = Column(DateTime, nullable=False, default=utcnow, comment="创建时间（UTC）")
@@ -82,10 +91,7 @@ class ProjectMember(Base):
 
     def __repr__(self) -> str:
         """返回成员记录的字符串表示，便于调试与日志输出。"""
-        return (
-            f"<ProjectMember(id={self.id}, project_id={self.project_id}, "
-            f"user_id={self.user_id}, role={self.role})>"
-        )
+        return f"<ProjectMember(id={self.id}, project_id={self.project_id}, user_id={self.user_id}, role={self.role})>"
 
     def to_dict(self) -> dict:
         """转换为字典格式，供 API 响应与日志输出使用。"""

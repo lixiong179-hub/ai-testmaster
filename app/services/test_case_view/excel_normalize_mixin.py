@@ -1,5 +1,6 @@
 # [R4-5 冻结 2026-11-10] 生产代码零引用（仅测试引用），保留备用；接线或删除前请先在《架构优化执行计划清单》登记。
 """Excel格式规范化预处理Mixin - 合并单元格展开、多步骤拆分、多Sheet合并、列名智能映射。"""
+
 import os
 import re
 from typing import Any
@@ -45,6 +46,7 @@ class ExcelNormalizeMixin:
         }
         try:
             import pandas as pd
+
             xl = pd.ExcelFile(file_path)
             sheet_names = xl.sheet_names
             if "用例信息" in sheet_names and "测试步骤" in sheet_names:
@@ -66,11 +68,13 @@ class ExcelNormalizeMixin:
                 result["issues"].extend(multi_step_issues)
             if len(sheet_names) > 1:
                 result["normalization_needed"] = True
-                result["issues"].append({
-                    "type": "multi_sheet",
-                    "sheet_count": len(sheet_names),
-                    "suggestion": f"{len(sheet_names)}个Sheet将合并导入，每个Sheet作为一个模块",
-                })
+                result["issues"].append(
+                    {
+                        "type": "multi_sheet",
+                        "sheet_count": len(sheet_names),
+                        "suggestion": f"{len(sheet_names)}个Sheet将合并导入，每个Sheet作为一个模块",
+                    }
+                )
             column_mapping = self._infer_column_mapping(df.columns.tolist())
             result["column_mapping"] = {
                 "detected": column_mapping,
@@ -96,6 +100,7 @@ class ExcelNormalizeMixin:
     ) -> str:
         import pandas as pd
         import tempfile
+
         options = normalize_options or {
             "expand_merged_cells": True,
             "split_multi_step": True,
@@ -119,9 +124,7 @@ class ExcelNormalizeMixin:
                 if rename_map:
                     df = df.rename(columns=rename_map)
             if options.get("expand_merged_cells", True):
-                merged_cols = [
-                    issue["column"] for issue in self._detect_merged_cells(df)
-                ]
+                merged_cols = [issue["column"] for issue in self._detect_merged_cells(df)]
                 df = self._expand_merged_cells(df, merged_cols)
             if options.get("split_multi_step", True):
                 df = self._split_multi_step_cells(df)
@@ -148,12 +151,14 @@ class ExcelNormalizeMixin:
                 if null_count > 0:
                     first_valid = df[col].dropna().iloc[0] if not df[col].dropna().empty else None
                     if first_valid is not None and null_count > len(df) * 0.1:
-                        issues.append({
-                            "type": "merged_cells",
-                            "column": col,
-                            "null_count": int(null_count),
-                            "suggestion": f"列'{col}'有{null_count}个空值，可能是合并单元格，建议展开填充",
-                        })
+                        issues.append(
+                            {
+                                "type": "merged_cells",
+                                "column": col,
+                                "null_count": int(null_count),
+                                "suggestion": f"列'{col}'有{null_count}个空值，可能是合并单元格，建议展开填充",
+                            }
+                        )
         except Exception as e:
             logger.debug(f"合并单元格检测异常: {e}")
         return issues
@@ -164,26 +169,29 @@ class ExcelNormalizeMixin:
             step_col = next((c for c in ["操作步骤", "步骤描述", "action"] if c in columns), None)
             if step_col is None:
                 return issues
-            multi_step_pattern = re.compile(r'(?:【\d+】|\[\d+\])')
+            multi_step_pattern = re.compile(r"(?:【\d+】|\[\d+\])")
             for idx, row in df.iterrows():
                 val = str(row.get(step_col, ""))
                 if multi_step_pattern.search(val) and (val.count("【") + val.count("[")) > 1:
-                    issues.append({
-                        "type": "multi_step_in_cell",
-                        "row": int(idx) + 2,
-                        "cell": step_col,
-                        "suggestion": f"第{int(idx) + 2}行的操作步骤包含多个步骤编号，建议拆分为独立步骤",
-                    })
+                    issues.append(
+                        {
+                            "type": "multi_step_in_cell",
+                            "row": int(idx) + 2,
+                            "cell": step_col,
+                            "suggestion": f"第{int(idx) + 2}行的操作步骤包含多个步骤编号，建议拆分为独立步骤",
+                        }
+                    )
         except Exception as e:
             logger.debug(f"多步骤检测异常: {e}")
         return issues
 
     def _expand_merged_cells(self, df: Any, merged_columns: list[str] | None = None) -> Any:
         try:
-            cols_to_fill = merged_columns if merged_columns else [
-                col for col in df.columns
-                if df[col].isna().any() and df[col].isna().sum() > len(df) * 0.1
-            ]
+            cols_to_fill = (
+                merged_columns
+                if merged_columns
+                else [col for col in df.columns if df[col].isna().any() and df[col].isna().sum() > len(df) * 0.1]
+            )
             for col in cols_to_fill:
                 if col in df.columns and df[col].isna().any():
                     df[col] = df[col].ffill()
@@ -195,12 +203,13 @@ class ExcelNormalizeMixin:
     def _split_multi_step_cells(self, df: Any) -> Any:
         try:
             import pandas as pd
+
             step_col = next((c for c in ["操作步骤", "步骤描述", "action"] if c in df.columns), None)
             if step_col is None:
                 return df
             expected_col = next((c for c in ["期望结果", "预期结果", "expected_result"] if c in df.columns), None)
             new_rows: list[dict[str, Any]] = []
-            step_pattern = re.compile(r'(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)', re.DOTALL)
+            step_pattern = re.compile(r"(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)", re.DOTALL)
             for _, row in df.iterrows():
                 step_val = str(row.get(step_col, ""))
                 matches = step_pattern.findall(step_val)

@@ -12,6 +12,7 @@
 
 所有端点均需要Bearer令牌认证。
 """
+
 import asyncio
 import json
 from typing import Any
@@ -68,21 +69,28 @@ async def _run_quality_feedback_for_cases(
         case_title = case.get("title", "")
 
         def on_round(
-            round_idx: int, rst_status: str, issues: list[str],
+            round_idx: int,
+            rst_status: str,
+            issues: list[str],
             _title: str = case_title,
         ) -> None:
-            regen_events.append({
-                "round": round_idx, "status": rst_status,
-                "issues_count": len(issues), "case_title": _title,
-            })
+            regen_events.append(
+                {
+                    "round": round_idx,
+                    "status": rst_status,
+                    "issues_count": len(issues),
+                    "case_title": _title,
+                }
+            )
 
         case, rst_status, _ = await run_quality_feedback_loop(
-            case, regen_fn, build_quality_feedback_text, on_round=on_round,
+            case,
+            regen_fn,
+            build_quality_feedback_text,
+            on_round=on_round,
         )
         if rst_status == "rejected":
-            logger.warning(
-                f"流式端点：用例经反馈闭环仍rejected已丢弃: {case.get('title', '')}"
-            )
+            logger.warning(f"流式端点：用例经反馈闭环仍rejected已丢弃: {case.get('title', '')}")
         else:
             final_cases.append(case)
 
@@ -108,15 +116,11 @@ async def ai_enhanced_generate_stream(
 
     project_result = await execute_async(
         db,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
 
     if not description or len(description.strip()) < 5:
         raise HTTPException(
@@ -151,14 +155,16 @@ async def ai_enhanced_generate_stream(
                 yield f"data: {json.dumps({'code': 0, 'message': '构建流程图Prompt...', 'data': {'status': 'building_prompt'}}, ensure_ascii=False)}\n\n"
                 prompt_data = _build_graph_prompt_data(
                     flow_sort_data=request.flow_sort_data,
-                    context=context, description=description,
+                    context=context,
+                    description=description,
                     priority=request.priority,
                     case_type=request.case_type,
                 )
             elif request.enhanced_mode:
                 yield f"data: {json.dumps({'code': 0, 'message': '构建增强Prompt...', 'data': {'status': 'building_prompt'}}, ensure_ascii=False)}\n\n"
                 prompt_data = _build_linear_prompt_data(
-                    context=context, description=description,
+                    context=context,
+                    description=description,
                     priority=request.priority,
                     case_type=request.case_type,
                     exec_mode=request.exec_mode,
@@ -167,8 +173,10 @@ async def ai_enhanced_generate_stream(
                 yield f"data: {json.dumps({'code': 0, 'message': '基础模式生成中...', 'data': {'status': 'generating'}}, ensure_ascii=False)}\n\n"
                 generated_case = await asyncio.to_thread(generate_test_case, description)
                 response_data = _format_case_response(
-                    generated_case=generated_case, project_id=project_id,
-                    description=description, priority=request.priority,
+                    generated_case=generated_case,
+                    project_id=project_id,
+                    description=description,
+                    priority=request.priority,
                     case_type=request.case_type,
                 )
                 yield f"data: {json.dumps({'code': 0, 'message': '生成完成', 'data': response_data}, ensure_ascii=False, default=str)}\n\n"
@@ -176,7 +184,9 @@ async def ai_enhanced_generate_stream(
 
             yield f"data: {json.dumps({'code': 0, 'message': 'AI生成中...', 'data': {'status': 'generating'}}, ensure_ascii=False)}\n\n"
             generated_case = await asyncio.to_thread(
-                generate_test_case_enhanced, prompt_data, ai_metadata,
+                generate_test_case_enhanced,
+                prompt_data,
+                ai_metadata,
             )
 
             cases_list = generated_case if isinstance(generated_case, list) else [generated_case]
@@ -190,7 +200,9 @@ async def ai_enhanced_generate_stream(
                 if extra_ctx.get("quality_signals"):
                     new_prompt_data["quality_signals"] = extra_ctx["quality_signals"]
                 result = await asyncio.to_thread(
-                    generate_test_case_enhanced, new_prompt_data, ai_metadata,
+                    generate_test_case_enhanced,
+                    new_prompt_data,
+                    ai_metadata,
                 )
                 if isinstance(result, list) and result and isinstance(result[0], dict):
                     return result[0]
@@ -199,30 +211,32 @@ async def ai_enhanced_generate_stream(
                 return None
 
             valid_cases, regen_events = await _run_quality_feedback_for_cases(
-                cases_list, _regen_case,
+                cases_list,
+                _regen_case,
             )
 
             # Task 15.3: 推送重生成进度事件（仅重生成轮次，首轮不推送）
             for event in regen_events:
                 if event.get("round", 0) > 0:
                     regen_msg = json.dumps(
-                        {'code': 0, 'message': f'重生成第{event["round"]}轮',
-                         'data': {'status': 'regen', **event}},
+                        {"code": 0, "message": f"重生成第{event['round']}轮", "data": {"status": "regen", **event}},
                         ensure_ascii=False,
                     )
                     yield f"data: {regen_msg}\n\n"
 
             if not valid_cases:
                 fail_msg = json.dumps(
-                    {'code': 1, 'message': '生成的用例均未通过质量校验，请调整描述后重试', 'data': None},
+                    {"code": 1, "message": "生成的用例均未通过质量校验，请调整描述后重试", "data": None},
                     ensure_ascii=False,
                 )
                 yield f"data: {fail_msg}\n\n"
                 return
             response_data = [
                 _format_case_response(
-                    generated_case=case_item, project_id=project_id,
-                    description=description, priority=request.priority,
+                    generated_case=case_item,
+                    project_id=project_id,
+                    description=description,
+                    priority=request.priority,
                     case_type=request.case_type,
                 )
                 for case_item in valid_cases
@@ -262,15 +276,11 @@ async def batch_generate_test_cases_stream(
     """
     project_result = await execute_async(
         db,
-        select(Project).where(
-            Project.id == request.project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == request.project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
     from app.services.test_case_generation import TestCaseGenerationService
     from app.utils.async_sync_bridge import iter_async_gen_in_thread
@@ -311,6 +321,4 @@ async def batch_generate_test_cases_stream(
         finally:
             stream_db.close()
 
-    return StreamingResponse(
-        generate_progress(), media_type="text/event-stream"
-    )
+    return StreamingResponse(generate_progress(), media_type="text/event-stream")

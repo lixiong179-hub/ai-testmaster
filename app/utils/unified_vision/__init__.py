@@ -27,10 +27,14 @@ Mixin模块：
     model = UnifiedVisionModel(model_type=VisionModelType.OPENAI)
     result = model.analyze_image(screenshot_bytes, "请描述这个页面")
 """
+
 from typing import Optional
 
 from app.utils.unified_vision.model_types import (
-    VisionModelType, ElementInfo, ModelProviderConfig, MODEL_PROVIDER_CONFIGS,
+    VisionModelType,
+    ElementInfo,
+    ModelProviderConfig,
+    MODEL_PROVIDER_CONFIGS,
     resolve_default_model_type,
 )
 from app.utils.unified_vision.request_builder_mixin import RequestBuilderMixin
@@ -123,15 +127,15 @@ def set_default_vision_model(model: UnifiedVisionModel) -> None:
 
 
 __all__ = [
-    'UnifiedVisionModel',
-    'VisionModelType',
-    'ElementInfo',
-    'ModelProviderConfig',
-    'MODEL_PROVIDER_CONFIGS',
-    'RequestBuilderMixin',
-    'ResponseParserMixin',
-    'APIMethodsMixin',
-    'HTTPClientMixin',
-    'get_default_vision_model',
-    'set_default_vision_model',
+    "UnifiedVisionModel",
+    "VisionModelType",
+    "ElementInfo",
+    "ModelProviderConfig",
+    "MODEL_PROVIDER_CONFIGS",
+    "RequestBuilderMixin",
+    "ResponseParserMixin",
+    "APIMethodsMixin",
+    "HTTPClientMixin",
+    "get_default_vision_model",
+    "set_default_vision_model",
 ]

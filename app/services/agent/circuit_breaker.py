@@ -11,6 +11,7 @@ open 持续 recovery_seconds 后转 half_open 允许 1 次试探，试探成功�
 
 存储：Redis state/failures/opened_at/probe 四 key 按 agent_type 隔离；异常降级 dict。
 """
+
 from __future__ import annotations
 
 import time
@@ -50,8 +51,7 @@ class CircuitBreaker:
         self._redis = redis_client
         self._threshold = threshold if threshold is not None else settings.AI_AGENT_CIRCUIT_BREAKER_THRESHOLD
         self._recovery_seconds = (
-            recovery_seconds if recovery_seconds is not None
-            else settings.AI_AGENT_CIRCUIT_BREAKER_RECOVERY_SECONDS
+            recovery_seconds if recovery_seconds is not None else settings.AI_AGENT_CIRCUIT_BREAKER_RECOVERY_SECONDS
         )
         self._memory_state: dict[str, dict[str, Any]] = {}
 

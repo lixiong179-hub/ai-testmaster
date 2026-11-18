@@ -14,6 +14,7 @@ action 枚举与 TestStep.action_type 注释保持一致
 （click/input/navigate/verify/wait/scroll/hover/select/captcha/refresh/keypress），
 集中维护避免多处硬编码。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -26,10 +27,21 @@ from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
 from app.services.case_number_service import CaseNumberService
 
 # 合法 action 枚举，与 TestStep.action_type 对齐
-VALID_ACTIONS: frozenset[str] = frozenset({
-    "click", "input", "navigate", "verify", "wait", "scroll",
-    "hover", "select", "captcha", "refresh", "keypress",
-})
+VALID_ACTIONS: frozenset[str] = frozenset(
+    {
+        "click",
+        "input",
+        "navigate",
+        "verify",
+        "wait",
+        "scroll",
+        "hover",
+        "select",
+        "captcha",
+        "refresh",
+        "keypress",
+    }
+)
 
 # 工具入参 priority(字符串) → 模型 priority(1高/2中/3低)
 _PRIORITY_MAP: dict[str, int] = {"high": 1, "medium": 2, "low": 3}
@@ -134,8 +146,7 @@ class CreateTestCaseTool(Tool):
     def _derive_expected(steps: list[dict[str, Any]]) -> str:
         """推导用例整体预期结果：取最后一步 expected，缺失则用默认文案。"""
         last_expected = next(
-            (s.get("expected") for s in reversed(steps)
-             if isinstance(s, dict) and s.get("expected")),
+            (s.get("expected") for s in reversed(steps) if isinstance(s, dict) and s.get("expected")),
             None,
         )
         return last_expected or "所有步骤执行成功"
@@ -147,17 +158,19 @@ class CreateTestCaseTool(Tool):
             if not isinstance(raw, dict):
                 continue
             norm = _normalize_step(raw)
-            db.add(TestStep(
-                test_case_id=case_id,
-                step_number=idx,
-                action=norm["action_text"],
-                expected_result=norm["expected"],
-                action_type=norm["action_type"],
-                input_value=norm["input_value"],
-                target_element=norm["target_element"],
-                is_business_view=1,
-                is_technical_view=1,
-            ))
+            db.add(
+                TestStep(
+                    test_case_id=case_id,
+                    step_number=idx,
+                    action=norm["action_text"],
+                    expected_result=norm["expected"],
+                    action_type=norm["action_type"],
+                    input_value=norm["input_value"],
+                    target_element=norm["target_element"],
+                    is_business_view=1,
+                    is_technical_view=1,
+                )
+            )
 
 
 class ValidateTestCaseSyntaxTool(Tool):
@@ -192,9 +205,7 @@ class ValidateTestCaseSyntaxTool(Tool):
                 warnings.append(f"步骤 {idx} 缺少 action")
                 continue
             if action not in VALID_ACTIONS:
-                warnings.append(
-                    f"步骤 {idx} action 非法: {action}，合法值 {sorted(VALID_ACTIONS)}"
-                )
+                warnings.append(f"步骤 {idx} action 非法: {action}，合法值 {sorted(VALID_ACTIONS)}")
         return ToolResult(
             success=True,
             output={"valid": len(warnings) == 0, "warnings": warnings},

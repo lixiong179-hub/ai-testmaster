@@ -18,6 +18,7 @@
     - httpx: HTTP客户端库
     - app.utils.unified_vision.model_types: 模型类型和配置
 """
+
 import os
 import httpx
 from typing import Any
@@ -110,6 +111,7 @@ class HTTPClientMixin:
             return value
         try:
             from app.core.config import settings
+
             return getattr(settings, settings_attr, default)
         except Exception:
             return default

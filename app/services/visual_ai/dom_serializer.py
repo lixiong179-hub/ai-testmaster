@@ -15,6 +15,7 @@
     - 容错：解析失败时返回空树，不阻断对比流程
     - 可读：Diff 报告使用 Markdown 格式，便于审批人理解
 """
+
 from __future__ import annotations
 
 import json
@@ -221,15 +222,11 @@ def _compare_nodes(
         if child_key in curr_children:
             _compare_nodes(base_child, curr_children[child_key], child_key, result)
         else:
-            result.entries.append(
-                DOMDiffEntry(change_type="removed", path=child_key, detail=f"tag={base_child.tag}")
-            )
+            result.entries.append(DOMDiffEntry(change_type="removed", path=child_key, detail=f"tag={base_child.tag}"))
 
     for child_key, curr_child in curr_children.items():
         if child_key not in base_children:
-            result.entries.append(
-                DOMDiffEntry(change_type="added", path=child_key, detail=f"tag={curr_child.tag}")
-            )
+            result.entries.append(DOMDiffEntry(change_type="added", path=child_key, detail=f"tag={curr_child.tag}"))
 
 
 def child_path(parent_path: str, node: DOMTreeNode) -> str:

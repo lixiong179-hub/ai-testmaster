@@ -6,6 +6,7 @@
 - 数据驱动测试（多组数据驱动同一步骤）
 - 参数类型自动推断
 """
+
 import re
 from typing import Any
 from loguru import logger
@@ -15,17 +16,13 @@ class TestDataParameterizer:
     """测试数据参数化引擎"""
 
     # 变量占位符正则表达式：匹配 {{variable}} 格式
-    VARIABLE_PATTERN = re.compile(r'\{\{(\w+)\}\}')
+    VARIABLE_PATTERN = re.compile(r"\{\{(\w+)\}\}")
 
     def __init__(self):
         """初始化参数化引擎"""
         pass
 
-    def parameterize_steps(
-        self,
-        steps: list[dict[str, Any]],
-        test_data: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def parameterize_steps(self, steps: list[dict[str, Any]], test_data: dict[str, Any]) -> list[dict[str, Any]]:
         """
         将测试数据注入测试步骤
 
@@ -42,11 +39,7 @@ class TestDataParameterizer:
             parameterized_steps.append(parameterized_step)
         return parameterized_steps
 
-    def _parameterize_step(
-        self,
-        step: dict[str, Any],
-        test_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _parameterize_step(self, step: dict[str, Any], test_data: dict[str, Any]) -> dict[str, Any]:
         """
         参数化单个步骤
 
@@ -61,41 +54,27 @@ class TestDataParameterizer:
 
         # 参数化步骤描述
         if "description" in step:
-            parameterized["description"] = self._replace_variables(
-                step["description"], test_data
-            )
+            parameterized["description"] = self._replace_variables(step["description"], test_data)
 
         # 参数化操作
         if "action" in step:
-            parameterized["action"] = self._replace_variables(
-                step["action"], test_data
-            )
+            parameterized["action"] = self._replace_variables(step["action"], test_data)
 
         # 参数化预期结果
         if "expected_result" in step:
-            parameterized["expected_result"] = self._replace_variables(
-                step["expected_result"], test_data
-            )
+            parameterized["expected_result"] = self._replace_variables(step["expected_result"], test_data)
 
         # 参数化输入值
         if "input_value" in step:
-            parameterized["input_value"] = self._replace_variables(
-                step["input_value"], test_data
-            )
+            parameterized["input_value"] = self._replace_variables(step["input_value"], test_data)
 
         # 参数化定位器
         if "locator" in step:
-            parameterized["locator"] = self._replace_variables(
-                step["locator"], test_data
-            )
+            parameterized["locator"] = self._replace_variables(step["locator"], test_data)
 
         return parameterized
 
-    def _replace_variables(
-        self,
-        text: str,
-        test_data: dict[str, Any]
-    ) -> str:
+    def _replace_variables(self, text: str, test_data: dict[str, Any]) -> str:
         """
         替换文本中的变量占位符
 
@@ -139,9 +118,7 @@ class TestDataParameterizer:
         return list(variables)
 
     def validate_data_completeness(
-        self,
-        steps: list[dict[str, Any]],
-        test_data: dict[str, Any]
+        self, steps: list[dict[str, Any]], test_data: dict[str, Any]
     ) -> tuple[bool, list[str]]:
         """
         验证测试数据是否完整覆盖所有变量
@@ -158,9 +135,7 @@ class TestDataParameterizer:
         return len(missing_vars) == 0, missing_vars
 
     def create_data_driven_steps(
-        self,
-        steps: list[dict[str, Any]],
-        data_sets: list[dict[str, Any]]
+        self, steps: list[dict[str, Any]], data_sets: list[dict[str, Any]]
     ) -> list[list[dict[str, Any]]]:
         """
         创建数据驱动的测试步骤（多组数据）
@@ -178,14 +153,10 @@ class TestDataParameterizer:
                 parameterized = self.parameterize_steps(steps, data)
                 result.append(parameterized)
             except Exception as e:
-                logger.error(f"参数化第{i+1}组数据失败: {e}")
+                logger.error(f"参数化第{i + 1}组数据失败: {e}")
         return result
 
-    def generate_parameterized_description(
-        self,
-        description: str,
-        test_data: dict[str, Any]
-    ) -> str:
+    def generate_parameterized_description(self, description: str, test_data: dict[str, Any]) -> str:
         """
         生成参数化后的描述文本
 

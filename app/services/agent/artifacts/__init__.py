@@ -11,6 +11,7 @@
     - FailureHistoryArtifact : 失败历史
     - UserIntentArtifact : 用户意图
 """
+
 from app.services.agent.artifacts.application_state_artifact import (
     ApplicationStateArtifact,
 )

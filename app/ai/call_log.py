@@ -21,7 +21,14 @@ AI 调用日志模块
 """
 
 from sqlalchemy import (
-    Column, Integer, String, DateTime, ForeignKey, Text, Numeric, text,
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Text,
+    Numeric,
+    text,
 )
 from sqlalchemy.orm import Session
 
@@ -38,12 +45,16 @@ class AICallLog(Base):
     表关系：
         - 多对一 → PipelineRun（关联运行，可选）
     """
+
     __tablename__ = "ai_call_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     run_id = Column(
-        Integer, ForeignKey("pipeline_runs.id", ondelete="SET NULL"),
-        nullable=True, index=True, comment="关联运行ID",
+        Integer,
+        ForeignKey("pipeline_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联运行ID",
     )
     step_name = Column(String(64), nullable=True, comment="Step 名称")
     model = Column(String(64), nullable=False, comment="使用的AI模型")
@@ -54,13 +65,19 @@ class AICallLog(Base):
     status = Column(String(20), nullable=False, default="success", comment="状态: success/failed")
     error_message = Column(Text, nullable=True, comment="错误信息")
     created_at = Column(
-        DateTime, nullable=False, default=utcnow,
-        server_default=text("CURRENT_TIMESTAMP"), comment="创建时间",
+        DateTime,
+        nullable=False,
+        default=utcnow,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="创建时间",
     )
     # 审计增强字段
     generation_batch_id = Column(
-        Integer, ForeignKey("generation_batches.id", ondelete="SET NULL"),
-        nullable=True, index=True, comment="关联生成批次ID",
+        Integer,
+        ForeignKey("generation_batches.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联生成批次ID",
     )
     scenario_type = Column(String(50), nullable=True, comment="资料组合场景")
     generation_strategy = Column(String(50), nullable=True, comment="生成策略")
@@ -185,8 +202,6 @@ def get_run_cost(db: Session, run_id: int) -> float:
     from sqlalchemy import func
 
     total = (
-        db.query(func.coalesce(func.sum(AICallLog.cost_usd), 0))
-        .filter(AICallLog.run_id == run_id)
-        .scalar()
+        db.query(func.coalesce(func.sum(AICallLog.cost_usd), 0)).filter(AICallLog.run_id == run_id).scalar()
     ) or 0.0
     return float(total)

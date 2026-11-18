@@ -12,6 +12,7 @@
       （CPython GIL 保证读 dict 原子性，写锁防止并发 register 覆盖）
     - 启用/禁用：disabled 的 Agent 不被 Runtime 接受，用于运维降级
 """
+
 from __future__ import annotations
 
 import threading

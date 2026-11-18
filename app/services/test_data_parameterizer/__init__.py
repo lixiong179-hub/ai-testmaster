@@ -1,5 +1,5 @@
-
 """参数化解析器 - 解析${namespace.param}语法为实际值。"""
+
 import re
 from typing import Optional
 from collections.abc import Callable
@@ -22,17 +22,17 @@ class TestDataParameterizer(ParameterHandlerMixin):
 
     __test__ = False
 
-    PARAM_PATTERN = re.compile(r'\$\{([^}]+)\}')
+    PARAM_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
     def __init__(self, context: ParameterContext | None = None) -> None:
         self.context = context or ParameterContext(execution_id=self._generate_execution_id())
         self.generator = TestDataGenerator()
         self._param_handlers: dict[str, Callable[[str], str]] = {
-            'random': self._handle_random_param,
-            'date': self._handle_date_param,
-            'user': self._handle_user_param,
-            'project': self._handle_project_param,
-            'execution': self._handle_execution_param,
+            "random": self._handle_random_param,
+            "date": self._handle_date_param,
+            "user": self._handle_user_param,
+            "project": self._handle_project_param,
+            "execution": self._handle_execution_param,
         }
 
     def parse(self, text: str) -> str:
@@ -57,13 +57,13 @@ class TestDataParameterizer(ParameterHandlerMixin):
         if cache_key in self.context.cached_values:
             return self.context.cached_values[cache_key]
 
-        parts = param_expr.split('.')
+        parts = param_expr.split(".")
         if len(parts) < 2:
             logger.warning(f"无效的参数表达式: {param_expr}")
             return f"${{{param_expr}}}"
 
         namespace = parts[0]
-        param_name = '.'.join(parts[1:])
+        param_name = ".".join(parts[1:])
 
         handler = self._param_handlers.get(namespace)
         if not handler:
@@ -94,14 +94,13 @@ def parse_parameters(text: str, context: ParameterContext | None = None) -> str:
 
 
 def create_parameter_context(
-    execution_id: str | None = None,
-    user_id: int | None = None,
-    project_id: int | None = None
+    execution_id: str | None = None, user_id: int | None = None, project_id: int | None = None
 ) -> ParameterContext:
     """便捷函数 - 创建参数化上下文。"""
     from datetime import datetime
+
     return ParameterContext(
         execution_id=execution_id or f"EXEC_{datetime.now().strftime('%Y%m%d%H%M%S')}",
         user_id=user_id,
-        project_id=project_id
+        project_id=project_id,
     )

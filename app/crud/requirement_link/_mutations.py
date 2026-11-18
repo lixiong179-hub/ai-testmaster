@@ -6,15 +6,12 @@ from app.crud.requirement_link._queries import get_requirement_link_by_id
 
 
 def update_requirement_link(
-    db: Session,
-    link_id: int,
-    project_id: int | None = None,
-    **kwargs
+    db: Session, link_id: int, project_id: int | None = None, **kwargs
 ) -> RequirementLink | None:
     link = get_requirement_link_by_id(db, link_id, project_id)
     if not link:
         return None
-    protected_fields = ['id', 'project_id', 'created_by', 'create_time']
+    protected_fields = ["id", "project_id", "created_by", "create_time"]
     for key, value in kwargs.items():
         if key not in protected_fields and hasattr(link, key):
             setattr(link, key, value)
@@ -24,11 +21,7 @@ def update_requirement_link(
     return link
 
 
-def delete_requirement_link(
-    db: Session,
-    link_id: int,
-    project_id: int | None = None
-) -> bool:
+def delete_requirement_link(db: Session, link_id: int, project_id: int | None = None) -> bool:
     link = get_requirement_link_by_id(db, link_id, project_id)
     if not link:
         return False
@@ -38,10 +31,7 @@ def delete_requirement_link(
 
 
 def update_link_cache(
-    db: Session,
-    link_id: int,
-    cached_content: str,
-    fetch_status: str = "success"
+    db: Session, link_id: int, cached_content: str, fetch_status: str = "success"
 ) -> RequirementLink | None:
     link = db.query(RequirementLink).filter(RequirementLink.id == link_id).first()
     if not link:
@@ -55,29 +45,25 @@ def update_link_cache(
     return link
 
 
-def get_active_links_by_project(
-    db: Session,
-    project_id: int,
-    user_id: int
-) -> list[RequirementLink]:
-    return db.query(RequirementLink).join(Project).filter(
-        RequirementLink.project_id == project_id,
-        Project.user_id == user_id,
-        RequirementLink.is_active.is_(True)
-    ).order_by(RequirementLink.link_type, RequirementLink.create_time.desc()).all()
+def get_active_links_by_project(db: Session, project_id: int, user_id: int) -> list[RequirementLink]:
+    return (
+        db.query(RequirementLink)
+        .join(Project)
+        .filter(
+            RequirementLink.project_id == project_id, Project.user_id == user_id, RequirementLink.is_active.is_(True)
+        )
+        .order_by(RequirementLink.link_type, RequirementLink.create_time.desc())
+        .all()
+    )
 
 
-def toggle_link_active(
-    db: Session,
-    link_id: int,
-    project_id: int,
-    user_id: int
-) -> RequirementLink | None:
-    link = db.query(RequirementLink).join(Project).filter(
-        RequirementLink.id == link_id,
-        RequirementLink.project_id == project_id,
-        Project.user_id == user_id
-    ).first()
+def toggle_link_active(db: Session, link_id: int, project_id: int, user_id: int) -> RequirementLink | None:
+    link = (
+        db.query(RequirementLink)
+        .join(Project)
+        .filter(RequirementLink.id == link_id, RequirementLink.project_id == project_id, Project.user_id == user_id)
+        .first()
+    )
     if not link:
         return None
     link.is_active = not link.is_active
@@ -87,12 +73,10 @@ def toggle_link_active(
     return link
 
 
-def check_link_exists(
-    db: Session,
-    project_id: int,
-    link_url: str
-) -> bool:
-    return db.query(RequirementLink).filter(
-        RequirementLink.project_id == project_id,
-        RequirementLink.link_url == link_url
-    ).first() is not None
+def check_link_exists(db: Session, project_id: int, link_url: str) -> bool:
+    return (
+        db.query(RequirementLink)
+        .filter(RequirementLink.project_id == project_id, RequirementLink.link_url == link_url)
+        .first()
+        is not None
+    )

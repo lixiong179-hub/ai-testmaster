@@ -1,5 +1,5 @@
-"""复杂度评估Mixin - 评估测试用例的步骤复杂度。
-"""
+"""复杂度评估Mixin - 评估测试用例的步骤复杂度。"""
+
 from loguru import logger
 
 from app.models.test_case import TestStep, TestCasePreconditionStep
@@ -7,8 +7,9 @@ from app.services.case_quality.models import ComplexityScore
 
 
 class ComplexityMixin:
-
-    def _analyze_complexity(self, steps: list[TestStep], precondition_steps: list[TestCasePreconditionStep]) -> ComplexityScore:
+    def _analyze_complexity(
+        self, steps: list[TestStep], precondition_steps: list[TestCasePreconditionStep]
+    ) -> ComplexityScore:
         score = ComplexityScore()
 
         score.step_count = len(steps)
@@ -70,5 +71,7 @@ class ComplexityMixin:
         else:
             score.level = "very_complex"
 
-        logger.info(f"复杂度分析: 步骤数={score.step_count}, 动作种类={score.action_variety}, 得分={score.score}, 等级={score.level}")
+        logger.info(
+            f"复杂度分析: 步骤数={score.step_count}, 动作种类={score.action_variety}, 得分={score.score}, 等级={score.level}"
+        )
         return score

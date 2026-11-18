@@ -15,6 +15,7 @@ AI用例生成流程中对页面流程图（FlowSortEditor）的编辑结果，�
 事务处理方式：
     - 写操作自动commit
 """
+
 from typing import Any
 from sqlalchemy.orm import Session
 from app.models.project_flow_data import ProjectFlowData
@@ -40,11 +41,7 @@ def save_project_flow_data(
     Returns:
         ProjectFlowData: 保存后的流程数据对象（已commit并refresh）
     """
-    existing = (
-        db.query(ProjectFlowData)
-        .filter(ProjectFlowData.project_id == project_id)
-        .first()
-    )
+    existing = db.query(ProjectFlowData).filter(ProjectFlowData.project_id == project_id).first()
 
     if existing:
         existing.flow_data = flow_data
@@ -79,8 +76,4 @@ def get_project_flow_data(
     Returns:
         Optional[ProjectFlowData]: 流程数据对象，不存在则返回None
     """
-    return (
-        db.query(ProjectFlowData)
-        .filter(ProjectFlowData.project_id == project_id)
-        .first()
-    )
+    return db.query(ProjectFlowData).filter(ProjectFlowData.project_id == project_id).first()

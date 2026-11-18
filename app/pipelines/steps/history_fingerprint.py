@@ -8,6 +8,7 @@
     2. 检测 model_version 不匹配的过期 summary，触发增量重算
     3. 输出 history_fingerprints 产物，供后续 Step 消费
 """
+
 import hashlib
 import json
 from typing import Any, ClassVar
@@ -61,7 +62,8 @@ class HistoryFingerprint(PipelineStep):
         if stale_count > 0:
             logger.info(
                 "检测到 {} 条过期 summary，触发增量重算 (project_id={})",
-                stale_count, project_id,
+                stale_count,
+                project_id,
             )
             backfilled_count = _incremental_backfill(ctx, project_id)
 
@@ -171,15 +173,19 @@ def _fingerprint_source_signature(ctx: PipelineContext, project_id: int) -> str:
     from app.models.test_case import TestCase
     from sqlalchemy import func
 
-    row = ctx.db.query(
-        func.count(TestCase.id),
-        func.max(TestCase.id),
-        func.max(TestCase.update_time),
-    ).filter(
-        TestCase.project_id == project_id,
-        TestCase.lifecycle_status != "archived",
-        TestCase.is_deleted.is_(False),
-    ).first()
+    row = (
+        ctx.db.query(
+            func.count(TestCase.id),
+            func.max(TestCase.id),
+            func.max(TestCase.update_time),
+        )
+        .filter(
+            TestCase.project_id == project_id,
+            TestCase.lifecycle_status != "archived",
+            TestCase.is_deleted.is_(False),
+        )
+        .first()
+    )
     return str(row)
 
 
@@ -230,7 +236,8 @@ def _incremental_backfill(ctx: PipelineContext, project_id: int) -> int:
         if not ctx.check_budget():
             logger.warning(
                 "预算不足，增量回填在 {} 条后停止 (project_id={})",
-                backfilled, project_id,
+                backfilled,
+                project_id,
             )
             break
         try:
@@ -254,7 +261,9 @@ def _incremental_backfill(ctx: PipelineContext, project_id: int) -> int:
                 backfilled += 1
         except Exception as e:
             logger.warning(
-                "增量回填用例 #{} summary 失败: {}", case.id, e,
+                "增量回填用例 #{} summary 失败: {}",
+                case.id,
+                e,
             )
 
     if backfilled > 0:
@@ -278,10 +287,8 @@ def _build_summary_prompt(case: Any) -> str:
         f"测试步骤: {steps_text}",
         f"预期结果: {case.expected_result or '无'}",
     ]
-    return (
-        "请为以下测试用例生成一段简洁的中文摘要（不超过200字），"
-        "概括用例的测试目的和关键验证点：\n\n"
-        + "\n".join(parts)
+    return "请为以下测试用例生成一段简洁的中文摘要（不超过200字），概括用例的测试目的和关键验证点：\n\n" + "\n".join(
+        parts
     )
 
 

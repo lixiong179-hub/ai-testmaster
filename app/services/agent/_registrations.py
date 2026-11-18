@@ -11,6 +11,7 @@ try/except 容忍重复导入与注册异常，避免阻断包加载。
     4. locator_healing     - 定位器修复
     5. visual_validation   - 视觉校验（Phase 2）
 """
+
 from __future__ import annotations
 
 from loguru import logger

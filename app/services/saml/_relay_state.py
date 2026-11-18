@@ -13,6 +13,7 @@ RelayState 用途：
     - TTL 控制：默认 600 秒过期，与 SAML_RELAYSTATE_TTL_SECONDS 配置一致
     - Redis 降级：Redis 不可用时自动降级到进程内内存存储
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ def _get_redis_client():
     """
     try:
         import redis
+
         redis_url = getattr(settings, "REDIS_URL", None)
         if not redis_url:
             return None

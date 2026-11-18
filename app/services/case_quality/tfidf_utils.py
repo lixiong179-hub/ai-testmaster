@@ -8,6 +8,7 @@
     - 中文文本采用字符 bigram 分词，英文按空白分词，兼顾中英混合场景
     - 阈值按项目规模动态调整，避免小项目误杀、大项目漏检
 """
+
 import math
 import re
 
@@ -33,11 +34,11 @@ def tokenize(text: str) -> list[str]:
     tokens: list[str] = []
 
     # 英文单词分词
-    englishWords = re.findall(r'[a-z0-9]+', normalized)
+    englishWords = re.findall(r"[a-z0-9]+", normalized)
     tokens.extend(englishWords)
 
     # 中文字符 bigram
-    chineseChars = re.findall(r'[\u4e00-\u9fff]', normalized)
+    chineseChars = re.findall(r"[\u4e00-\u9fff]", normalized)
     for i in range(len(chineseChars) - 1):
         tokens.append(chineseChars[i] + chineseChars[i + 1])
     # 单字也保留（短文本兜底）
@@ -98,7 +99,7 @@ class LightweightTfidfVectorizer:
                 for term, count in termDocCount.items()
             ]
             scoredTerms.sort(key=lambda x: x[2], reverse=True)
-            termDocCount = {term: count for term, count, _ in scoredTerms[:self.maxFeatures]}
+            termDocCount = {term: count for term, count, _ in scoredTerms[: self.maxFeatures]}
 
         self.vocabulary_ = {term: idx for idx, term in enumerate(sorted(termDocCount.keys()))}
         vocabSize = len(self.vocabulary_)
@@ -242,7 +243,7 @@ def computeDynamicThreshold(totalCases: int) -> float:
         (30, 0.78),
         (100, 0.70),
         (300, 0.62),
-        (float('inf'), 0.55),
+        (float("inf"), 0.55),
     ]
 
     prevBound = 0
@@ -277,9 +278,7 @@ def batchComputeSimilarity(
         np.ndarray: 相似度矩阵，shape=(n_targets, n_candidates)。
     """
     if not targetTexts or not candidateTexts:
-        return np.array([], dtype=np.float64).reshape(
-            len(targetTexts), len(candidateTexts)
-        )
+        return np.array([], dtype=np.float64).reshape(len(targetTexts), len(candidateTexts))
 
     # 合并所有文档构建统一词汇表
     allDocs = targetTexts + candidateTexts

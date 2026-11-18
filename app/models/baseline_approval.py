@@ -17,6 +17,7 @@
     - reviewer_id : 审批人用户 ID
     - reviewed_at : 审批时间
 """
+
 from typing import Any
 
 from sqlalchemy import (
@@ -61,14 +62,22 @@ class BaselineApproval(Base):
     )
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="审批主键ID")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
-    diff_id = Column(BigInteger, ForeignKey("visual_diffs.id", ondelete="CASCADE"), nullable=False, comment="关联的Diff ID")
-    baseline_id = Column(BigInteger, ForeignKey("visual_baselines.id", ondelete="CASCADE"), nullable=False, comment="关联的基线ID")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
+    diff_id = Column(
+        BigInteger, ForeignKey("visual_diffs.id", ondelete="CASCADE"), nullable=False, comment="关联的Diff ID"
+    )
+    baseline_id = Column(
+        BigInteger, ForeignKey("visual_baselines.id", ondelete="CASCADE"), nullable=False, comment="关联的基线ID"
+    )
 
     action = Column(String(32), nullable=False, comment="审批动作: approve/reject/update_baseline")
     comment = Column(Text, nullable=True, comment="审批意见")
 
-    reviewer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="审批人用户ID")
+    reviewer_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True, comment="审批人用户ID"
+    )
     reviewed_at = Column(DateTime, default=utcnow, nullable=False, comment="审批时间（UTC）")
     created_at = Column(DateTime, default=utcnow, nullable=False, comment="创建时间（UTC）")
 

@@ -3,6 +3,7 @@
 承载用户的自然语言请求与约束，是 TestGenerationAgent 等「请求驱动」
 Agent 的输入起点，所有迭代围绕满足 user_intent 展开。
 """
+
 from __future__ import annotations
 
 from typing import ClassVar

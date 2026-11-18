@@ -6,6 +6,7 @@
 `check_project_permission` / `check_project_permission_async` 继续由本模块导出，
 供 test_point_import / test_point_import_stream 等模块复用。
 """
+
 import asyncio
 import json
 from datetime import date
@@ -60,15 +61,19 @@ async def analyze_project(
         # aio_analysis_service.analyze_project 内部使用 sync Session API，
         # 需独立 sync 会话以保证流式生成过程中数据可见性
         from app.utils.async_sync_bridge import iter_async_gen_in_thread
+
         stream_db = PrimarySessionLocal()
         try:
+
             async def generate_progress() -> Any:
                 try:
                     # 性能优化：将 async generator 放到独立线程执行，避免 sync_db.query() 阻塞事件循环
                     def _agen_factory():
                         return aio_analysis_service.analyze_project(
-                            db=stream_db, project_id=request.project_id,
-                            user_id=current_user.id, username=current_user.username,
+                            db=stream_db,
+                            project_id=request.project_id,
+                            user_id=current_user.id,
+                            username=current_user.username,
                         )
 
                     async for progress in iter_async_gen_in_thread(_agen_factory):
@@ -77,15 +82,14 @@ async def analyze_project(
                     stream_db.close()
 
             from fastapi.responses import StreamingResponse
+
             return StreamingResponse(generate_progress(), media_type="text/event-stream")
         except Exception:
             stream_db.close()
             raise
     except Exception as e:
         logger.error(f"分析项目失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析项目失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析项目失败")
 
 
 @router.get("/list/{project_id}")
@@ -110,39 +114,68 @@ async def get_test_points(
 
         def _list(sync_db):
             test_points = get_test_points_with_case_count(
-                db=sync_db, project_id=project_id, user_id=current_user.id,
-                module=module, priority=priority, created_by=created_by,
-                requirement_id=requirement_id, keyword=keyword,
-                created_from=created_from, created_to=created_to,
-                skip=skip, limit=page_size, sort_by=sort_by, sort_order=sort_order,
+                db=sync_db,
+                project_id=project_id,
+                user_id=current_user.id,
+                module=module,
+                priority=priority,
+                created_by=created_by,
+                requirement_id=requirement_id,
+                keyword=keyword,
+                created_from=created_from,
+                created_to=created_to,
+                skip=skip,
+                limit=page_size,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
             total = get_test_points_with_case_count_total(
-                db=sync_db, project_id=project_id, user_id=current_user.id,
-                module=module, priority=priority, created_by=created_by,
-                requirement_id=requirement_id, keyword=keyword,
-                created_from=created_from, created_to=created_to,
+                db=sync_db,
+                project_id=project_id,
+                user_id=current_user.id,
+                module=module,
+                priority=priority,
+                created_by=created_by,
+                requirement_id=requirement_id,
+                keyword=keyword,
+                created_from=created_from,
+                created_to=created_to,
             )
             stats = get_test_point_list_stats(
-                db=sync_db, project_id=project_id, user_id=current_user.id,
-                module=module, created_by=created_by,
-                requirement_id=requirement_id, keyword=keyword,
-                created_from=created_from, created_to=created_to,
+                db=sync_db,
+                project_id=project_id,
+                user_id=current_user.id,
+                module=module,
+                created_by=created_by,
+                requirement_id=requirement_id,
+                keyword=keyword,
+                created_from=created_from,
+                created_to=created_to,
             )
             items = [
                 TestPointResponse(
-                    id=point.id, project_id=point.project_id,
-                    requirement_id=point.requirement_id, module=point.module,
+                    id=point.id,
+                    project_id=point.project_id,
+                    requirement_id=point.requirement_id,
+                    module=point.module,
                     point=point.point,
-                    priority=point.priority, ai_prompt=point.ai_prompt,
-                    capability_id=point.capability_id, version=point.version, status=point.status,
-                    create_time=point.create_time, created_by=point.created_by,
+                    priority=point.priority,
+                    ai_prompt=point.ai_prompt,
+                    capability_id=point.capability_id,
+                    version=point.version,
+                    status=point.status,
+                    create_time=point.create_time,
+                    created_by=point.created_by,
                     test_case_count=case_count,
                 )
                 for point, case_count in test_points
             ]
             return {
-                "total": total, "items": items,
-                "page": page, "page_size": page_size, "stats": stats,
+                "total": total,
+                "items": items,
+                "page": page,
+                "page_size": page_size,
+                "stats": stats,
             }
 
         data = _list(db)
@@ -174,9 +207,7 @@ async def get_test_point_detail(
         )
         test_point = tp_result.scalars().first()
         if not test_point:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在")
         # 内联聚合查询替代 get_test_cases_by_test_point_total sync crud
         count_result = await asyncio.to_thread(
             db.execute,
@@ -191,12 +222,18 @@ async def get_test_point_detail(
         )
         test_case_count = count_result.scalar() or 0
         return TestPointResponse(
-            id=test_point.id, project_id=test_point.project_id,
-            requirement_id=test_point.requirement_id, module=test_point.module,
+            id=test_point.id,
+            project_id=test_point.project_id,
+            requirement_id=test_point.requirement_id,
+            module=test_point.module,
             point=test_point.point,
-            priority=test_point.priority, ai_prompt=test_point.ai_prompt,
-            capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
-            create_time=test_point.create_time, created_by=test_point.created_by,
+            priority=test_point.priority,
+            ai_prompt=test_point.ai_prompt,
+            capability_id=test_point.capability_id,
+            version=test_point.version,
+            status=test_point.status,
+            create_time=test_point.create_time,
+            created_by=test_point.created_by,
             test_case_count=test_case_count,
         )
     except HTTPException:
@@ -219,9 +256,7 @@ async def batch_save_test_points(
     max_batch_size = 200
     try:
         if not test_points or not isinstance(test_points, list):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="测试点列表不能为空"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="测试点列表不能为空")
         if len(test_points) > max_batch_size:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -246,11 +281,14 @@ async def batch_save_test_points(
                     priority = 2
             except (ValueError, TypeError):
                 priority = 2
-            valid_points.append({
-                "module": module,
-                "point": point,
-                "priority": priority, "ai_prompt": item.get("ai_prompt"),
-            })
+            valid_points.append(
+                {
+                    "module": module,
+                    "point": point,
+                    "priority": priority,
+                    "ai_prompt": item.get("ai_prompt"),
+                }
+            )
         if not valid_points:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -260,20 +298,18 @@ async def batch_save_test_points(
         check_project_permission(db, project_id, current_user.id)
         saved = await asyncio.to_thread(
             batch_create_test_points,
-            db=db, project_id=project_id,
-            test_points_data=valid_points, created_by=current_user.username,
+            db=db,
+            project_id=project_id,
+            test_points_data=valid_points,
+            created_by=current_user.username,
         )
         data = {
-            "saved_count": len(saved), "total_submitted": len(valid_points),
-            "items": [
-                {"id": tp.id, "module": tp.module,
-                 "point": tp.point, "priority": tp.priority}
-                for tp in saved
-            ],
+            "saved_count": len(saved),
+            "total_submitted": len(valid_points),
+            "items": [{"id": tp.id, "module": tp.module, "point": tp.point, "priority": tp.priority} for tp in saved],
         }
         logger.info(
-            f"批量保存测试点成功: {data['saved_count']}/{data['total_submitted']} 个 "
-            f"(用户: {current_user.username})"
+            f"批量保存测试点成功: {data['saved_count']}/{data['total_submitted']} 个 (用户: {current_user.username})"
         )
         return {
             "code": 200,
@@ -285,9 +321,7 @@ async def batch_save_test_points(
     except Exception as e:
         logger.error(f"批量保存测试点失败: {e}")
         await asyncio.to_thread(db.rollback)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="保存失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="保存失败")
 
 
 @router.put("/{test_point_id}")
@@ -310,9 +344,7 @@ async def update_test_point(
         )
         test_point = result.scalars().first()
         if not test_point:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在")
         if update_data.module is not None:
             test_point.module = update_data.module
         if update_data.point is not None:
@@ -327,12 +359,18 @@ async def update_test_point(
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, test_point)
         data = TestPointResponse(
-            id=test_point.id, project_id=test_point.project_id,
-            requirement_id=test_point.requirement_id, module=test_point.module,
+            id=test_point.id,
+            project_id=test_point.project_id,
+            requirement_id=test_point.requirement_id,
+            module=test_point.module,
             point=test_point.point,
-            priority=test_point.priority, ai_prompt=test_point.ai_prompt,
-            capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
-            create_time=test_point.create_time, created_by=test_point.created_by,
+            priority=test_point.priority,
+            ai_prompt=test_point.ai_prompt,
+            capability_id=test_point.capability_id,
+            version=test_point.version,
+            status=test_point.status,
+            create_time=test_point.create_time,
+            created_by=test_point.created_by,
             test_case_count=0,
         )
         logger.info(f"用户 {current_user.username} 更新了测试点 {test_point_id}")
@@ -358,14 +396,10 @@ async def batch_delete_test_points(
     max_batch_delete = 100
     try:
         if not ids or not isinstance(ids, list):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="请提供有效的ID列表"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供有效的ID列表")
         unique_ids = list(set(filter(lambda x: isinstance(x, int) and x > 0, ids)))
         if len(unique_ids) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="没有有效的测试点ID"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="没有有效的测试点ID")
         if len(unique_ids) > max_batch_delete:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -384,7 +418,8 @@ async def batch_delete_test_points(
         await asyncio.to_thread(db.commit)
         logger.info(f"用户 {current_user.username} 批量删除了 {deleted_count} 个测试点")
         return {
-            "code": 200, "message": f"成功删除 {deleted_count} 个测试点",
+            "code": 200,
+            "message": f"成功删除 {deleted_count} 个测试点",
             "data": {"deleted_count": deleted_count, "requested_count": len(unique_ids)},
         }
     except HTTPException:
@@ -455,12 +490,18 @@ async def create_test_point_item(
     await asyncio.to_thread(db.commit)
     await asyncio.to_thread(db.refresh, created)
     return TestPointResponse(
-        id=created.id, project_id=created.project_id,
-        requirement_id=created.requirement_id, module=created.module,
+        id=created.id,
+        project_id=created.project_id,
+        requirement_id=created.requirement_id,
+        module=created.module,
         point=created.point,
-        priority=created.priority, ai_prompt=created.ai_prompt,
-        capability_id=created.capability_id, version=created.version, status=created.status,
-        create_time=created.create_time, created_by=created.created_by,
+        priority=created.priority,
+        ai_prompt=created.ai_prompt,
+        capability_id=created.capability_id,
+        version=created.version,
+        status=created.status,
+        create_time=created.create_time,
+        created_by=created.created_by,
         test_case_count=0,
     )
 
@@ -486,25 +527,29 @@ async def get_related_test_cases(
     )
     test_point = tp_result.scalars().first()
     if not test_point:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在")
 
     items_result = await asyncio.to_thread(
         db.execute,
-        select(TestCase).join(Project, Project.id == TestCase.project_id).where(
+        select(TestCase)
+        .join(Project, Project.id == TestCase.project_id)
+        .where(
             TestCase.project_id == project_id,
             TestCase.test_point_id == test_point_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id,
-        ).order_by(desc(TestCase.create_time), desc(TestCase.id))
-        .offset(skip).limit(page_size),
+        )
+        .order_by(desc(TestCase.create_time), desc(TestCase.id))
+        .offset(skip)
+        .limit(page_size),
     )
     items = items_result.scalars().all()
 
     total_result = await asyncio.to_thread(
         db.execute,
-        select(func.count(TestCase.id)).join(Project, Project.id == TestCase.project_id).where(
+        select(func.count(TestCase.id))
+        .join(Project, Project.id == TestCase.project_id)
+        .where(
             TestCase.project_id == project_id,
             TestCase.test_point_id == test_point_id,
             TestCase.is_deleted.is_(False),
@@ -514,7 +559,8 @@ async def get_related_test_cases(
     total = total_result.scalar() or 0
 
     return {
-        "code": 200, "message": "获取成功",
+        "code": 200,
+        "message": "获取成功",
         "data": {
             "total": total,
             "items": [TestPointRelatedCaseResponse.model_validate(i) for i in items],
@@ -532,19 +578,25 @@ async def get_test_point_requirements(
 
     result = await asyncio.to_thread(
         db.execute,
-        select(Requirement).join(Project, Project.id == Requirement.project_id).where(
+        select(Requirement)
+        .join(Project, Project.id == Requirement.project_id)
+        .where(
             Requirement.project_id == project_id,
             Project.user_id == current_user.id,
-        ).order_by(desc(Requirement.create_time), desc(Requirement.id)),
+        )
+        .order_by(desc(Requirement.create_time), desc(Requirement.id)),
     )
     requirements = result.scalars().all()
 
     return {
-        "code": 200, "message": "获取成功",
+        "code": 200,
+        "message": "获取成功",
         "data": {
             "items": [
                 TestPointRequirementOptionResponse(
-                    id=item.id, req_no=item.req_no, title=item.title,
+                    id=item.id,
+                    req_no=item.req_no,
+                    title=item.title,
                 )
                 for item in requirements
             ],
@@ -563,6 +615,7 @@ async def batch_generate_test_cases_by_points(
     async def generate_progress() -> Any:
         from app.db.database import PrimarySessionLocal
         from app.utils.async_sync_bridge import iter_async_gen_in_thread
+
         stream_db = PrimarySessionLocal()
         try:
             service = TestCaseGenerationService(stream_db)
@@ -570,17 +623,17 @@ async def batch_generate_test_cases_by_points(
                 # 性能优化：将 async generator 放到独立线程执行，避免 sync_db.query() 阻塞事件循环
                 def _agen_factory():
                     return service.generate_test_cases_batch(
-                        project_id=request.project_id, user_id=current_user.id,
-                        test_point_ids=request.test_point_ids or None, case_type=request.case_type,
+                        project_id=request.project_id,
+                        user_id=current_user.id,
+                        test_point_ids=request.test_point_ids or None,
+                        case_type=request.case_type,
                     )
 
                 async for progress in iter_async_gen_in_thread(_agen_factory):
                     yield f"data: {json.dumps(progress)}\n\n"
             except Exception as exc:
                 logger.error(f"测试点批量生成测试用例失败: {exc}")
-                yield "data: " + json.dumps(
-                    {"progress": 100, "message": "生成失败", "status": "error"}
-                ) + "\n\n"
+                yield "data: " + json.dumps({"progress": 100, "message": "生成失败", "status": "error"}) + "\n\n"
             finally:
                 yield "data: [DONE]\n\n"
         finally:

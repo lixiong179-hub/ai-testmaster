@@ -19,6 +19,7 @@
     - 项目详情包含关联文件列表，Web环境密码脱敏返回
     - 删除为物理删除，会永久移除项目数据
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -43,6 +44,7 @@ from app.core.exception import create_response
 from loguru import logger
 import json
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。
 
@@ -62,43 +64,32 @@ class SelfTestScheduleRequest(BaseModel):
 @router.post("/", response_model=ApiResponse)
 @router.post("/create", response_model=ApiResponse)
 async def create_project(
-    project: ProjectCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    project: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """创建项目"""
     try:
-        result = await _execute(db,
-            select(Project).where(Project.name == project.name)
-        )
+        result = await _execute(db, select(Project).where(Project.name == project.name))
         if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="项目名称已存在"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="项目名称已存在")
         new_project = Project(
             name=project.name,
             description=project.description,
             user_id=current_user.id,
             status=1,
-            project_type=project.project_type
+            project_type=project.project_type,
         )
         if project.web_env_configs:
             web_configs = {}
-            for env_name in ['test', 'staging', 'prod']:
+            for env_name in ["test", "staging", "prod"]:
                 env_config = getattr(project.web_env_configs, env_name, None)
                 if env_config and env_config.password:
                     web_configs[env_name] = {
                         "url": env_config.url,
                         "username": env_config.username,
-                        "password": encrypt_password(env_config.password)
+                        "password": encrypt_password(env_config.password),
                     }
                 elif env_config:
-                    web_configs[env_name] = {
-                        "url": env_config.url,
-                        "username": env_config.username,
-                        "password": None
-                    }
+                    web_configs[env_name] = {"url": env_config.url, "username": env_config.username, "password": None}
             if web_configs:
                 new_project.web_env_configs = json.dumps(web_configs)
         if project.device_config:
@@ -112,9 +103,9 @@ async def create_project(
                 "name": new_project.name,
                 "description": new_project.description,
                 "project_type": new_project.project_type,
-                "create_time": new_project.create_time
+                "create_time": new_project.create_time,
             },
-            msg="创建成功"
+            msg="创建成功",
         )
     except HTTPException:
         raise
@@ -129,34 +120,32 @@ async def get_projects(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """获取项目列表（分页）"""
     try:
         offset = (page - 1) * page_size
-        result = await _execute(db,
-            select(Project)
-            .where(Project.user_id == current_user.id)
-            .offset(offset)
-            .limit(page_size)
+        result = await _execute(
+            db, select(Project).where(Project.user_id == current_user.id).offset(offset).limit(page_size)
         )
         projects = result.scalars().all()
-        count_result = await _execute(db,
-            select(func.count()).select_from(Project)
-            .where(Project.user_id == current_user.id)
+        count_result = await _execute(
+            db, select(func.count()).select_from(Project).where(Project.user_id == current_user.id)
         )
         total = count_result.scalar() or 0
-        project_list = [{
-            "id": p.id,
-            "name": p.name,
-            "description": p.description,
-            "project_type": p.project_type,
-            "status": p.status,
-            "create_time": p.create_time
-        } for p in projects]
+        project_list = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "project_type": p.project_type,
+                "status": p.status,
+                "create_time": p.create_time,
+            }
+            for p in projects
+        ]
         return create_response(
-            data={"items": project_list, "total": total, "page": page, "page_size": page_size},
-            msg="获取成功"
+            data={"items": project_list, "total": total, "page": page, "page_size": page_size}, msg="获取成功"
         )
     except Exception as e:
         logger.error(f"获取项目列表失败: {e}")
@@ -164,45 +153,44 @@ async def get_projects(
 
 
 @router.get("/{project_id}", response_model=ApiResponse)
-async def get_project(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+async def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """获取项目详情（含关联文件列表，Web环境密码脱敏）"""
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         # 内联 async 查询替代 get_project_files sync crud
-        files_result = await _execute(db,
+        files_result = await _execute(
+            db,
             select(ProjectFile)
             .where(
                 ProjectFile.project_id == project_id,
                 ProjectFile.is_active.is_(True),
             )
-            .order_by(ProjectFile.upload_time.desc())
+            .order_by(ProjectFile.upload_time.desc()),
         )
         files = files_result.scalars().all()
-        file_list = [{
-            "id": f.id, "file_name": f.file_name, "file_type": f.file_type,
-            "file_url": f.file_url, "file_source": f.file_source,
-            "size": f.size, "upload_time": f.upload_time
-        } for f in files]
+        file_list = [
+            {
+                "id": f.id,
+                "file_name": f.file_name,
+                "file_type": f.file_type,
+                "file_url": f.file_url,
+                "file_source": f.file_source,
+                "size": f.size,
+                "upload_time": f.upload_time,
+            }
+            for f in files
+        ]
         web_env_configs = None
         if project.web_env_configs:
             try:
                 web_env_configs = json.loads(project.web_env_configs)
-                for env_name in ['test', 'staging', 'prod']:
-                    if env_name in web_env_configs and web_env_configs[env_name].get('password'):
-                        web_env_configs[env_name]['password'] = mask_password(web_env_configs[env_name]['password'])
+                for env_name in ["test", "staging", "prod"]:
+                    if env_name in web_env_configs and web_env_configs[env_name].get("password"):
+                        web_env_configs[env_name]["password"] = mask_password(web_env_configs[env_name]["password"])
             except json.JSONDecodeError:
                 web_env_configs = None
         device_config = None
@@ -213,12 +201,18 @@ async def get_project(
                 device_config = None
         return create_response(
             data={
-                "id": project.id, "name": project.name, "description": project.description,
-                "project_type": project.project_type, "status": project.status,
-                "create_time": project.create_time, "update_time": project.update_time,
-                "files": file_list, "web_env_configs": web_env_configs, "device_config": device_config
+                "id": project.id,
+                "name": project.name,
+                "description": project.description,
+                "project_type": project.project_type,
+                "status": project.status,
+                "create_time": project.create_time,
+                "update_time": project.update_time,
+                "files": file_list,
+                "web_env_configs": web_env_configs,
+                "device_config": device_config,
             },
-            msg="获取成功"
+            msg="获取成功",
         )
     except HTTPException:
         raise
@@ -241,9 +235,7 @@ def _delete_project_core_assets(db, project_id: int) -> None:
 
     case_ids = [row[0] for row in db.query(TestCase.id).filter(TestCase.project_id == project_id).all()]
     if case_ids:
-        db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id.in_(case_ids)
-        ).delete(synchronize_session="fetch")
+        db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id.in_(case_ids)).delete(synchronize_session="fetch")
 
     for test_case in db.query(TestCase).filter(TestCase.project_id == project_id).all():
         db.delete(test_case)
@@ -257,48 +249,29 @@ async def _delete_project_core_assets_async(db: Session, project_id: int) -> Non
     from app.models.test_task import TestTask
     from app.models.test_case_version import TestCaseVersion
 
-    await _execute(db,
-        sa_delete(TestResult).where(TestResult.project_id == project_id)
-    )
+    await _execute(db, sa_delete(TestResult).where(TestResult.project_id == project_id))
 
-    tasks_result = await _execute(db,
-        select(TestTask).where(TestTask.project_id == project_id)
-    )
+    tasks_result = await _execute(db, select(TestTask).where(TestTask.project_id == project_id))
     for task in tasks_result.scalars().all():
         await delete_async(db, task)
 
-    case_ids_result = await _execute(db,
-        select(TestCase.id).where(TestCase.project_id == project_id)
-    )
+    case_ids_result = await _execute(db, select(TestCase.id).where(TestCase.project_id == project_id))
     case_ids = [row[0] for row in case_ids_result.all()]
     if case_ids:
-        await _execute(db,
-            sa_delete(TestCaseVersion).where(
-                TestCaseVersion.test_case_id.in_(case_ids)
-            )
-        )
+        await _execute(db, sa_delete(TestCaseVersion).where(TestCaseVersion.test_case_id.in_(case_ids)))
 
-    test_cases_result = await _execute(db,
-        select(TestCase).where(TestCase.project_id == project_id)
-    )
+    test_cases_result = await _execute(db, select(TestCase).where(TestCase.project_id == project_id))
     for test_case in test_cases_result.scalars().all():
         await delete_async(db, test_case)
 
 
 @router.delete("/{project_id}", response_model=ApiResponse)
 async def delete_project(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """删除项目（物理删除，不可逆）"""
     try:
-        result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id,
-                Project.user_id == current_user.id
-            )
-        )
+        result = await _execute(db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id))
         project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
@@ -324,11 +297,12 @@ async def update_self_test_schedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await _execute(db,
+    result = await _execute(
+        db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id,
-        )
+        ),
     )
     project = result.scalar_one_or_none()
     if not project:

@@ -1,4 +1,5 @@
 """OIDC 用户映射、自动配置与回调处理 mixin（从 oidc_service.py 拆出）。"""
+
 from __future__ import annotations
 
 import secrets
@@ -135,9 +136,7 @@ class OIDCUserMixin:
                 local_user.external_system = f"oidc:{provider}"
                 await commit_async(db)
                 await refresh_async(db, local_user)
-                logger.info(
-                    f"OIDC 用户已绑定现有本地账号: provider={provider} email={email} user_id={local_user.id}"
-                )
+                logger.info(f"OIDC 用户已绑定现有本地账号: provider={provider} email={email} user_id={local_user.id}")
                 return local_user
 
         # 3. 创建新用户
@@ -180,6 +179,7 @@ class OIDCUserMixin:
         )
         # 清理非法字符（用户名仅允许字母数字下划线）
         import re
+
         cleaned = re.sub(r"[^a-zA-Z0-9_]", "_", str(base))[:30]
         suffix = uuid.uuid4().hex[:6]
         return f"{prefix}{cleaned}_{suffix}"
@@ -250,9 +250,7 @@ class OIDCUserMixin:
             ip_address=None,
         )
 
-        logger.info(
-            f"OIDC 登录成功: provider={provider} user_id={user.id} username={user.username}"
-        )
+        logger.info(f"OIDC 登录成功: provider={provider} user_id={user.id} username={user.username}")
 
         return {
             "access_token": access_token,
@@ -284,9 +282,7 @@ class OIDCUserMixin:
                 "client_id": cfg.get("client_id", ""),
                 "scopes": cfg.get("scopes", "openid email profile"),
                 "redirect_uri": cfg.get("redirect_uri", ""),
-                "authorization_endpoint": cfg.get(
-                    "authorization_endpoint", self._derive_authorization_endpoint(cfg)
-                ),
+                "authorization_endpoint": cfg.get("authorization_endpoint", self._derive_authorization_endpoint(cfg)),
             }
 
         return {

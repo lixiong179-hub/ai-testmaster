@@ -6,6 +6,7 @@
     - Markdown内容清理
     - 自动内容类型识别
 """
+
 import re
 import json
 from typing import Any
@@ -60,21 +61,27 @@ class LinkFetcherContentMixin:
     def _process_html(self, content: str) -> tuple[bool, str, str]:
         """处理HTML内容，提取文本"""
         try:
-            soup = BeautifulSoup(content, 'html.parser')
+            soup = BeautifulSoup(content, "html.parser")
             lower = content.lower()
             auth_keywords = (
-                'please sign in', 'sign in to continue', 'unauthorized access',
-                'access denied', 'auth required', '请登录', '请先登录', '登录后可继续',
+                "please sign in",
+                "sign in to continue",
+                "unauthorized access",
+                "access denied",
+                "auth required",
+                "请登录",
+                "请先登录",
+                "登录后可继续",
             )
             has_auth_hint = any(kw in lower for kw in auth_keywords)
-            has_form = '<form' in lower
+            has_form = "<form" in lower
             if has_auth_hint and has_form:
                 return False, "", "认证失败：页面显示需要登录或无权限访问"
             for tag in soup(["script", "style", "nav", "footer", "header"]):
                 tag.decompose()
-            text = soup.get_text(separator='\n', strip=True)
-            lines = [line.strip() for line in text.split('\n') if line.strip()]
-            text = '\n'.join(lines)
+            text = soup.get_text(separator="\n", strip=True)
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+            text = "\n".join(lines)
             if len(text) > 5000:
                 text = text[:5000] + "\n\n[内容已截断，超长内容请查看原始文档]"
             return True, text, "html"
@@ -84,7 +91,7 @@ class LinkFetcherContentMixin:
 
     def _process_markdown(self, content: str) -> tuple[bool, str, str]:
         """处理Markdown内容"""
-        cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', content)
+        cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", content)
         if len(cleaned) > 5000:
             cleaned = cleaned[:5000] + "\n\n[内容已截断]"
         return True, cleaned, "markdown"
@@ -96,12 +103,17 @@ class LinkFetcherContentMixin:
             return self._process_json(content)
         except json.JSONDecodeError:
             pass
-        if '<html' in content.lower() or '<!doctype' in content.lower():
+        if "<html" in content.lower() or "<!doctype" in content.lower():
             return self._process_html(content)
         lower = content.strip().lower()
         auth_error_keywords = (
-            'unauthorized', 'forbidden', 'invalid token',
-            'token失效', '认证失败', '登录', 'login',
+            "unauthorized",
+            "forbidden",
+            "invalid token",
+            "token失效",
+            "认证失败",
+            "登录",
+            "login",
         )
         if any(kw in lower for kw in auth_error_keywords) and len(content.strip()) < 500:
             return False, "", "认证失败：响应内容包含错误标识"

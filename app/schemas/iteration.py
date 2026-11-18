@@ -22,6 +22,7 @@
 - IterationPipelineStatus -> Iteration.status 字段的枚举值
 - IterationInputKind -> IterationInput.kind 字段的枚举值
 """
+
 from pydantic import BaseModel, Field
 from datetime import datetime, date
 from enum import StrEnum
@@ -34,23 +35,25 @@ class IterationPipelineStatus(StrEnum):
     状态由系统自动驱动，不由用户手动设置：
     draft → in_pipeline → in_review → finalized
     """
-    DRAFT = "draft"                     # 草稿
-    IN_PIPELINE = "in_pipeline"         # 流水线运行中
-    IN_REVIEW = "in_review"             # 评审中
-    FINALIZED = "finalized"             # 已定稿
-    ARCHIVED = "archived"               # 已归档
+
+    DRAFT = "draft"  # 草稿
+    IN_PIPELINE = "in_pipeline"  # 流水线运行中
+    IN_REVIEW = "in_review"  # 评审中
+    FINALIZED = "finalized"  # 已定稿
+    ARCHIVED = "archived"  # 已归档
 
 
 class IterationInputKind(StrEnum):
     """
     迭代输入类型枚举
     """
-    PRD = "prd"                         # 需求文档
-    PROTOTYPE = "prototype"             # UI原型
-    XMIND = "xmind"                     # XMind思维导图
-    TESTPOINT = "testpoint"             # 测试点
-    SUPPLEMENT_FORM = "supplement_form" # 补充表单
-    CHANGE_NOTES = "change_notes"       # 变更说明
+
+    PRD = "prd"  # 需求文档
+    PROTOTYPE = "prototype"  # UI原型
+    XMIND = "xmind"  # XMind思维导图
+    TESTPOINT = "testpoint"  # 测试点
+    SUPPLEMENT_FORM = "supplement_form"  # 补充表单
+    CHANGE_NOTES = "change_notes"  # 变更说明
 
 
 class IterationCreate(BaseModel):
@@ -59,6 +62,7 @@ class IterationCreate(BaseModel):
 
     验证规则：project_id和name必填，版本号默认v1.0，状态默认draft
     """
+
     project_id: int = Field(..., description="项目ID")
     name: str = Field(..., min_length=1, max_length=200, description="迭代名称")
     version: str = Field(default="v1.0", max_length=50, description="版本号")
@@ -75,6 +79,7 @@ class IterationUpdate(BaseModel):
 
     验证规则：所有字段可选；status 由系统自动驱动，不允许用户手动修改
     """
+
     name: str | None = Field(None, min_length=1, max_length=200, description="迭代名称")
     version: str | None = Field(None, max_length=50, description="版本号")
     description: str | None = Field(None, description="迭代描述")
@@ -89,16 +94,20 @@ class IterationInputCreate(BaseModel):
 
     验证规则：kind必填；file_id和payload至少提供一个；hash必填用于幂等校验
     """
+
     kind: IterationInputKind = Field(..., description="输入类型")
     file_id: int | None = Field(None, description="关联项目文件ID")
     payload: dict | None = Field(None, description="非文件型输入的JSON载荷")
-    hash: str = Field(..., min_length=1, max_length=64, description="输入内容哈希，用于幂等校验（映射到 content_hash 列）")
+    hash: str = Field(
+        ..., min_length=1, max_length=64, description="输入内容哈希，用于幂等校验（映射到 content_hash 列）"
+    )
 
 
 class IterationInputResponse(BaseModel):
     """
     迭代输入响应模型
     """
+
     id: int
     iteration_id: int
     kind: str
@@ -115,6 +124,7 @@ class IterationResponse(BaseModel):
     """
     迭代响应模型
     """
+
     id: int
     project_id: int
     name: str

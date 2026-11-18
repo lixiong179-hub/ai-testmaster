@@ -16,6 +16,7 @@
     - app.utils.unified_vision.model_types: ElementInfo数据类
     - app.utils.unified_vision.response_parser_mixin: 响应解析
 """
+
 from typing import Any
 
 from app.utils.unified_vision.model_types import ElementInfo
@@ -43,6 +44,7 @@ class APIMethodsMixin:
         response = self.analyze_image(screenshot, prompt)
         if response:
             from app.utils.unified_vision.response_parser_mixin import ResponseParserMixin
+
             return ResponseParserMixin._parse_element_recognition(response)
         return None
 
@@ -89,9 +91,7 @@ class APIMethodsMixin:
         """
         payload = {
             "model": self.model_name,
-            "messages": [
-                {"role": "user", "content": prompt + "\n\n" + text}
-            ],
+            "messages": [{"role": "user", "content": prompt + "\n\n" + text}],
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
         }
@@ -99,10 +99,7 @@ class APIMethodsMixin:
         return self._parse_response(response_text)
 
     async def verify_action_result(
-        self,
-        screenshot: bytes,
-        action_description: str,
-        expected_result: str
+        self, screenshot: bytes, action_description: str, expected_result: str
     ) -> dict[str, Any]:
         """验证测试操作执行结果
 
@@ -121,6 +118,7 @@ class APIMethodsMixin:
         prompt = self._get_action_verification_prompt(action_description, expected_result)
         response = self.analyze_image(screenshot, prompt)
         from app.utils.unified_vision.response_parser_mixin import ResponseParserMixin
+
         return ResponseParserMixin._parse_verification_result(response)
 
     async def find_element_center(self, screenshot: bytes, action_description: str) -> dict[str, int] | None:

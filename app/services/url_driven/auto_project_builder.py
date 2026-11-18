@@ -10,6 +10,7 @@
 - 查重使用 SQLAlchemy ORM 参数化查询（LIKE 占位符绑定），杜绝 SQL 注入；
 - DB 操作异常捕获并回滚 session 后向上抛出，保证事务一致性。
 """
+
 import json
 from datetime import datetime
 from urllib.parse import urlparse
@@ -83,13 +84,9 @@ class AutoProjectBuilder:
             session.refresh(project)
         except Exception as exc:
             session.rollback()
-            logger.error(
-                f"URL 自动建项持久化失败: url={normalized_url} user_id={user_id} err={exc}"
-            )
+            logger.error(f"URL 自动建项持久化失败: url={normalized_url} user_id={user_id} err={exc}")
             raise
-        logger.info(
-            f"URL 自动建项成功: project_id={project.id} name={final_name} user_id={user_id}"
-        )
+        logger.info(f"URL 自动建项成功: project_id={project.id} name={final_name} user_id={user_id}")
         return project
 
     @staticmethod
@@ -164,7 +161,7 @@ class AutoProjectBuilder:
         prefix = f"{base_name}_"
         for name in existing_names:
             if name.startswith(prefix):
-                suffix = name[len(prefix):]
+                suffix = name[len(prefix) :]
                 if suffix.isdigit():
                     max_suffix = max(max_suffix, int(suffix))
         return f"{base_name}_{max_suffix + 1}"
@@ -183,7 +180,4 @@ class AutoProjectBuilder:
         Returns:
             dict: 形如 {"test": {"url": url, "username": None, "password": None}, ...}。
         """
-        return {
-            env: {"url": url, "username": None, "password": None}
-            for env in _ENV_NAMES
-        }
+        return {env: {"url": url, "username": None, "password": None} for env in _ENV_NAMES}

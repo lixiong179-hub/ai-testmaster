@@ -25,6 +25,7 @@ prometheus-fastapi-instrumentator 暴露的 /metrics 端点采集。
     - AgentMetrics 单例通过 get_metrics() 获取
     - 指标对象模块级定义，避免重复注册
 """
+
 from __future__ import annotations
 
 
@@ -110,7 +111,11 @@ class AgentMetrics:
             logger.warning(f"metrics record_session_start failed: {e}")
 
     def record_session_end(
-        self, agent_type: str, status: str, duration_seconds: float, token_cost: int,
+        self,
+        agent_type: str,
+        status: str,
+        duration_seconds: float,
+        token_cost: int,
     ) -> None:
         """会话结束时调用：sessions_total{status}+1 / active_sessions-1 / 时长与 token 观察。"""
         try:

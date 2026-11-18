@@ -1,4 +1,3 @@
-
 """用户服务 - 处理用户认证、密码管理与CRUD操作。
 
 职责:
@@ -18,6 +17,7 @@
     async 调用方通过实例化 UserService(db: AsyncSession) 调用 *_async 方法。
     纯计算方法（verify_password/get_password_hash）保持静态，供 sync/async 复用。
 """
+
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,20 +105,14 @@ class UserService(UserServiceAsyncMixin):
             user_in = UserCreate(**user_in)
 
         # 校验用户名唯一性
-        existing_user = db.execute(
-            select(User).where(
-                User.username == user_in.username
-            )
-        )
+        existing_user = db.execute(select(User).where(User.username == user_in.username))
         existing_user = existing_user.scalars().first()
         if existing_user:
             raise BaseAPIException("用户名已存在", code=400)
 
         # 邮箱非必填字段，填写时需校验唯一性
         if user_in.email:
-            email_user = db.execute(
-                select(User).where(User.email == user_in.email)
-            ).scalars().first()
+            email_user = db.execute(select(User).where(User.email == user_in.email)).scalars().first()
             if email_user:
                 raise BaseAPIException("邮箱已存在", code=400)
 
@@ -242,6 +236,7 @@ class UserService(UserServiceAsyncMixin):
     def delete_user(db: Session, user_id: int) -> bool:
         """删除用户及其角色关联关系。"""
         from app.models.user import user_role as user_role_table
+
         user = UserService.get_user_by_id(db, user_id)
         if not user:
             raise BaseAPIException("用户不存在", code=404)

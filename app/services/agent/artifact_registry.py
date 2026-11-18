@@ -10,8 +10,8 @@
     - schema 校验：调用 pydantic model_validate，畸形数据抛 ValidationError
     - prompt 注入：get_prompt_section() 输出所有已注册 artifact 的描述段
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 
 from app.services.agent.artifacts.base import Artifact
@@ -41,14 +41,9 @@ class ArtifactRegistry:
         """
         artifact_type = artifact_class.artifact_type
         if not artifact_type:
-            raise ValueError(
-                f"Artifact 类 {artifact_class.__name__} 未覆盖 artifact_type 类属性"
-            )
+            raise ValueError(f"Artifact 类 {artifact_class.__name__} 未覆盖 artifact_type 类属性")
         if artifact_type in self._registry:
-            raise ValueError(
-                f"Artifact 类型 {artifact_type} 已注册"
-                f"（{self._registry[artifact_type].__name__}）"
-            )
+            raise ValueError(f"Artifact 类型 {artifact_type} 已注册（{self._registry[artifact_type].__name__}）")
         self._registry[artifact_type] = artifact_class
 
     def validate(self, artifact_type: str, data: dict) -> Artifact:
@@ -91,9 +86,7 @@ class ArtifactRegistry:
             artifact_class = self._registry[artifact_type]
             lines.append(f"- **{artifact_type}**: {artifact_class.description}")
         lines.append("")
-        lines.append(
-            "请根据任务需要选择合适的 artifact 作为输入或输出载体。"
-        )
+        lines.append("请根据任务需要选择合适的 artifact 作为输入或输出载体。")
         return "\n".join(lines)
 
 

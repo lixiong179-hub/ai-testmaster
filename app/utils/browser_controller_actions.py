@@ -38,6 +38,7 @@ class ActionMixin:
             await self._page.wait_for_selector(selector, state="visible", timeout=5000)
         except TimeoutError:
             from app.utils.browser_controller_base import ElementNotFoundError
+
             raise ElementNotFoundError(f"元素未找到: {selector}")
         await self._page.click(selector)
 
@@ -86,9 +87,7 @@ class ActionMixin:
         assert self._page is not None
         title = await self._page.title()
         url = self._page.url
-        viewport = await self._page.evaluate(
-            "() => ({ width: window.innerWidth, height: window.innerHeight })"
-        )
+        viewport = await self._page.evaluate("() => ({ width: window.innerWidth, height: window.innerHeight })")
         return {"title": title, "url": url, "viewport": viewport}
 
     @require_initialized
@@ -107,12 +106,15 @@ class ActionMixin:
                 # 非 Python eval。script 参数仅由内部服务代码以硬编码字面量传入
                 # （如 "document.title"、"window.scrollBy(0,500)"），无用户输入
                 # 直接流入路径，属浏览器自动化工具的标准模式。
-                return await self._page.evaluate("""
+                return await self._page.evaluate(
+                    """
                     ({ source, args }) => {
                         const __args = args;
                         return eval(source);
                     }
-                """, payload)
+                """,
+                    payload,
+                )
             payload: Any = args[0] if len(args) == 1 else list(args)
             return await self._page.evaluate(script, payload)
         return await self._page.evaluate(script)
@@ -148,11 +150,16 @@ class ActionMixin:
                 })
             """)
             return ElementInfo(
-                x=bbox['x'], y=bbox['y'], width=bbox['width'], height=bbox['height'],
-                tag=attrs.get('tag', ''), id=attrs.get('id', ''),
-                class_name=attrs.get('class', ''), name=attrs.get('name', ''),
-                text=attrs.get('text', ''),
-                attributes={'type': attrs.get('type', ''), 'placeholder': attrs.get('placeholder', '')}
+                x=bbox["x"],
+                y=bbox["y"],
+                width=bbox["width"],
+                height=bbox["height"],
+                tag=attrs.get("tag", ""),
+                id=attrs.get("id", ""),
+                class_name=attrs.get("class", ""),
+                name=attrs.get("name", ""),
+                text=attrs.get("text", ""),
+                attributes={"type": attrs.get("type", ""), "placeholder": attrs.get("placeholder", "")},
             )
         except Exception as e:
             logger.warning(f"获取元素信息失败: {e}")
@@ -165,7 +172,8 @@ class ActionMixin:
             return
         try:
             assert self._page is not None
-            await self._page.evaluate("""
+            await self._page.evaluate(
+                """
                 ([selector, duration]) => {
                     const element = document.querySelector(selector);
                     if (element) {
@@ -179,7 +187,9 @@ class ActionMixin:
                         }, duration);
                     }
                 }
-            """, [selector, duration])
+            """,
+                [selector, duration],
+            )
             logger.info(f"高亮元素: {selector}")
         except Exception as e:
             logger.warning(f"高亮元素失败: {e}")
@@ -188,7 +198,8 @@ class ActionMixin:
     @handle_browser_errors
     async def find_elements_by_text(self, text: str, tag: str = "*") -> list[dict[str, Any]]:
         assert self._page is not None
-        return await self._page.evaluate("""
+        return await self._page.evaluate(
+            """
             ([tag, text]) => {
                 const elements = document.querySelectorAll(tag);
                 const results = [];
@@ -204,7 +215,9 @@ class ActionMixin:
                 });
                 return results;
             }
-        """, [tag, text])
+        """,
+            [tag, text],
+        )
 
     @require_initialized
     @handle_browser_errors

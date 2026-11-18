@@ -2,6 +2,7 @@
 UI Spec Parser - 流程与适配测试点Mixin
 提供多屏页面流转生成、UI适配测试检查点生成能力
 """
+
 import json
 import asyncio
 from typing import Any
@@ -11,10 +12,7 @@ from loguru import logger
 class UISpecFlowMixin:
     """流程与适配测试点方法Mixin"""
 
-    async def parse_multiple_screen_flows(
-        self,
-        screens_data: list[dict[str, Any]]
-    ) -> dict[str, Any] | None:
+    async def parse_multiple_screen_flows(self, screens_data: list[dict[str, Any]]) -> dict[str, Any] | None:
         """
         多图合并生成页面流转（增强版：传入可点击元素）
 
@@ -31,37 +29,35 @@ class UISpecFlowMixin:
         image_descriptions = []
 
         for i, screen in enumerate(screens_data):
-            desc = f"【屏幕{i+1}】{screen.get('screen_name', '未知')}\n"
-            if screen.get('purpose'):
+            desc = f"【屏幕{i + 1}】{screen.get('screen_name', '未知')}\n"
+            if screen.get("purpose"):
                 desc += f"目的: {screen.get('purpose')}\n"
             interactive_elements = []
-            for elem in screen.get('elements', []):
-                if elem.get('interactive') and elem.get('type') in ['button', 'link', 'list_item', 'icon']:
-                    label = elem.get('label') or elem.get('semantic', '')
+            for elem in screen.get("elements", []):
+                if elem.get("interactive") and elem.get("type") in ["button", "link", "list_item", "icon"]:
+                    label = elem.get("label") or elem.get("semantic", "")
                     if label:
                         interactive_elements.append(label)
             if interactive_elements:
                 desc += f"可点击元素: {', '.join(interactive_elements[:10])}\n"
-            nav = screen.get('navigation') or {}
-            if (nav.get('back_button') or {}).get('visible'):
+            nav = screen.get("navigation") or {}
+            if (nav.get("back_button") or {}).get("visible"):
                 desc += "存在返回按钮\n"
-            if (nav.get('tab_bar') or {}).get('visible'):
-                tab_bar = nav.get('tab_bar') or {}
+            if (nav.get("tab_bar") or {}).get("visible"):
+                tab_bar = nav.get("tab_bar") or {}
                 desc += f"Tab栏: {', '.join(tab_bar.get('items', []))}\n"
-            flows = screen.get('flows') or {}
-            if flows.get('expected_next_screens'):
+            flows = screen.get("flows") or {}
+            if flows.get("expected_next_screens"):
                 desc += f"预期跳转: {', '.join(flows.get('expected_next_screens', []))}\n"
-            if flows.get('trigger_actions'):
+            if flows.get("trigger_actions"):
                 desc += f"触发动作: {', '.join(flows.get('trigger_actions', []))}\n"
 
             image_descriptions.append(desc)
 
         from app.services.prompt_builder import MULTI_IMAGE_FLOW_PROMPT
+
         # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-        prompt = MULTI_IMAGE_FLOW_PROMPT.format(
-            count=count,
-            image_descriptions="\n\n".join(image_descriptions)
-        )
+        prompt = MULTI_IMAGE_FLOW_PROMPT.format(count=count, image_descriptions="\n\n".join(image_descriptions))
 
         for attempt in range(self.max_retries):
             try:
@@ -87,8 +83,7 @@ class UISpecFlowMixin:
         return None
 
     async def generate_ui_adaptation_test_points(
-        self,
-        screens_data: list[dict[str, Any]]
+        self, screens_data: list[dict[str, Any]]
     ) -> list[dict[str, Any]] | None:
         """
         为已解析的UI屏幕生成UI适配测试检查点（基于layout_constraints）
@@ -104,17 +99,18 @@ class UISpecFlowMixin:
 
         simplified = []
         for screen in screens_data:
-            simplified.append({
-                "screen_id": screen.get("screen_id", "unknown"),
-                "screen_name": screen.get("screen_name", ""),
-                "layout_constraints": screen.get("layout_constraints", [])
-            })
+            simplified.append(
+                {
+                    "screen_id": screen.get("screen_id", "unknown"),
+                    "screen_name": screen.get("screen_name", ""),
+                    "layout_constraints": screen.get("layout_constraints", []),
+                }
+            )
 
         from app.services.prompt_builder import BATCH_SUMMARY_PROMPT
+
         # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-        prompt = BATCH_SUMMARY_PROMPT.format(
-            ui_specs=json.dumps(simplified, ensure_ascii=False, indent=2)
-        )
+        prompt = BATCH_SUMMARY_PROMPT.format(ui_specs=json.dumps(simplified, ensure_ascii=False, indent=2))
 
         for attempt in range(self.max_retries):
             try:

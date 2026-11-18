@@ -14,6 +14,7 @@
 - 第 N+1 轮注入 quality_signals（禁止盲重试，历史避坑要点 4）。
 - on_round 回调供流式端点收集 SSE regen 事件。
 """
+
 from typing import Any
 from collections.abc import Awaitable, Callable
 
@@ -73,9 +74,7 @@ def _match_quality_fix_example(issue: str) -> str | None:
     return None
 
 
-def build_quality_feedback_text(
-    issues: list[str], case: dict[str, Any], status: str = "pending_review"
-) -> str:
+def build_quality_feedback_text(issues: list[str], case: dict[str, Any], status: str = "pending_review") -> str:
     """将校验问题转为 AI 可理解的修复指引，按严重程度排序并匹配修复示例。
 
     从 ai_mixin._build_quality_feedback 提取的独立函数（不依赖 self），

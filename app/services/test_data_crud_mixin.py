@@ -1,5 +1,5 @@
-"""测试数据CRUD Mixin - 测试数据的数据库增删改查操作。
-"""
+"""测试数据CRUD Mixin - 测试数据的数据库增删改查操作。"""
+
 import json
 from typing import Any
 from loguru import logger
@@ -22,7 +22,7 @@ class TestDataCrudMixin:
         enum_values: list[str] | None = None,
         description: str | None = None,
         is_required: bool = True,
-        sort_order: int = 0
+        sort_order: int = 0,
     ) -> TestData:
         test_data = TestData(
             step_id=step_id,
@@ -38,7 +38,7 @@ class TestDataCrudMixin:
             enum_values=json.dumps(enum_values) if enum_values else None,
             description=description,
             is_required=is_required,
-            sort_order=sort_order
+            sort_order=sort_order,
         )
         self.db.add(test_data)
         self.db.commit()
@@ -50,18 +50,16 @@ class TestDataCrudMixin:
         return self.db.query(TestData).filter(TestData.id == test_data_id).first()
 
     def get_test_data_by_step(self, step_id: int) -> list[TestData]:
-        return self.db.query(TestData).filter(
-            TestData.step_id == step_id
-        ).order_by(TestData.sort_order).all()
+        return self.db.query(TestData).filter(TestData.step_id == step_id).order_by(TestData.sort_order).all()
 
     def update_test_data(self, test_data_id: int, **kwargs) -> TestData | None:
         test_data = self.get_test_data(test_data_id)
         if not test_data:
             return None
-        if 'rule_config' in kwargs and kwargs['rule_config'] is not None:
-            kwargs['rule_config'] = json.dumps(kwargs['rule_config'])
-        if 'enum_values' in kwargs and kwargs['enum_values'] is not None:
-            kwargs['enum_values'] = json.dumps(kwargs['enum_values'])
+        if "rule_config" in kwargs and kwargs["rule_config"] is not None:
+            kwargs["rule_config"] = json.dumps(kwargs["rule_config"])
+        if "enum_values" in kwargs and kwargs["enum_values"] is not None:
+            kwargs["enum_values"] = json.dumps(kwargs["enum_values"])
         for key, value in kwargs.items():
             if hasattr(test_data, key):
                 setattr(test_data, key, value)

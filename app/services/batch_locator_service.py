@@ -25,6 +25,7 @@
     通过BatchTaskManager管理并发任务，BatchExecutorMixin
     实现具体的批量执行逻辑。
 """
+
 from typing import Any
 from collections.abc import Callable
 
@@ -45,7 +46,7 @@ async def batch_record_locators(
     execute_precondition: bool = True,
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
     config: BatchLocatorConfig | None = None,
-    use_mcp: bool | None = None
+    use_mcp: bool | None = None,
 ) -> BatchRecordReport:
     """便捷异步函数 - 快速执行批量元素定位。
 
@@ -63,25 +64,19 @@ async def batch_record_locators(
     Returns:
         BatchRecordReport批量定位报告。
     """
-    service = BatchLocatorService(
-        progress_callback=progress_callback,
-        config=config,
-        use_mcp=use_mcp
-    )
+    service = BatchLocatorService(progress_callback=progress_callback, config=config, use_mcp=use_mcp)
     return await service.batch_record_locators(
-        case_id=case_id,
-        skip_existing=skip_existing,
-        execute_precondition=execute_precondition
+        case_id=case_id, skip_existing=skip_existing, execute_precondition=execute_precondition
     )
 
 
 __all__ = [
-    'BatchLocatorService',
-    'BatchRecordStatus',
-    'BatchLocatorConfig',
-    'StepRecordResult',
-    'BatchRecordReport',
-    'BatchExecutorMixin',
-    'BatchTaskManager',
-    'batch_record_locators',
+    "BatchLocatorService",
+    "BatchRecordStatus",
+    "BatchLocatorConfig",
+    "StepRecordResult",
+    "BatchRecordReport",
+    "BatchExecutorMixin",
+    "BatchTaskManager",
+    "batch_record_locators",
 ]

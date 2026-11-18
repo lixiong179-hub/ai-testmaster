@@ -6,6 +6,7 @@
     - BusinessTestCaseView: 业务视图用例
     - TechnicalTestCaseView: 技术视图用例
 """
+
 from typing import Any
 from dataclasses import dataclass, field
 
@@ -13,22 +14,20 @@ from dataclasses import dataclass, field
 @dataclass
 class BusinessStepView:
     """业务视图步骤 - 面向非技术人员的步骤展示。"""
+
     step_number: int
     action: str
     expected_result: str
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，用于API响应序列化。"""
-        return {
-            "step_number": self.step_number,
-            "action": self.action,
-            "expected_result": self.expected_result
-        }
+        return {"step_number": self.step_number, "action": self.action, "expected_result": self.expected_result}
 
 
 @dataclass
 class TechnicalStepView:
     """技术视图步骤 - 面向测试工程师的步骤展示。"""
+
     step_number: int
     action: str
     expected_result: str
@@ -46,7 +45,7 @@ class TechnicalStepView:
             "action": self.action,
             "expected_result": self.expected_result,
             "has_locator": self.has_locator,
-            "locator_status": self.locator_status
+            "locator_status": self.locator_status,
         }
         if self.css_selector:
             result["css_selector"] = self.css_selector
@@ -62,6 +61,7 @@ class TechnicalStepView:
 @dataclass
 class BusinessTestCaseView:
     """业务视图测试用例 - 面向非技术人员的用例展示。"""
+
     case_id: int
     case_no: str
     title: str
@@ -78,13 +78,14 @@ class BusinessTestCaseView:
             "description": self.description,
             "precondition": self.precondition,
             "steps": [s.to_dict() for s in self.steps],
-            "total_steps": len(self.steps)
+            "total_steps": len(self.steps),
         }
 
 
 @dataclass
 class TechnicalTestCaseView:
     """技术视图测试用例 - 面向测试工程师的用例展示。"""
+
     case_id: int
     case_no: str
     title: str
@@ -99,5 +100,5 @@ class TechnicalTestCaseView:
             "title": self.title,
             "steps": [s.to_dict() for s in self.steps],
             "total_steps": len(self.steps),
-            "locator_coverage": f"{self.locator_coverage:.1f}%"
+            "locator_coverage": f"{self.locator_coverage:.1f}%",
         }

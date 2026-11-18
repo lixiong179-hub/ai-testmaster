@@ -3,6 +3,7 @@
 提供:
     - _build_linear_prompt: 线性模式 Prompt 构建
 """
+
 import json
 from typing import Any
 
@@ -20,10 +21,7 @@ def _build_history_cases_section(history_cases: list[dict[str, Any]] | None) -> 
         return ""
 
     trust_order = {"high": 0, "medium": 1, "low": 2}
-    sorted_cases = sorted(
-        history_cases,
-        key=lambda c: trust_order.get(str(c.get("trust_level", "low")).lower(), 3)
-    )[:3]
+    sorted_cases = sorted(history_cases, key=lambda c: trust_order.get(str(c.get("trust_level", "low")).lower(), 3))[:3]
 
     lines = [
         "## 历史参考用例",
@@ -143,9 +141,9 @@ def _build_linear_prompt(
     else:
         ui_section = "## UI原型图描述：[无UI原型图信息]"
 
-    test_point_json = json.dumps({
-        "module": module, "function": function, "point": point, "priority": priority
-    }, ensure_ascii=False)
+    test_point_json = json.dumps(
+        {"module": module, "function": function, "point": point, "priority": priority}, ensure_ascii=False
+    )
 
     case_type_section = ""
     if case_type:
@@ -168,6 +166,7 @@ def _build_linear_prompt(
     domain_section = ""
     if project_id is not None and db is not None:
         from app.services.prompt_builder.domain_examples import get_domain_examples
+
         # get_domain_examples 返回 None 时保留通用示例（domain_section 保持空串）
         domain_section = get_domain_examples(db, project_id) or ""
 
@@ -182,7 +181,7 @@ def _build_linear_prompt(
 {test_point_json}
 
 ## 需求文档内容：
-{requirement_content if requirement_content else '[无需求文档内容]'}
+{requirement_content if requirement_content else "[无需求文档内容]"}
 
 {ui_section}
 

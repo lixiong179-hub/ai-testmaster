@@ -15,7 +15,9 @@ class TestCaseStep(BaseModel):
     test_data: dict[str, Any] | list[dict[str, Any]] | None = Field(None, description="测试数据")
     description: str | None = Field(None, description="步骤描述")
     ui_elements: list[str | dict[str, Any]] | None = Field(None, description="UI元素列表")
-    action_type: str | None = Field(None, description="操作类型：click/input/navigate/verify/wait/scroll/hover/select/captcha/refresh/keypress")
+    action_type: str | None = Field(
+        None, description="操作类型：click/input/navigate/verify/wait/scroll/hover/select/captcha/refresh/keypress"
+    )
     input_value: str | None = Field(None, description="输入值（仅input类型步骤）")
     target_element: str | None = Field(None, description="目标元素描述")
 
@@ -31,18 +33,27 @@ class TestCaseBase(BaseModel):
     steps: list[TestCaseStep] = Field(default_factory=list, description="可执行步骤")
     expected_result: str = Field("", min_length=0, description="预期结果")
     priority: int = Field(2, ge=1, le=3, description="优先级：1高/2中/3低")
-    case_type: str | None = Field(None, min_length=0, max_length=20, description="用例类型：ui_automation/manual/api_automation/performance/security")
+    case_type: str | None = Field(
+        None,
+        min_length=0,
+        max_length=20,
+        description="用例类型：ui_automation/manual/api_automation/performance/security",
+    )
     test_category: str | None = Field(None, description="用例分类标签（与case_type保持一致）")
     exec_script: str | None = Field(None, description="执行脚本")
     generate_status: int = Field(0, ge=0, le=2, description="生成状态：0生成中/1生成成功/2生成失败")
-    lifecycle_status: str = Field("draft", pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN, description="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")
+    lifecycle_status: str = Field(
+        "draft",
+        pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN,
+        description="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived",
+    )
     depends_on: str | None = Field(None, max_length=255, description="依赖的主干用例标题")
     anchor_step: int | None = Field(None, description="依赖主干用例的步骤号")
     fallback_steps: str | None = Field(None, description="降级导航步骤JSON")
     setup_api_calls: str | None = Field(None, description="API前置准备JSON")
     target_device: str | None = Field(None, max_length=20, description="目标设备类型：tablet/phone/desktop/web")
 
-    @field_validator('title', mode='before')
+    @field_validator("title", mode="before")
     @classmethod
     def _normalize_title(cls, v: str) -> str:
         if isinstance(v, str):
@@ -100,21 +111,21 @@ class TestCaseResponse(TestCaseBase):
     create_time: datetime
     requirement_file_id: int | None = None
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def map_steps_json_to_steps(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if 'steps' not in data and 'steps_json' in data:
+            if "steps" not in data and "steps_json" in data:
                 mapped = dict(data)
-                mapped['steps'] = cls._normalize_steps_json(mapped.get('steps_json'))
+                mapped["steps"] = cls._normalize_steps_json(mapped.get("steps_json"))
                 return mapped
             return data
 
-        if hasattr(data, 'steps_json') and not hasattr(data, 'steps'):
+        if hasattr(data, "steps_json") and not hasattr(data, "steps"):
             mapped = {}
             for name in cls.model_fields:
-                if name == 'steps':
-                    mapped[name] = cls._normalize_steps_json(getattr(data, 'steps_json', None))
+                if name == "steps":
+                    mapped[name] = cls._normalize_steps_json(getattr(data, "steps_json", None))
                 elif hasattr(data, name):
                     mapped[name] = getattr(data, name)
             return mapped
@@ -149,7 +160,9 @@ class TestCaseUpdate(TestCaseBase):
     precondition: str | None = Field(None, description="前置条件")
     expected_result: str | None = Field(None, description="预期结果")
     priority: int | None = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")
-    case_type: str | None = Field(None, max_length=20, description="用例类型：ui_automation/manual/api_automation/performance/security")
+    case_type: str | None = Field(
+        None, max_length=20, description="用例类型：ui_automation/manual/api_automation/performance/security"
+    )
     exec_script: str | None = Field(None, description="执行脚本")
     generate_status: int | None = Field(None, ge=0, le=2, description="生成状态：0生成中/1生成成功/2生成失败")
     lifecycle_status: str | None = Field(None, pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN, description="生命周期状态")

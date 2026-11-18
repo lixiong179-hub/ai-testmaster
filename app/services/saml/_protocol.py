@@ -12,6 +12,7 @@
     - strict 模式从 IdP 配置继承，测试时可传 strict=False 放宽校验
     - 延迟导入 onelogin.saml2 避免模块加载时强依赖 xmlsec1
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -32,6 +33,7 @@ def _build_auth(request_data: dict[str, Any], settings_dict: dict[str, Any]) -> 
         OneLogin_Saml2_Auth 实例
     """
     from onelogin.saml2.auth import OneLogin_Saml2_Auth
+
     return OneLogin_Saml2_Auth(request_data, old_settings=settings_dict)
 
 
@@ -45,6 +47,7 @@ def _build_settings(settings_dict: dict[str, Any]) -> Any:
         OneLogin_Saml2_Settings 实例
     """
     from onelogin.saml2.settings import OneLogin_Saml2_Settings
+
     return OneLogin_Saml2_Settings(settings_dict, sp_validation_only=True)
 
 

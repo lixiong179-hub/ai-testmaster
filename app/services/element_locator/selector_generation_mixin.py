@@ -1,11 +1,10 @@
-"""选择器生成Mixin - 自动生成CSS和XPath选择器。
-"""
+"""选择器生成Mixin - 自动生成CSS和XPath选择器。"""
+
 import re
 from typing import Any
 
 
 class SelectorGenerationMixin:
-
     MAX_CLASS_COUNT = 2
     MAX_TEXT_LENGTH = 20
     MAX_PLACEHOLDER_LENGTH = 10
@@ -14,7 +13,7 @@ class SelectorGenerationMixin:
         if not value:
             return ""
         special_chars = r'([!"#$%&\'()*+,./:;<=>?@[\\\]^`{|}~])'
-        return re.sub(special_chars, r'\\\1', value)
+        return re.sub(special_chars, r"\\\1", value)
 
     def _sanitize_for_xpath(self, value: str) -> str:
         if not value:
@@ -49,7 +48,7 @@ class SelectorGenerationMixin:
             return f"[name='{safe_name}']"
 
         if element_class:
-            classes = element_class.split()[:self.MAX_CLASS_COUNT]
+            classes = element_class.split()[: self.MAX_CLASS_COUNT]
             safe_classes = [self._sanitize_for_css(c) for c in classes]
             class_selector = ".".join(safe_classes)
             safe_tag = self._sanitize_for_css(tag)
@@ -58,7 +57,7 @@ class SelectorGenerationMixin:
         if element_type and placeholder:
             safe_tag = self._sanitize_for_css(tag)
             safe_type = self._sanitize_for_css(element_type)
-            safe_placeholder = self._sanitize_for_css(placeholder[:self.MAX_PLACEHOLDER_LENGTH])
+            safe_placeholder = self._sanitize_for_css(placeholder[: self.MAX_PLACEHOLDER_LENGTH])
             return f"{safe_tag}[type='{safe_type}'][placeholder*='{safe_placeholder}']"
 
         if element_type:
@@ -76,22 +75,22 @@ class SelectorGenerationMixin:
         element_text = element_attrs.get("text")
 
         if element_id:
-            safe_tag = self._sanitize_for_xpath(tag).strip('"\'')
+            safe_tag = self._sanitize_for_xpath(tag).strip("\"'")
             safe_id = self._sanitize_for_xpath(element_id)
             return f"//{safe_tag}[@id={safe_id}]"
 
         if element_name:
-            safe_tag = self._sanitize_for_xpath(tag).strip('"\'')
+            safe_tag = self._sanitize_for_xpath(tag).strip("\"'")
             safe_name = self._sanitize_for_xpath(element_name)
             return f"//{safe_tag}[@name={safe_name}]"
 
         if element_text:
-            safe_tag = self._sanitize_for_xpath(tag).strip('"\'')
-            text = element_text[:self.MAX_TEXT_LENGTH]
+            safe_tag = self._sanitize_for_xpath(tag).strip("\"'")
+            text = element_text[: self.MAX_TEXT_LENGTH]
             safe_text = self._sanitize_for_xpath(text)
             return f"//{safe_tag}[contains(text(),{safe_text})]"
 
-        safe_tag = self._sanitize_for_xpath(tag).strip('"\'')
+        safe_tag = self._sanitize_for_xpath(tag).strip("\"'")
         return f"//{safe_tag}"
 
     @staticmethod

@@ -3,6 +3,7 @@
 承载测试执行引擎的当前状态，用于 FailureAnalysisAgent 在失败自愈场景
 感知「执行到哪一步、报什么错、有无截图」。
 """
+
 from __future__ import annotations
 
 from datetime import datetime

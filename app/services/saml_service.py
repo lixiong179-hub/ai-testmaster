@@ -9,6 +9,7 @@
     - saml/_relay_state: RelayState 存储管理（Redis + 内存降级）
     - saml/_user_provisioning: 用户映射与自动配置
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -197,12 +198,8 @@ class SAMLService:
 
         if request_data is None:
             request_data = self._build_minimal_request_data(settings.SAML_SP_ACS_URL)
-        redirect_url = build_authn_request_redirect(
-            request_data, idp_cfg, relay_state, strict=True
-        )
-        logger.info(
-            f"SAML 登录跳转: provider={actual_provider} relay_state={relay_state[:8]}..."
-        )
+        redirect_url = build_authn_request_redirect(request_data, idp_cfg, relay_state, strict=True)
+        logger.info(f"SAML 登录跳转: provider={actual_provider} relay_state={relay_state[:8]}...")
         return redirect_url, relay_state
 
     # ── ACS 回调处理 ──
@@ -245,9 +242,7 @@ class SAMLService:
 
         # 3. 用户映射 / 自动配置
         try:
-            user = await self._provisioner.provision(
-                db, provider, issuer, nameid, attributes
-            )
+            user = await self._provisioner.provision(db, provider, issuer, nameid, attributes)
         except ValueError as e:
             raise SAMLUserNotBoundError(str(e)) from e
 
@@ -267,6 +262,7 @@ class SAMLService:
         refresh_token, refresh_jti = create_refresh_token_with_jti(data=token_data)
 
         from app.services.session_service import SessionService
+
         session_service = SessionService(db)
         refresh_expires_at = utcnow() + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
         await session_service.create_session(
@@ -303,9 +299,7 @@ class SAMLService:
         idp_cfg = self.get_provider_config(provider)
         if request_data is None:
             request_data = self._build_minimal_request_data(settings.SAML_SP_SLO_URL)
-        return build_logout_request_redirect(
-            request_data, idp_cfg, name_id, session_index, relay_state, strict=True
-        )
+        return build_logout_request_redirect(request_data, idp_cfg, name_id, session_index, relay_state, strict=True)
 
     def handle_slo(
         self,

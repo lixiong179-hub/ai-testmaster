@@ -1,4 +1,5 @@
 """移动端AI执行器类型定义 - 兼容原始 mobile_ai_executor.py。"""
+
 from typing import Any
 from dataclasses import dataclass
 from enum import StrEnum

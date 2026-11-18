@@ -3,6 +3,7 @@
 
 所有实现已迁移到 visibility_config/ 子包，本文件仅保留向后兼容的导入。
 """
+
 from app.services.visibility_config.models import VisibilityConfig, VisibilityLevel
 from app.services.visibility_config.core_mixin import VisibilityConfigCoreMixin
 from app.services.visibility_config.permission_mixin import VisibilityConfigPermissionMixin
@@ -10,6 +11,7 @@ from app.services.visibility_config.permission_mixin import VisibilityConfigPerm
 
 class VisibilityConfigService(VisibilityConfigCoreMixin, VisibilityConfigPermissionMixin):
     """可见模式配置服务"""
+
     pass
 
 

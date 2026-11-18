@@ -13,6 +13,7 @@
     - app.utils.db_time.utcnow: UTC 时间戳生成
     - app.db.database.Base: SQLAlchemy 声明性基类
 """
+
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
 from app.db.database import Base
@@ -34,6 +35,7 @@ class ProjectFlowData(Base):
         - 页面刷新或重新进入时恢复上次编辑状态
         - 多设备间同步流程编辑状态
     """
+
     __tablename__ = "project_flow_data"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)

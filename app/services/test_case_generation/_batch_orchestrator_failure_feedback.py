@@ -7,6 +7,7 @@
 供 BatchOrchestrator 通过多继承组合使用，依赖宿主类在 __init__ 中
 注入 self.db（sqlalchemy.orm.Session）。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -42,6 +43,7 @@ class ModuleFailureFeedbackMixin:
             return {}
         try:
             from app.models.test_case import TestCase
+
             rows = (
                 db.query(TestCase.module, TestCase.execution_failure_type)
                 .filter(
@@ -90,6 +92,7 @@ class ModuleFailureFeedbackMixin:
                 return
             try:
                 from app.models.test_case import TestCase
+
                 rows = (
                     db.query(TestCase.execution_failure_type)
                     .filter(

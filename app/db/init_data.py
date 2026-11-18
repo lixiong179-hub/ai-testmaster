@@ -29,6 +29,7 @@
     init_data.py 使用 ORM 模型操作数据库，功能完整但依赖所有模型类已正确定义；
     init_simple.py 使用原生 SQL，不依赖 ORM 模型，适用于模型未就绪时的紧急初始化。
 """
+
 from contextlib import contextmanager
 from collections.abc import Generator
 import logging
@@ -93,15 +94,11 @@ def init_admin_user() -> User:
             password = os.environ.get("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(16)
             if not os.environ.get("ADMIN_INITIAL_PASSWORD"):
                 warnings.warn(
-                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。"
-                    "请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！",
-                    UserWarning
+                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！",
+                    UserWarning,
                 )
             admin_user = User(
-                username="admin",
-                email="admin@example.com",
-                password_hash=get_password_hash(password),
-                is_active=True
+                username="admin", email="admin@example.com", password_hash=get_password_hash(password), is_active=True
             )
             db.add(admin_user)
             db.commit()
@@ -147,7 +144,18 @@ def init_roles_and_permissions() -> Role:
             admin_role = Role(
                 name="admin",
                 desc="管理员角色",
-                permissions=["user:create", "user:update", "user:delete", "user:assign_role", "role:create", "role:update", "role:delete", "permission:create", "permission:update", "permission:delete"]
+                permissions=[
+                    "user:create",
+                    "user:update",
+                    "user:delete",
+                    "user:assign_role",
+                    "role:create",
+                    "role:update",
+                    "role:delete",
+                    "permission:create",
+                    "permission:update",
+                    "permission:delete",
+                ],
             )
             db.add(admin_role)
 
@@ -155,7 +163,14 @@ def init_roles_and_permissions() -> Role:
             test_role = Role(
                 name="test",
                 desc="测试人员角色",
-                permissions=["test_case:create", "test_case:update", "test_case:delete", "test_task:create", "test_task:update", "test_task:delete"]
+                permissions=[
+                    "test_case:create",
+                    "test_case:update",
+                    "test_case:delete",
+                    "test_task:create",
+                    "test_task:update",
+                    "test_task:delete",
+                ],
             )
             db.add(test_role)
 
@@ -220,15 +235,14 @@ def assign_role_to_admin(admin_user_id: int, admin_role_id: int) -> None:
     """
     with _db_session() as db:
         # 幂等检查：查询 user_role 关联表中是否已存在该绑定关系
-        existing = db.query(user_role).filter(
-            user_role.c.user_id == admin_user_id,
-            user_role.c.role_id == admin_role_id
-        ).first()
+        existing = (
+            db.query(user_role)
+            .filter(user_role.c.user_id == admin_user_id, user_role.c.role_id == admin_role_id)
+            .first()
+        )
         if not existing:
             # 使用 Core 层的 insert 语法操作关联表（user_role 是 Table 对象，非 ORM 模型）
-            db.execute(
-                user_role.insert().values(user_id=admin_user_id, role_id=admin_role_id)
-            )
+            db.execute(user_role.insert().values(user_id=admin_user_id, role_id=admin_role_id))
             db.commit()
             logger.info("管理员角色分配成功")
         else:
@@ -251,6 +265,7 @@ if __name__ == "__main__":
     # 步骤1：删除现有的表结构（含所有数据）
     logger.info("删除现有数据库表结构...")
     from app.db.database import drop_db
+
     drop_db()
     logger.info("现有数据库表结构已删除")
 

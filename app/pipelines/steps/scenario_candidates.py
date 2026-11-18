@@ -10,6 +10,7 @@
     4. 校验输出 schema + 启发式数量检查
     5. 输出 scenario_candidates 产物
 """
+
 import hashlib
 import json
 from typing import Any, ClassVar
@@ -96,9 +97,7 @@ class ScenarioCandidateExtractor(PipelineStep):
         project_id = raw_signals.get("project_id", 0)
         fingerprints = ctx.get_artifact("history_fingerprints")
         inferred = ctx.get_artifact("inferred_business_summary")
-        sig_hash = hashlib.sha256(
-            json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()[:16]
+        sig_hash = hashlib.sha256(json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         fp_hash = hashlib.sha256(
             json.dumps(fingerprints or {}, sort_keys=True, ensure_ascii=False).encode()
         ).hexdigest()[:16]

@@ -13,6 +13,7 @@ Pipeline Step 基础接口与数据结构
     - cache_key 支持幂等缓存
     - fallback 提供失败兜底
 """
+
 from __future__ import annotations
 from typing import Protocol, ClassVar, Any, runtime_checkable, TYPE_CHECKING
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ class StepResult:
         confirmation_reason: 暂停原因。
         confirmation_payload: 传给前端的确认数据。
     """
+
     success: bool = True
     artifact_payload: dict[str, Any] | None = None
     artifact_kind: str = ""

@@ -28,6 +28,7 @@ Pipeline 监控指标服务模块
     _trends.py 的同步端点直接调用。db.bind.dialect.name 对 Session 和
     AsyncSession 均有效，故 _date_trunc_* 兼容两种 Session 类型。
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -86,14 +87,16 @@ def _format_query_rows(rows) -> list[dict[str, Any]]:
     results = []
     for row in rows:
         meta = FMEA_METRICS.get(row.metric_name, {})
-        results.append({
-            "metric_name": row.metric_name,
-            "fmea_id": meta.get("fmea_id", ""),
-            "description": meta.get("description", ""),
-            "count": row.count,
-            "total": float(row.total),
-            "avg_value": round(float(row.avg_value), 4),
-        })
+        results.append(
+            {
+                "metric_name": row.metric_name,
+                "fmea_id": meta.get("fmea_id", ""),
+                "description": meta.get("description", ""),
+                "count": row.count,
+                "total": float(row.total),
+                "avg_value": round(float(row.avg_value), 4),
+            }
+        )
     return results
 
 
@@ -262,14 +265,16 @@ def _build_dashboard_summary(aggregated: list[dict[str, Any]]) -> dict[str, Any]
             if agg["metric_name"] == name:
                 found = agg
                 break
-        all_metrics.append({
-            "metric_name": name,
-            "fmea_id": meta["fmea_id"],
-            "description": meta["description"],
-            "count": found["count"] if found else 0,
-            "total": found["total"] if found else 0.0,
-            "avg_value": found["avg_value"] if found else 0.0,
-        })
+        all_metrics.append(
+            {
+                "metric_name": name,
+                "fmea_id": meta["fmea_id"],
+                "description": meta["description"],
+                "count": found["count"] if found else 0,
+                "total": found["total"] if found else 0.0,
+                "avg_value": found["avg_value"] if found else 0.0,
+            }
+        )
 
     return {
         "metrics": all_metrics,
@@ -295,7 +300,9 @@ async def get_dashboard_summary(
         摘要字典，含 metrics 列表和 generated_at 时间戳。
     """
     aggregated = await query_metrics(
-        db, project_id=project_id, since=since,
+        db,
+        project_id=project_id,
+        since=since,
     )
     return _build_dashboard_summary(aggregated)
 

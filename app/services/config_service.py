@@ -13,6 +13,7 @@ set_config 时刷新缓存并写入 audit_log。
     - app.models.pipeline_config : PipelineConfig
     - app.services.audit_service : 审计日志
 """
+
 import json
 import logging
 from typing import Any
@@ -26,59 +27,73 @@ _cache: dict[str, Any] = {}
 
 DEFAULT_CONFIGS: dict[str, dict] = {
     "LIFECYCLE_DEPRECATE_COOLDOWN_HOURS": {
-        "value": "24", "value_type": "int",
+        "value": "24",
+        "value_type": "int",
         "description": "deprecated → archived 冷却时间（小时）",
     },
     "AI_TOKEN_BUDGET_PER_RUN": {
-        "value": "500000", "value_type": "int",
+        "value": "500000",
+        "value_type": "int",
         "description": "单次 PipelineRun token 上限",
     },
     "CONFIDENCE_THRESHOLD": {
-        "value": "0.7", "value_type": "float",
+        "value": "0.7",
+        "value_type": "float",
         "description": "低于此值强制人工确认",
     },
     "REVIEW_LOCK_TTL_HOURS": {
-        "value": "24", "value_type": "int",
+        "value": "24",
+        "value_type": "int",
         "description": "评审锁过期时间（小时）",
     },
     "PIPELINE_PAUSE_TIMEOUT_DAYS": {
-        "value": "7", "value_type": "int",
+        "value": "7",
+        "value_type": "int",
         "description": "Pipeline 暂停超时自动取消（天）",
     },
     "BATCH_SIZE_BACKWARD_SCAN": {
-        "value": "50", "value_type": "int",
+        "value": "50",
+        "value_type": "int",
         "description": "反向扫描每批用例数",
     },
     "BATCH_SIZE_SUMMARY_BACKFILL": {
-        "value": "20", "value_type": "int",
+        "value": "20",
+        "value_type": "int",
         "description": "summary 回填每批用例数",
     },
     "REVIEW_UNDO_WINDOW_MINUTES": {
-        "value": "60", "value_type": "int",
+        "value": "60",
+        "value_type": "int",
         "description": "finalize 后允许回滚的时间窗口（分钟）",
     },
     "AUTO_APPROVE_MIN_GRADE": {
-        "value": "A", "value_type": "str",
+        "value": "A",
+        "value_type": "str",
         "description": "自动通过最低先验等级（A/B/C/NONE）",
     },
     "PIPELINE_VERSION": {
-        "value": "1.0", "value_type": "str",
+        "value": "1.0",
+        "value_type": "str",
         "description": "Pipeline 逻辑版本，变更时强制重跑",
     },
     "SUMMARY_MAX_LENGTH": {
-        "value": "200", "value_type": "int",
+        "value": "200",
+        "value_type": "int",
         "description": "summary 最大字数",
     },
     "LINEAGE_CHAIN_WARNING_LENGTH": {
-        "value": "3", "value_type": "int",
+        "value": "3",
+        "value_type": "int",
         "description": "血缘链长度警告阈值",
     },
     "PRIOR_QUALITY_D_THRESHOLD": {
-        "value": "45", "value_type": "int",
+        "value": "45",
+        "value_type": "int",
         "description": "先验质量 D 级阈值",
     },
     "POSTERIOR_MIN_EXECUTIONS": {
-        "value": "3", "value_type": "int",
+        "value": "3",
+        "value_type": "int",
         "description": "后验分最少执行次数",
     },
 }
@@ -184,6 +199,7 @@ def set_config(
 
     try:
         from app.services.audit_service import log_action
+
         log_action(
             db=db,
             action="config_change",

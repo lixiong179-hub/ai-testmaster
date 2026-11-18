@@ -16,6 +16,7 @@
     - 渐进启用：开发环境默认关闭 HSTS（http 会被浏览器拒绝）
     - 异常容忍：CSRF 校验失败返回 403，不阻断已认证的 API 请求（JWT 模式低风险）
 """
+
 from __future__ import annotations
 
 import hmac
@@ -113,9 +114,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if cookie_token and header_token:
             if hmac.compare_digest(cookie_token, header_token):
                 return await call_next(request)
-            logger.warning(
-                f"[CSRF] 双提交 Cookie 校验失败: path={request.url.path} method={method}"
-            )
+            logger.warning(f"[CSRF] 双提交 Cookie 校验失败: path={request.url.path} method={method}")
             return _csrf_rejected("CSRF token 不匹配")
 
         # 无 CSRF token 时回退到 Origin/Referer 校验
@@ -123,15 +122,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             origin_check = self._check_origin_or_referer(request)
             if origin_check:
                 return await call_next(request)
-            logger.warning(
-                f"[CSRF] Origin/Referer 校验失败: path={request.url.path} method={method}"
-            )
+            logger.warning(f"[CSRF] Origin/Referer 校验失败: path={request.url.path} method={method}")
             return _csrf_rejected("缺少 CSRF token 且 Origin/Referer 校验失败")
 
         # cookie_token 存在但 header_token 缺失
         logger.warning(
-            f"[CSRF] 请求头缺少 {settings.SECURITY_CSRF_TOKEN_HEADER}: "
-            f"path={request.url.path} method={method}"
+            f"[CSRF] 请求头缺少 {settings.SECURITY_CSRF_TOKEN_HEADER}: path={request.url.path} method={method}"
         )
         return _csrf_rejected("请求头缺少 CSRF token")
 

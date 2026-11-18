@@ -7,6 +7,7 @@
     - _render_flow_meta_hint: flow_meta 补充信息渲染
     - _group_edges_by_source: 按源节点分组连线
 """
+
 from typing import Any
 
 from loguru import logger
@@ -41,15 +42,15 @@ def _find_main_step(main_nodes: list[dict[str, Any]], screen_id: int) -> str:
         步骤序号字符串，未找到时返回 '?'。
     """
     for i, node in enumerate(main_nodes, 1):
-        if node.get('screen_id') == screen_id:
+        if node.get("screen_id") == screen_id:
             return str(i)
-    return '?'
+    return "?"
 
 
 _CONDITION_TEMPLATES = {
-    'branch': '用户在{source_name}选择{target_name}相关操作',
-    'exception': '{target_name}操作失败或系统异常',
-    'bypass': '进入{source_name}时自动弹出{target_name}',
+    "branch": "用户在{source_name}选择{target_name}相关操作",
+    "exception": "{target_name}操作失败或系统异常",
+    "bypass": "进入{source_name}时自动弹出{target_name}",
 }
 
 
@@ -70,32 +71,26 @@ def _infer_condition(
     Returns:
         触发条件字符串，包含来源标注。
     """
-    condition = (edge.get('condition') or '').strip()
+    condition = (edge.get("condition") or "").strip()
     if condition:
         return f"{condition}（用户填写）"
 
-    target_name = target_node.get('screen_name', '目标页面')
-    raw_label = edge.get('label', '')
-    if '：' in raw_label:
-        clean_label = raw_label.split('：', 1)[-1].strip()
-    elif ':' in raw_label:
-        clean_label = raw_label.split(':', 1)[-1].strip()
+    target_name = target_node.get("screen_name", "目标页面")
+    raw_label = edge.get("label", "")
+    if "：" in raw_label:
+        clean_label = raw_label.split("：", 1)[-1].strip()
+    elif ":" in raw_label:
+        clean_label = raw_label.split(":", 1)[-1].strip()
     else:
         clean_label = raw_label.strip()
-    source_name = (source_node or {}).get('screen_name') or clean_label or '当前页面'
+    source_name = (source_node or {}).get("screen_name") or clean_label or "当前页面"
     template = _CONDITION_TEMPLATES.get(edge_type)
     if template is None:
-        logger.warning(
-            f"未知 edge_type={edge_type}，无法推断条件"
-            f" (edge={edge.get('id', '?')})"
-        )
+        logger.warning(f"未知 edge_type={edge_type}，无法推断条件 (edge={edge.get('id', '?')})")
         return f"未知触发条件（edge_type={edge_type}）（系统推断）"
     # template 为动态传入的模板字符串，f-string 无法在运行时延迟求值，按项目规则例外使用 .format()
     inferred = template.format(source_name=source_name, target_name=target_name)
-    logger.info(
-        f"Auto-inferred {edge_type} condition: {inferred}"
-        f" (edge={edge.get('id', '?')})"
-    )
+    logger.info(f"Auto-inferred {edge_type} condition: {inferred} (edge={edge.get('id', '?')})")
     return f"{inferred}（系统推断）"
 
 
@@ -111,26 +106,26 @@ def _render_flow_meta_hint(flow_meta: dict[str, Any], edge_type: str) -> str:
     """
     hints = []
 
-    pre_action = (flow_meta.get('pre_action') or '').strip()
+    pre_action = (flow_meta.get("pre_action") or "").strip()
     if pre_action:
         hints.append(f"前置操作: {pre_action}")
 
-    expected_result = (flow_meta.get('expected_result') or '').strip()
+    expected_result = (flow_meta.get("expected_result") or "").strip()
     if expected_result:
         hints.append(f"预期结果: {expected_result}")
 
-    bypass_reason = (flow_meta.get('bypass_reason') or '').strip()
-    if edge_type == 'bypass' and bypass_reason:
+    bypass_reason = (flow_meta.get("bypass_reason") or "").strip()
+    if edge_type == "bypass" and bypass_reason:
         hints.append(f"旁路原因: {bypass_reason}")
 
-    note = (flow_meta.get('note') or '').strip()
+    note = (flow_meta.get("note") or "").strip()
     if note:
         hints.append(f"备注: {note}")
 
     if not hints:
-        return ''
+        return ""
 
-    return f' [{"; ".join(hints)}]'
+    return f" [{'; '.join(hints)}]"
 
 
 def _render_edge_hint(edge: dict[str, Any]) -> str:
@@ -148,22 +143,22 @@ def _render_edge_hint(edge: dict[str, Any]) -> str:
     """
     hints = []
 
-    trigger_action = (edge.get('trigger_action') or '').strip()
+    trigger_action = (edge.get("trigger_action") or "").strip()
     if trigger_action:
         hints.append(f"连线触发动作: {trigger_action}")
 
-    pre_action = (edge.get('pre_action') or '').strip()
+    pre_action = (edge.get("pre_action") or "").strip()
     if pre_action:
         hints.append(f"连线前置操作: {pre_action}")
 
-    note = (edge.get('note') or '').strip()
+    note = (edge.get("note") or "").strip()
     if note:
         hints.append(f"连线备注: {note}")
 
     if not hints:
-        return ''
+        return ""
 
-    return f' [{"; ".join(hints)}]'
+    return f" [{'; '.join(hints)}]"
 
 
 def _group_edges_by_source(
@@ -179,7 +174,7 @@ def _group_edges_by_source(
     """
     grouped: dict[int, list[dict[str, Any]]] = {}
     for e in edge_list:
-        src = _safe_int(e.get('source'))
+        src = _safe_int(e.get("source"))
         if src is not None:
             grouped.setdefault(src, []).append(e)
     return grouped

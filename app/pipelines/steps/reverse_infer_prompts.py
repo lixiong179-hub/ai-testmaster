@@ -53,7 +53,7 @@ _SYSTEM_NEW_PROJECT = _make_capability_infer_prompt(
     principles=(
         "1. 从 UI 的页面结构、控件、流程推断背后的业务能力\n"
         "2. 业务能力是稳定的抽象层，不应与具体 UI 控件绑定\n"
-        "3. 区分\"确定的推断\"和\"不确定的推断\"\n"
+        '3. 区分"确定的推断"和"不确定的推断"\n'
         "4. 每个业务能力应独立、可测试"
     ),
     evidence_source="从哪些 UI 元素推断出的（不超过100字）",

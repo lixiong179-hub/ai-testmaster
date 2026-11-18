@@ -8,6 +8,7 @@ _append_supplement_examples）行为完全不变。
 迁移原因：覆盖补全逻辑需同时服务 Pipeline 和批量生成流程，提取为纯函数
 消除重复，详见 coverage_service 模块文档。
 """
+
 from typing import Any
 
 from app.pipelines.context import PipelineContext

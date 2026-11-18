@@ -8,6 +8,7 @@
 
 依赖：subprocess（执行 git diff）、re（解析 diff）
 """
+
 import logging
 import re
 import subprocess
@@ -61,10 +62,7 @@ class ChangeAnalyzer:
                 check=False,
             )
             if result.returncode != 0:
-                logger.warning(
-                    f"git diff 失败: base={base_ref}, target={target_ref}, "
-                    f"stderr={result.stderr.strip()}"
-                )
+                logger.warning(f"git diff 失败: base={base_ref}, target={target_ref}, stderr={result.stderr.strip()}")
                 return []
             return self.parse_diff_text(result.stdout)
         except subprocess.TimeoutExpired:
@@ -101,10 +99,15 @@ class ChangeAnalyzer:
             if line.startswith("diff --git"):
                 # 文件边界：保存上一个文件的变更
                 if current_file is not None:
-                    changes.append(self._build_change(
-                        current_file, current_added, current_deleted,
-                        is_new_file, is_deleted,
-                    ))
+                    changes.append(
+                        self._build_change(
+                            current_file,
+                            current_added,
+                            current_deleted,
+                            is_new_file,
+                            is_deleted,
+                        )
+                    )
                 # 重置状态
                 current_file = None
                 current_added = set()
@@ -143,10 +146,15 @@ class ChangeAnalyzer:
 
         # 保存最后一个文件
         if current_file is not None:
-            changes.append(self._build_change(
-                current_file, current_added, current_deleted,
-                is_new_file, is_deleted,
-            ))
+            changes.append(
+                self._build_change(
+                    current_file,
+                    current_added,
+                    current_deleted,
+                    is_new_file,
+                    is_deleted,
+                )
+            )
 
         logger.info(f"解析 diff 完成: files={len(changes)}")
         return changes

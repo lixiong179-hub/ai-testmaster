@@ -1,4 +1,5 @@
 """Scenario input validation helpers."""
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -155,11 +156,15 @@ def _has_file_content(db: Session, project_id: int, file_id: Any) -> bool:
         return False
     from app.models.project import ProjectFile
 
-    file_record = db.query(ProjectFile).filter(
-        ProjectFile.id == file_id,
-        ProjectFile.project_id == project_id,
-        ProjectFile.is_active.is_(True),
-    ).first()
+    file_record = (
+        db.query(ProjectFile)
+        .filter(
+            ProjectFile.id == file_id,
+            ProjectFile.project_id == project_id,
+            ProjectFile.is_active.is_(True),
+        )
+        .first()
+    )
     return bool(file_record and (file_record.content or "").strip())
 
 
@@ -174,45 +179,69 @@ def _has_resolved_ui(db: Session, project_id: int, inp: Any) -> bool:
     screen_ids = sorted(set(screen_ids))
 
     if screen_ids:
-        return db.query(UIPrototypeScreen.id).filter(
-            UIPrototypeScreen.id.in_(screen_ids),
-            UIPrototypeScreen.project_id == project_id,
-            UIPrototypeScreen.parse_status == "completed",
-            UIPrototypeScreen.ui_spec.isnot(None),
-        ).first() is not None
+        return (
+            db.query(UIPrototypeScreen.id)
+            .filter(
+                UIPrototypeScreen.id.in_(screen_ids),
+                UIPrototypeScreen.project_id == project_id,
+                UIPrototypeScreen.parse_status == "completed",
+                UIPrototypeScreen.ui_spec.isnot(None),
+            )
+            .first()
+            is not None
+        )
 
     prototype_project_ids = _as_int_list(payload.get("prototype_project_id"))
     prototype_project_ids.extend(_as_int_list(payload.get("ui_project_id")))
     prototype_project_ids = sorted(set(prototype_project_ids))
     if prototype_project_ids:
-        return db.query(UIPrototypeScreen.id).filter(
-            UIPrototypeScreen.project_id == project_id,
-            UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
-            UIPrototypeScreen.parse_status == "completed",
-            UIPrototypeScreen.ui_spec.isnot(None),
-        ).first() is not None
+        return (
+            db.query(UIPrototypeScreen.id)
+            .filter(
+                UIPrototypeScreen.project_id == project_id,
+                UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
+                UIPrototypeScreen.parse_status == "completed",
+                UIPrototypeScreen.ui_spec.isnot(None),
+            )
+            .first()
+            is not None
+        )
 
     file_id = getattr(inp, "file_id", None)
     if file_id:
-        file_record = db.query(ProjectFile).filter(
-            ProjectFile.id == file_id,
-            ProjectFile.project_id == project_id,
-            ProjectFile.resource_type == "ui_mockup",
-            ProjectFile.is_active.is_(True),
-        ).first()
+        file_record = (
+            db.query(ProjectFile)
+            .filter(
+                ProjectFile.id == file_id,
+                ProjectFile.project_id == project_id,
+                ProjectFile.resource_type == "ui_mockup",
+                ProjectFile.is_active.is_(True),
+            )
+            .first()
+        )
         if file_record:
-            return db.query(UIPrototypeScreen.id).filter(
-                UIPrototypeScreen.project_id == project_id,
-                UIPrototypeScreen.prototype_name == file_record.file_name,
-                UIPrototypeScreen.parse_status == "completed",
-                UIPrototypeScreen.ui_spec.isnot(None),
-            ).first() is not None
+            return (
+                db.query(UIPrototypeScreen.id)
+                .filter(
+                    UIPrototypeScreen.project_id == project_id,
+                    UIPrototypeScreen.prototype_name == file_record.file_name,
+                    UIPrototypeScreen.parse_status == "completed",
+                    UIPrototypeScreen.ui_spec.isnot(None),
+                )
+                .first()
+                is not None
+            )
 
-    return db.query(UIPrototypeScreen.id).filter(
-        UIPrototypeScreen.project_id == project_id,
-        UIPrototypeScreen.parse_status == "completed",
-        UIPrototypeScreen.ui_spec.isnot(None),
-    ).first() is not None
+    return (
+        db.query(UIPrototypeScreen.id)
+        .filter(
+            UIPrototypeScreen.project_id == project_id,
+            UIPrototypeScreen.parse_status == "completed",
+            UIPrototypeScreen.ui_spec.isnot(None),
+        )
+        .first()
+        is not None
+    )
 
 
 def _has_resolved_testpoints(db: Session, project_id: int, inp: Any) -> bool:
@@ -221,10 +250,15 @@ def _has_resolved_testpoints(db: Session, project_id: int, inp: Any) -> bool:
     payload = _payload(inp)
     point_ids = _as_int_list(payload.get("test_point_ids"))
     if point_ids:
-        return db.query(TestPoint.id).filter(
-            TestPoint.id.in_(sorted(set(point_ids))),
-            TestPoint.project_id == project_id,
-        ).first() is not None
+        return (
+            db.query(TestPoint.id)
+            .filter(
+                TestPoint.id.in_(sorted(set(point_ids))),
+                TestPoint.project_id == project_id,
+            )
+            .first()
+            is not None
+        )
 
     return db.query(TestPoint.id).filter(TestPoint.project_id == project_id).first() is not None
 

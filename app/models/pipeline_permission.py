@@ -23,6 +23,7 @@ Pipeline 权限模型模块
 依赖关系：
     - app.db.database.Base : SQLAlchemy 声明性基类
 """
+
 from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint, Index, DateTime, Table
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
@@ -30,7 +31,8 @@ from app.db.database import Base
 
 
 pipeline_user_role = Table(
-    "pipeline_user_role", Base.metadata,
+    "pipeline_user_role",
+    Base.metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Column("role_id", Integer, ForeignKey("pipeline_roles.id", ondelete="CASCADE"), nullable=False),
@@ -47,11 +49,14 @@ class PipelineRole(Base):
 
     name 枚举: admin, qa_lead, qa_engineer, viewer
     """
+
     __tablename__ = "pipeline_roles"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(
-        String(32), nullable=False, unique=True,
+        String(32),
+        nullable=False,
+        unique=True,
         comment="角色名: admin/qa_lead/qa_engineer/viewer",
     )
     description = Column(String(256), nullable=True, comment="角色描述")
@@ -59,7 +64,10 @@ class PipelineRole(Base):
 
     permissions = relationship("PipelinePermission", back_populates="role", lazy="selectin")
     users = relationship(
-        "User", secondary=pipeline_user_role, backref="pipeline_roles", lazy="dynamic",
+        "User",
+        secondary=pipeline_user_role,
+        backref="pipeline_roles",
+        lazy="dynamic",
     )
 
 
@@ -70,11 +78,14 @@ class PipelinePermission(Base):
     action 枚举: create, read, update, delete, start, approve, reject, finalize, cancel
     scope 枚举: own, project, all
     """
+
     __tablename__ = "pipeline_permissions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     role_id = Column(
-        Integer, ForeignKey("pipeline_roles.id", ondelete="CASCADE"), nullable=False,
+        Integer,
+        ForeignKey("pipeline_roles.id", ondelete="CASCADE"),
+        nullable=False,
     )
     resource = Column(String(32), nullable=False, comment="资源类型")
     action = Column(String(32), nullable=False, comment="操作类型")

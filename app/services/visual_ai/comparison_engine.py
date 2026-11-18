@@ -17,6 +17,7 @@
     - 成本控制：LLM 分析仅在像素差异超过阈值时触发
     - 可观测性：ComparisonResult 包含 token_cost 供成本审计
 """
+
 from __future__ import annotations
 
 import base64
@@ -133,8 +134,8 @@ class ComparisonEngine:
         "  - dynamic_content: 动态内容（广告/时间戳/轮播图）\n"
         "  - visual_noise: 视觉噪声（抗锯齿/字体渲染差异）\n"
         "严重性（severity）：critical/major/minor/info\n"
-        "请以 JSON 格式返回：{\"category\": \"...\", \"confidence\": 0.0, "
-        "\"severity\": \"...\", \"description\": \"...\", \"suggestion\": \"...\"}"
+        '请以 JSON 格式返回：{"category": "...", "confidence": 0.0, '
+        '"severity": "...", "description": "...", "suggestion": "..."}'
     )
 
     def __init__(
@@ -196,9 +197,7 @@ class ComparisonEngine:
             and self._ai_client is not None
             and pixel_diff.diff_percentage >= self._llm_analysis_threshold
         ):
-            llm_result = await self._run_llm_analysis(
-                baseline_bytes, current_bytes, pixel_diff
-            )
+            llm_result = await self._run_llm_analysis(baseline_bytes, current_bytes, pixel_diff)
             result.llm_analysis = llm_result
             result.total_token_cost = llm_result.token_cost
 
@@ -258,9 +257,7 @@ class ComparisonEngine:
         """解析 LLM 响应为 LLMAnalysisResult。"""
         token_cost = 0
         if hasattr(response, "usage") and response.usage:
-            token_cost = getattr(response.usage, "prompt_tokens", 0) + getattr(
-                response.usage, "completion_tokens", 0
-            )
+            token_cost = getattr(response.usage, "prompt_tokens", 0) + getattr(response.usage, "completion_tokens", 0)
 
         content = getattr(response, "content", "") or ""
         parsed = getattr(response, "parsed", None)

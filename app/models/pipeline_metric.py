@@ -23,6 +23,7 @@ Pipeline 监控指标模型模块
     - app.utils.db_time.utcnow : UTC 时间戳
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, Float, JSON, Index, text
 from app.utils.db_time import utcnow
 from app.db.database import Base
@@ -55,11 +56,14 @@ class PipelineMetric(Base):
         - 逻辑关联 PipelineRun（run_id，非 FK，避免级联删除丢失指标）
         - 逻辑关联 Iteration（iteration_id，非 FK）
     """
+
     __tablename__ = "pipeline_metrics"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     metric_name = Column(
-        String(64), nullable=False, index=True,
+        String(64),
+        nullable=False,
+        index=True,
         comment="指标名（FMEA 枚举值）",
     )
     value = Column(Float, nullable=False, default=1.0, server_default=text("1.0"), comment="指标值（通常为计数 1.0）")
@@ -69,8 +73,11 @@ class PipelineMetric(Base):
     step_name = Column(String(64), nullable=True, comment="Step 名称")
     detail = Column(JSON, nullable=True, comment="附加详情（如 confidence 值、错误信息）")
     created_at = Column(
-        DateTime, nullable=False, default=utcnow,
-        server_default=text("CURRENT_TIMESTAMP"), comment="记录时间",
+        DateTime,
+        nullable=False,
+        default=utcnow,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="记录时间",
     )
 
     __table_args__ = (

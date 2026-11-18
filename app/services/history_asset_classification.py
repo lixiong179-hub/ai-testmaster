@@ -1,8 +1,9 @@
-﻿"""历史用例分类算法（R2-3：从 `endpoints/_history_asset_classification.py` 下沉）。
+"""历史用例分类算法（R2-3：从 `endpoints/_history_asset_classification.py` 下沉）。
 
 职责：把历史用例与系统用例做标题相似度匹配，输出「新增 / 更新 / 保留」分类结果。
 无 DB 访问、无 HTTP 依赖，纯函数（相似度 = 0.4 × Jaccard + 0.6 × 公共前缀比）。
 """
+
 from typing import Any
 
 from app.schemas.history_asset import HistoryClassificationItem
@@ -56,12 +57,8 @@ def _classify_history_cases(
             s_steps = best_match.get("steps", [])
             h_er = h_case.get("expected_result", "")
             s_er = best_match.get("expected_result", "")
-            steps_differ = (
-                len(h_steps) != len(s_steps)
-                or any(
-                    str(hs.get("action", "")) != str(ss.get("action", ""))
-                    for hs, ss in zip(h_steps, s_steps)
-                )
+            steps_differ = len(h_steps) != len(s_steps) or any(
+                str(hs.get("action", "")) != str(ss.get("action", "")) for hs, ss in zip(h_steps, s_steps)
             )
             er_differ = h_er.strip() != s_er.strip()
 
@@ -71,72 +68,84 @@ def _classify_history_cases(
                     diff_fields["steps"] = {"old": s_steps, "new": h_steps}
                 if er_differ:
                     diff_fields["expected_result"] = {"old": s_er, "new": h_er}
-                results.append(HistoryClassificationItem(
+                results.append(
+                    HistoryClassificationItem(
+                        client_id=f"ha_case_{idx}",
+                        classification="UPDATE_CASE",
+                        confidence=best_score,
+                        history_case=h_case,
+                        suggested_case=h_case,
+                        diff_fields=diff_fields,
+                        reason=f"与系统用例「{best_match.get('title', '')}」标题高度匹配但内容有差异",
+                        matched_system_case_id=best_match.get("case_id"),
+                    )
+                )
+            else:
+                results.append(
+                    HistoryClassificationItem(
+                        client_id=f"ha_case_{idx}",
+                        classification="REUSE_CASE",
+                        confidence=best_score,
+                        history_case=h_case,
+                        suggested_case=None,
+                        diff_fields=None,
+                        reason=f"与系统用例「{best_match.get('title', '')}」完全匹配，可复用",
+                        matched_system_case_id=best_match.get("case_id"),
+                    )
+                )
+        elif best_score >= 0.5 and best_match:
+            results.append(
+                HistoryClassificationItem(
                     client_id=f"ha_case_{idx}",
                     classification="UPDATE_CASE",
                     confidence=best_score,
                     history_case=h_case,
                     suggested_case=h_case,
-                    diff_fields=diff_fields,
-                    reason=f"与系统用例「{best_match.get('title', '')}」标题高度匹配但内容有差异",
+                    diff_fields={"title": {"old": best_match.get("title", ""), "new": h_title}},
+                    reason=f"与系统用例「{best_match.get('title', '')}」标题部分匹配，建议更新",
                     matched_system_case_id=best_match.get("case_id"),
-                ))
-            else:
-                results.append(HistoryClassificationItem(
-                    client_id=f"ha_case_{idx}",
-                    classification="REUSE_CASE",
-                    confidence=best_score,
-                    history_case=h_case,
-                    suggested_case=None,
-                    diff_fields=None,
-                    reason=f"与系统用例「{best_match.get('title', '')}」完全匹配，可复用",
-                    matched_system_case_id=best_match.get("case_id"),
-                ))
-        elif best_score >= 0.5 and best_match:
-            results.append(HistoryClassificationItem(
-                client_id=f"ha_case_{idx}",
-                classification="UPDATE_CASE",
-                confidence=best_score,
-                history_case=h_case,
-                suggested_case=h_case,
-                diff_fields={"title": {"old": best_match.get("title", ""), "new": h_title}},
-                reason=f"与系统用例「{best_match.get('title', '')}」标题部分匹配，建议更新",
-                matched_system_case_id=best_match.get("case_id"),
-            ))
+                )
+            )
         else:
             if requirement_keywords:
                 title_lower = h_title.lower()
                 matched_kw = [kw for kw in requirement_keywords if kw.lower() in title_lower]
                 if matched_kw:
-                    results.append(HistoryClassificationItem(
+                    results.append(
+                        HistoryClassificationItem(
+                            client_id=f"ha_case_{idx}",
+                            classification="NEW_CASE",
+                            confidence=0.7,
+                            history_case=h_case,
+                            suggested_case=h_case,
+                            diff_fields=None,
+                            reason=f"无匹配系统用例，但标题包含需求关键词「{'、'.join(matched_kw[:3])}」，建议新增",
+                        )
+                    )
+                else:
+                    results.append(
+                        HistoryClassificationItem(
+                            client_id=f"ha_case_{idx}",
+                            classification="CONFIRM_REQUIRED",
+                            confidence=0.4,
+                            history_case=h_case,
+                            suggested_case=None,
+                            diff_fields=None,
+                            reason="无匹配系统用例且标题不含需求关键词，需人工确认是否新增",
+                        )
+                    )
+            else:
+                results.append(
+                    HistoryClassificationItem(
                         client_id=f"ha_case_{idx}",
                         classification="NEW_CASE",
-                        confidence=0.7,
+                        confidence=0.6,
                         history_case=h_case,
                         suggested_case=h_case,
                         diff_fields=None,
-                        reason=f"无匹配系统用例，但标题包含需求关键词「{'、'.join(matched_kw[:3])}」，建议新增",
-                    ))
-                else:
-                    results.append(HistoryClassificationItem(
-                        client_id=f"ha_case_{idx}",
-                        classification="CONFIRM_REQUIRED",
-                        confidence=0.4,
-                        history_case=h_case,
-                        suggested_case=None,
-                        diff_fields=None,
-                        reason="无匹配系统用例且标题不含需求关键词，需人工确认是否新增",
-                    ))
-            else:
-                results.append(HistoryClassificationItem(
-                    client_id=f"ha_case_{idx}",
-                    classification="NEW_CASE",
-                    confidence=0.6,
-                    history_case=h_case,
-                    suggested_case=h_case,
-                    diff_fields=None,
-                    reason="无匹配系统用例，建议新增",
-                ))
+                        reason="无匹配系统用例，建议新增",
+                    )
+                )
 
     matched_system_ids: set[int] = set()
     for item in results:
@@ -146,15 +155,17 @@ def _classify_history_cases(
     for s_case in system_cases:
         s_id = s_case.get("case_id")
         if s_id and s_id not in matched_system_ids:
-            results.append(HistoryClassificationItem(
-                client_id=f"sys_case_{s_id}",
-                classification="DEPRECATED_CASE",
-                confidence=0.6,
-                history_case=None,
-                suggested_case=None,
-                diff_fields=None,
-                reason=f"系统用例「{s_case.get('title', '')}」在新资料中无匹配，可能废弃",
-                matched_system_case_id=s_id,
-            ))
+            results.append(
+                HistoryClassificationItem(
+                    client_id=f"sys_case_{s_id}",
+                    classification="DEPRECATED_CASE",
+                    confidence=0.6,
+                    history_case=None,
+                    suggested_case=None,
+                    diff_fields=None,
+                    reason=f"系统用例「{s_case.get('title', '')}」在新资料中无匹配，可能废弃",
+                    matched_system_case_id=s_id,
+                )
+            )
 
     return results

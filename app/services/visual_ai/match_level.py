@@ -16,6 +16,7 @@
     - 工厂模式：MatchLevelFactory 按 match_level 字符串返回对应策略实例
     - 纯函数：compare 方法无副作用，输入两张 PIL.Image，输出 PixelDiffResult
 """
+
 from __future__ import annotations
 
 import io
@@ -87,15 +88,11 @@ class MatchLevelStrategy(ABC):
             ValueError: 尺寸不一致时抛出
         """
         if baseline.size != current.size:
-            raise ValueError(
-                f"图片尺寸不一致: baseline={baseline.size}, current={current.size}"
-            )
+            raise ValueError(f"图片尺寸不一致: baseline={baseline.size}, current={current.size}")
         return baseline.size
 
     @staticmethod
-    def _generate_diff_image(
-        baseline: Image.Image, current: Image.Image, diff_mask: np.ndarray
-    ) -> bytes | None:
+    def _generate_diff_image(baseline: Image.Image, current: Image.Image, diff_mask: np.ndarray) -> bytes | None:
         """生成差异图：基线图上用红色高亮差异区域。
 
         Args:
@@ -200,7 +197,7 @@ class LayoutMatchLevel(MatchLevelStrategy):
 
         # 将差异网格映射回像素掩码用于生成差异图
         diff_mask = self._regions_to_pixel_mask(diff_regions, width, height)
-        diff_percentage = (diff_count / (self._grid_size * self._grid_size) * 100.0)
+        diff_percentage = diff_count / (self._grid_size * self._grid_size) * 100.0
         diff_image = self._generate_diff_image(baseline, current, diff_mask)
 
         return PixelDiffResult(
@@ -303,9 +300,7 @@ class MatchLevelFactory:
         """
         strategy_cls = cls._strategies.get(match_level)
         if strategy_cls is None:
-            raise ValueError(
-                f"未知 Match Level: {match_level}，可选值: {list(cls._strategies.keys())}"
-            )
+            raise ValueError(f"未知 Match Level: {match_level}，可选值: {list(cls._strategies.keys())}")
         return strategy_cls()
 
     @classmethod

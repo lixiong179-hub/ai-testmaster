@@ -4,6 +4,7 @@
     作为 4 Agent 串联管线的第四环，接收 FailureAnalysisAgent 产出的失败分类，
     针对 dom_changed / element_gone 类型失败，生成新的 CSS 选择器并验证可用性。
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

@@ -8,6 +8,7 @@
 
 通过 Mixin 模式被 PipelineRunner 继承，保持 run() 主循环的简洁。
 """
+
 import hashlib
 import json
 import logging
@@ -32,7 +33,9 @@ class _StepExecutionMixin:
     """
 
     def _execute_step_with_retry(
-        self, ctx: PipelineContext, step: PipelineStep,
+        self,
+        ctx: PipelineContext,
+        step: PipelineStep,
     ) -> StepResult | None:
         """执行单个 Step（含缓存检查 + 重试 + 降级）。
 
@@ -47,7 +50,9 @@ class _StepExecutionMixin:
         cached = pipeline_service.find_cached_step(db=ctx.db, cache_key=cache_key)
         if cached is not None:
             logger.info(
-                "Step '%s' cache hit: step_id=%d", step.name, cached.id,
+                "Step '%s' cache hit: step_id=%d",
+                step.name,
+                cached.id,
             )
             step_record = pipeline_service.create_step(
                 db=ctx.db,
@@ -89,7 +94,9 @@ class _StepExecutionMixin:
         for attempt in range(1, MAX_RETRIES + 2):
             try:
                 pipeline_service.update_step_status(
-                    db=ctx.db, step_id=step_record.id, status="running",
+                    db=ctx.db,
+                    step_id=step_record.id,
+                    status="running",
                 )
 
                 result = step.execute(ctx)
@@ -109,7 +116,10 @@ class _StepExecutionMixin:
                 last_error = e
                 logger.warning(
                     "Step '%s' attempt %d/%d failed: %s",
-                    step.name, attempt, MAX_RETRIES + 1, e,
+                    step.name,
+                    attempt,
+                    MAX_RETRIES + 1,
+                    e,
                 )
                 pipeline_service.update_step_status(
                     db=ctx.db,
@@ -118,7 +128,8 @@ class _StepExecutionMixin:
                     error=str(e),
                 )
                 pipeline_service.increment_step_retried_count(
-                    db=ctx.db, step_id=step_record.id,
+                    db=ctx.db,
+                    step_id=step_record.id,
                 )
 
         logger.error(
@@ -144,7 +155,10 @@ class _StepExecutionMixin:
         return StepResult(success=False, error=str(last_error))
 
     def _persist_artifact(
-        self, ctx: PipelineContext, step: PipelineStep, result: StepResult,
+        self,
+        ctx: PipelineContext,
+        step: PipelineStep,
+        result: StepResult,
     ) -> None:
         """持久化 Step 产物。
 
@@ -172,5 +186,7 @@ class _StepExecutionMixin:
         if step_record is not None:
             output_ids = list(step_record.output_artifact_ids or []) + [artifact.id]
             pipeline_service.update_step_output_artifact_ids(
-                db=ctx.db, step_id=step_record.id, artifact_ids=output_ids,
+                db=ctx.db,
+                step_id=step_record.id,
+                artifact_ids=output_ids,
             )

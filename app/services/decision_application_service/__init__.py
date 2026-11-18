@@ -20,14 +20,19 @@ from app.services.decision_application_service._handlers import (
     _verdict_to_action,
 )
 
-_ACTION_HANDLERS.update({
-    "locator_and_modify": _handle_locator_and_modify,
-    "deprecate": _handle_deprecate,
-    "add_new": _handle_add_new,
-    "conflict": _handle_conflict,
-    "pending_review": _handle_pending_review,
-})
+_ACTION_HANDLERS.update(
+    {
+        "locator_and_modify": _handle_locator_and_modify,
+        "deprecate": _handle_deprecate,
+        "add_new": _handle_add_new,
+        "conflict": _handle_conflict,
+        "pending_review": _handle_pending_review,
+    }
+)
 
 __all__ = [
-    "ApplyDecision", "ApplyResult", "apply_decisions", "apply_single",
+    "ApplyDecision",
+    "ApplyResult",
+    "apply_decisions",
+    "apply_single",
 ]

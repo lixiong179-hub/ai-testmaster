@@ -7,16 +7,15 @@ from app.services.test_execution_engine.models import ExecutionError
 
 
 class _HelpersMixin:
-
     def _resolve_execution_order(self, cases: list[TestCase]) -> list[TestCase]:
-        has_dependency = any(getattr(c, 'depends_on', None) for c in cases)
+        has_dependency = any(getattr(c, "depends_on", None) for c in cases)
         if not has_dependency:
             return cases
 
         graph = self._build_dependency_graph(cases)
         sorted_cases = self._topological_sort_cases(cases, graph)
 
-        main_count = sum(1 for c in sorted_cases if not getattr(c, 'depends_on', None))
+        main_count = sum(1 for c in sorted_cases if not getattr(c, "depends_on", None))
         dep_count = len(sorted_cases) - main_count
         logger.info(
             f"依赖解析完成: 主干用例 {main_count} 条, "
@@ -28,7 +27,7 @@ class _HelpersMixin:
     def _collect_anchor_steps(self, cases: list[TestCase]) -> list[int]:
         steps = []
         for case in cases:
-            anchor = getattr(case, 'anchor_step', None)
+            anchor = getattr(case, "anchor_step", None)
             if anchor is not None:
                 steps.append(anchor)
         return steps
@@ -36,8 +35,8 @@ class _HelpersMixin:
     def _build_anchor_step_index(self, cases: list[TestCase]) -> dict[tuple, bool]:
         index: dict[tuple, bool] = {}
         for case in cases:
-            depends_on = getattr(case, 'depends_on', None)
-            anchor = getattr(case, 'anchor_step', None)
+            depends_on = getattr(case, "depends_on", None)
+            anchor = getattr(case, "anchor_step", None)
             if depends_on and anchor is not None:
                 index[(depends_on, anchor)] = True
         return index

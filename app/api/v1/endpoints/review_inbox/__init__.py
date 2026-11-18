@@ -7,6 +7,7 @@ schema 拆至 `review_inbox/schemas.py`；访问校验、决策序列化与指�
 `review_service` 为 sync 实现，端点使用 `asyncio.to_thread` + `PrimarySessionLocal`
 在独立线程中执行 sync 业务逻辑，释放事件循环并避免与请求级会话事务边界互相干扰。
 """
+
 import asyncio
 from typing import Optional
 
@@ -60,9 +61,7 @@ async def _run_review_mutation(fn):
 @router.get("/by-iteration/{iteration_id}", response_model=ApiResponse)
 async def list_reviews_by_iteration(
     iteration_id: int,
-    status: str | None = Query(
-        None, description="按评审状态过滤：draft/in_progress/finalized/cancelled"
-    ),
+    status: str | None = Query(None, description="按评审状态过滤：draft/in_progress/finalized/cancelled"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -100,9 +99,7 @@ async def list_reviews_by_iteration(
             }
             for r in rows
         ]
-        return create_response(
-            data={"reviews": reviews, "total": len(reviews)}, msg="获取成功"
-        )
+        return create_response(data={"reviews": reviews, "total": len(reviews)}, msg="获取成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -123,6 +120,7 @@ async def list_decisions(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _list(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
@@ -139,7 +137,7 @@ async def list_decisions(
             # P2-4: 分页（service 返回 Python list，按切片分页）
             total = len(decisions)
             skip = (page - 1) * page_size
-            page_decisions = decisions[skip:skip + page_size]
+            page_decisions = decisions[skip : skip + page_size]
 
             return {
                 "decisions": [_serialize_decision(d) for d in page_decisions],
@@ -170,6 +168,7 @@ async def decide_single(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _decide(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
@@ -180,7 +179,10 @@ async def decide_single(
 
             try:
                 review_service.acquire_lock(
-                    sync_db, review_id, decision.target_kind, decision.target_id,
+                    sync_db,
+                    review_id,
+                    decision.target_kind,
+                    decision.target_id,
                 )
             except review_service.ReviewLockConflictError:
                 raise HTTPException(status_code=409, detail="该决策目标已被其他用户锁定")
@@ -198,7 +200,8 @@ async def decide_single(
                 raise HTTPException(status_code=404, detail="决策不存在")
 
             _check_zero_edit_confirmation(
-                sync_db, decision=result,
+                sync_db,
+                decision=result,
                 ai_verdict=decision.ai_verdict,
                 human_verdict=body.human_verdict,
                 human_reason=body.human_reason,
@@ -227,6 +230,7 @@ async def decide_batch(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _batch_decide(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
@@ -246,7 +250,10 @@ async def decide_batch(
 
                 try:
                     review_service.acquire_lock(
-                        sync_db, review_id, decision.target_kind, decision.target_id,
+                        sync_db,
+                        review_id,
+                        decision.target_kind,
+                        decision.target_id,
                     )
                 except review_service.ReviewLockConflictError:
                     savepoint.rollback()
@@ -298,6 +305,7 @@ async def finalize_review(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _finalize(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
@@ -337,11 +345,14 @@ async def rollback_decision(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _rollback(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
             review_service.rollback_decision(
-                db=sync_db, decision_id=decision_id, user_id=current_user.id,
+                db=sync_db,
+                decision_id=decision_id,
+                user_id=current_user.id,
             )
             sync_db.commit()
             return {"success": True, "detail": "决策已回滚", "rolled_back_decision_ids": [decision_id]}
@@ -369,6 +380,7 @@ async def undo_decision(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _undo(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
@@ -405,13 +417,19 @@ async def undo_finalize(
     current_user: User = Depends(require_admin),
 ):
     try:
+
         def _undo_finalize(sync_db: Session):
             review = review_service.undo_finalize(db=sync_db, review_id=review_id, user_id=current_user.id)
             if review is None:
                 raise HTTPException(status_code=404, detail="评审不存在")
             sync_db.commit()
 
-            return {"status": review.status, "detail": "评审已撤销最终化", "undone_case_count": 0, "rolled_back_decision_ids": []}
+            return {
+                "status": review.status,
+                "detail": "评审已撤销最终化",
+                "undone_case_count": 0,
+                "rolled_back_decision_ids": [],
+            }
 
         data = await _run_review_mutation(_undo_finalize)
         return create_response(data=data, msg="评审已撤销最终化")
@@ -435,6 +453,7 @@ async def apply_decisions_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _apply(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
             review = review_service.get_review(sync_db, review_id)
@@ -444,6 +463,7 @@ async def apply_decisions_endpoint(
                 raise HTTPException(status_code=400, detail="评审未最终化，无法应用决策")
 
             from app.services.decision_application_service import apply_decisions
+
             results = apply_decisions(review_id=review_id, db=sync_db, actor_id=current_user.id)
             sync_db.commit()
 

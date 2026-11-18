@@ -32,6 +32,7 @@ Mixin组合（MRO顺序）:
     依赖用例执行前 -> _navigate_to_dependency_anchor 三级降级导航
     Level1: 快照恢复(storage_state+URL) -> Level2: fallback_steps -> Level3: 直接URL
 """
+
 from typing import Optional
 
 from app.services.test_execution_engine.models import (
@@ -116,7 +117,7 @@ class TestExecutionEngineV2(
         enable_ai_recognition: bool = True,
         enable_test_data_param: bool = True,
         mobile_device_id: str | None = None,
-        **kwargs
+        **kwargs,
     ):
         """初始化测试执行引擎。
 
@@ -169,28 +170,28 @@ class TestExecutionEngineV2(
 
 
 __all__ = [
-    'TestExecutionEngineV2',
-    'ExecutionStatus',
-    'ActionType',
-    'ExecutionMode',
-    'ExecutionError',
-    'StepExecutionError',
-    'VerificationError',
-    'StepExecutionResult',
-    'TestExecutionResult',
-    'FailureCategory',
-    'handle_execution_errors',
-    'PreconditionMixin',
-    'DependencyResolutionMixin',
-    'ApiSetupMixin',
-    'ActionExecutorMixin',
-    'AIRecognitionMixin',
-    'SelfHealingExecuteMixin',
-    'SelfHealingStagehandMixin',
-    'SelfHealingStrategyMixin',
-    'SelfHealingUtilsMixin',
-    'StepExecutorMixin',
-    'TaskExecutorMixin',
-    'TaskBatchExecutorMixin',
-    'TestDataMixin',
+    "TestExecutionEngineV2",
+    "ExecutionStatus",
+    "ActionType",
+    "ExecutionMode",
+    "ExecutionError",
+    "StepExecutionError",
+    "VerificationError",
+    "StepExecutionResult",
+    "TestExecutionResult",
+    "FailureCategory",
+    "handle_execution_errors",
+    "PreconditionMixin",
+    "DependencyResolutionMixin",
+    "ApiSetupMixin",
+    "ActionExecutorMixin",
+    "AIRecognitionMixin",
+    "SelfHealingExecuteMixin",
+    "SelfHealingStagehandMixin",
+    "SelfHealingStrategyMixin",
+    "SelfHealingUtilsMixin",
+    "StepExecutorMixin",
+    "TaskExecutorMixin",
+    "TaskBatchExecutorMixin",
+    "TestDataMixin",
 ]

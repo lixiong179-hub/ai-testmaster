@@ -30,6 +30,7 @@
     - 密码字段在日志中脱敏为"敏感信息"
     - 登录失败时保存调试截图到logs/debug/目录
 """
+
 import asyncio
 import os
 from datetime import datetime
@@ -141,16 +142,16 @@ class LoginMixin(LoginStrategyMixin):
         for i in range(cfg.max_login_wait_time):
             await asyncio.sleep(cfg.wait_interval)
             page_info = await self.browser_controller.get_page_info()
-            current_url = page_info.get('url', '')
+            current_url = page_info.get("url", "")
 
             # 检查URL是否不再包含登录关键词
-            url_ok = 'login' not in current_url.lower() and 'auth' not in current_url.lower()
+            url_ok = "login" not in current_url.lower() and "auth" not in current_url.lower()
 
             # 检查页面标题是否不再包含登录关键词
             title_ok = False
             try:
                 page_title = await self.browser_controller.execute_javascript("document.title")
-                if page_title and '登录' not in str(page_title) and 'login' not in str(page_title).lower():
+                if page_title and "登录" not in str(page_title) and "login" not in str(page_title).lower():
                     title_ok = True
             except Exception as e:
                 logger.warning(f"页面标题检查失败，保守判定为未登录: {e}")
@@ -178,23 +179,22 @@ class LoginMixin(LoginStrategyMixin):
             elif i == cfg.max_login_wait_time - 1:
                 # 登录超时，保存调试截图
                 logger.warning(f"登录超时，可能仍在登录页面 (URL: {current_url})")
-                debug_dir = os.path.join(os.getcwd(), 'logs', 'debug')
+                debug_dir = os.path.join(os.getcwd(), "logs", "debug")
                 os.makedirs(debug_dir, exist_ok=True)
-                ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-                debug_path = os.path.join(debug_dir, f'login_failed_{ts}.png')
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                debug_path = os.path.join(debug_dir, f"login_failed_{ts}.png")
                 try:
                     screenshot = await self.browser_controller.take_screenshot()
-                    with open(debug_path, 'wb') as f:
+                    with open(debug_path, "wb") as f:
                         f.write(screenshot)
                     logger.info(f"已保存登录失败截图: {debug_path}")
                 except Exception as e:
                     logger.warning(f"保存登录失败截图失败: {e}")
                 raise LoginError(
-                    f"登录超时：已等待 {cfg.max_login_wait_time * cfg.wait_interval} 秒，"
-                    f"当前URL: {current_url}"
+                    f"登录超时：已等待 {cfg.max_login_wait_time * cfg.wait_interval} 秒，当前URL: {current_url}"
                 )
             else:
-                logger.debug(f"等待页面跳转... ({i+1}/{cfg.max_login_wait_time}s)")
+                logger.debug(f"等待页面跳转... ({i + 1}/{cfg.max_login_wait_time}s)")
 
         if not login_success:
             raise LoginError("登录失败：轮询结束后未确认登录成功")
@@ -216,18 +216,18 @@ class LoginMixin(LoginStrategyMixin):
             return False
         try:
             page_info = await self.browser_controller.get_page_info()
-            current_url = (page_info.get('url') or '').lower()
-            current_title = (page_info.get('title') or '').lower()
+            current_url = (page_info.get("url") or "").lower()
+            current_title = (page_info.get("title") or "").lower()
 
             # 检查URL中的登录关键词
-            login_url_keywords = ['login', 'auth', 'signin']
+            login_url_keywords = ["login", "auth", "signin"]
             for keyword in login_url_keywords:
                 if keyword in current_url:
                     logger.info(f"URL包含登录关键词'{keyword}': {current_url}")
                     return False
 
             # 检查标题中的登录关键词
-            login_title_keywords = ['登录', 'login', 'sign in']
+            login_title_keywords = ["登录", "login", "sign in"]
             for keyword in login_title_keywords:
                 if keyword in current_title:
                     logger.info(f"页面标题包含登录关键词'{keyword}': {current_title}")

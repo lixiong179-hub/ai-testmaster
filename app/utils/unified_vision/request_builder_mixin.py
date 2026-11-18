@@ -16,6 +16,7 @@
 依赖：
     - app.utils.unified_vision.model_types: 模型类型枚举和配置
 """
+
 import base64
 from typing import Any
 
@@ -30,10 +31,7 @@ class RequestBuilderMixin:
     """
 
     def _build_request_payload(
-        self,
-        image: bytes,
-        prompt: str,
-        model_type: VisionModelType | None = None
+        self, image: bytes, prompt: str, model_type: VisionModelType | None = None
     ) -> dict[str, Any]:
         """构建API请求Payload
 
@@ -63,9 +61,7 @@ class RequestBuilderMixin:
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}"
-                            },
+                            "image_url": {"url": f"data:image/png;base64,{base64_image}"},
                         },
                     ],
                 }
@@ -98,9 +94,7 @@ class RequestBuilderMixin:
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}"
-                            },
+                            "image_url": {"url": f"data:image/png;base64,{base64_image}"},
                         },
                     ],
                 }

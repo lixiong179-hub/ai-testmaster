@@ -28,6 +28,7 @@
     - delete_test_case 为软删除，设置 is_deleted=True 和 deleted_at 时间戳
     - 已软删除的用例不会在查询结果中返回（test_case_query.py 默认过滤）
 """
+
 from typing import Any
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase, TestStep
@@ -134,12 +135,7 @@ def create_test_case(
     return db_test_case
 
 
-def update_test_case(
-    db: Session,
-    test_case_id: int,
-    project_id: int,
-    **kwargs
-) -> TestCase | None:
+def update_test_case(db: Session, test_case_id: int, project_id: int, **kwargs) -> TestCase | None:
     """
     更新测试用例
 
@@ -171,11 +167,7 @@ def update_test_case(
     return test_case
 
 
-def delete_test_case(
-    db: Session,
-    test_case_id: int,
-    project_id: int
-) -> bool:
+def delete_test_case(db: Session, test_case_id: int, project_id: int) -> bool:
     """软删除测试用例
 
     将测试用例标记为已删除（is_deleted=True），而非物理删除。
@@ -236,23 +228,23 @@ def batch_create_test_cases(
     test_cases = []
     for data in test_cases_data:
         test_case = TestCase(
-            case_no=data['case_no'],
+            case_no=data["case_no"],
             project_id=project_id,
-            test_point_id=data.get('test_point_id'),
-            module=data['module'],
-            title=data['title'],
-            precondition=data['precondition'],
-            steps_json=data['steps'],  # steps对应模型中的steps_json字段
-            expected_result=data['expected_result'],
-            priority=data['priority'],
-            case_type=data['case_type'],
-            test_category=data.get('test_category'),
-            exec_script=data.get('exec_script'),  # 可选字段，缺失时为None
-            generate_status=data.get('generate_status', 0),  # 可选字段，默认0=待生成
-            lifecycle_status=data.get('lifecycle_status', TestCaseLifecycleStatus.DRAFT.value),
-            summary=data.get('summary'),
-            summary_model_version=data.get('summary_model_version'),
-            parent_case_id=data.get('parent_case_id'),
+            test_point_id=data.get("test_point_id"),
+            module=data["module"],
+            title=data["title"],
+            precondition=data["precondition"],
+            steps_json=data["steps"],  # steps对应模型中的steps_json字段
+            expected_result=data["expected_result"],
+            priority=data["priority"],
+            case_type=data["case_type"],
+            test_category=data.get("test_category"),
+            exec_script=data.get("exec_script"),  # 可选字段，缺失时为None
+            generate_status=data.get("generate_status", 0),  # 可选字段，默认0=待生成
+            lifecycle_status=data.get("lifecycle_status", TestCaseLifecycleStatus.DRAFT.value),
+            summary=data.get("summary"),
+            summary_model_version=data.get("summary_model_version"),
+            parent_case_id=data.get("parent_case_id"),
         )
         db.add(test_case)  # 加入session但不commit
         test_cases.append(test_case)
@@ -260,7 +252,7 @@ def batch_create_test_cases(
     db.flush()
 
     for test_case, data in zip(test_cases, test_cases_data):
-        _create_test_steps(db, test_case.id, data.get('steps', []))
+        _create_test_steps(db, test_case.id, data.get("steps", []))
 
     if commit:
         try:

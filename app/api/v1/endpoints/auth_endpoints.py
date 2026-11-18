@@ -17,6 +17,7 @@
     - /captcha, /captcha/generate, /login, /register: 无需认证
     - /me: 需要Bearer令牌认证
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from sqlalchemy import select
@@ -30,6 +31,7 @@ from app.api.v1.endpoints.auth_deps import get_current_user
 from app.utils.jwt_utils import verify_password, get_password_hash, create_access_token
 from app.services.captcha_service import captcha_service
 from app.schemas.common import ApiResponse
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -58,8 +60,18 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-@router.get("/captcha", response_model=ApiResponse, summary="获取验证码", description="生成图形验证码，返回 captcha_id 与验证码图片数据。用于登录流程的人机验证。")
-@router.get("/captcha/generate", response_model=ApiResponse, summary="生成验证码", description="与 /captcha 等价，生成图形验证码。保留别名以兼容前端旧路径。")
+@router.get(
+    "/captcha",
+    response_model=ApiResponse,
+    summary="获取验证码",
+    description="生成图形验证码，返回 captcha_id 与验证码图片数据。用于登录流程的人机验证。",
+)
+@router.get(
+    "/captcha/generate",
+    response_model=ApiResponse,
+    summary="生成验证码",
+    description="与 /captcha 等价，生成图形验证码。保留别名以兼容前端旧路径。",
+)
 async def get_captcha(request: Request) -> dict:
     try:
         captcha_id, code = captcha_service.generate(ip=get_client_ip(request))
@@ -71,20 +83,22 @@ async def get_captcha(request: Request) -> dict:
         )
     except Exception as e:
         logger.warning(f"验证码生成失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"验证码获取失败: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"验证码获取失败: {str(e)}")
 
 
-@router.post("/login", response_model=ApiResponse, summary="用户登录", description="通过用户名/密码+验证码进行身份认证，成功后返回 JWT access_token。token 有效期由 ACCESS_TOKEN_EXPIRE_MINUTES 控制。")
+@router.post(
+    "/login",
+    response_model=ApiResponse,
+    summary="用户登录",
+    description="通过用户名/密码+验证码进行身份认证，成功后返回 JWT access_token。token 有效期由 ACCESS_TOKEN_EXPIRE_MINUTES 控制。",
+)
 async def login(
     request: Request,
     username: str | None = Form(None),
     password: str | None = Form(None),
     captcha_id: str | None = Form(None),
     captcha_code: str | None = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     try:
         if username is None or password is None:
@@ -95,76 +109,49 @@ async def login(
                 captcha_id = captcha_id or json_data.get("captcha_id")
                 captcha_code = captcha_code or json_data.get("captcha_code")
             except (ValueError, KeyError):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="参数验证失败"
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="参数验证失败")
 
         if not username or not password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="请提供用户名和密码"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供用户名和密码")
 
         if not captcha_id or not captcha_code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="请提供验证码"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供验证码")
 
         if not captcha_service.verify(captcha_id, captcha_code, ip=get_client_ip(request)):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="验证码错误或已过期"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="验证码错误或已过期")
 
         result = await _execute(db, select(User).where(User.username == username))
         user = result.scalar_one_or_none()
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名或密码错误"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
         if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="账号已被禁用"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
         if not verify_password(password, user.password_hash):
             logger.warning(f"登录失败(密码错误): username={username}, ip={get_client_ip(request)}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户名或密码错误"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
         logger.info(f"用户登录成功: username={user.username}, ip={get_client_ip(request)}")
         access_token = create_access_token({"sub": str(user.id), "username": user.username})
         return create_response(
             data={
                 "access_token": access_token,
                 "token_type": "bearer",
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "is_active": user.is_active
-                }
+                "user": {"id": user.id, "username": user.username, "email": user.email, "is_active": user.is_active},
             }
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"登录异常: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="登录失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="登录失败，请稍后重试")
 
 
-@router.post("/register", response_model=ApiResponse, summary="用户注册", description="注册新用户账号。需提供用户名、邮箱、密码，注册成功后可使用 /login 登录。")
-async def register(
-    register_data: RegisterRequest,
-    db: Session = Depends(get_db)
-):
+@router.post(
+    "/register",
+    response_model=ApiResponse,
+    summary="用户注册",
+    description="注册新用户账号。需提供用户名、邮箱、密码，注册成功后可使用 /login 登录。",
+)
+async def register(register_data: RegisterRequest, db: Session = Depends(get_db)):
     """
     用户注册
 
@@ -195,64 +182,42 @@ async def register(
         # 校验用户名唯一性
         result = await _execute(db, select(User).where(User.username == username))
         if result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名已存在"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用户名已存在")
         # 校验邮箱唯一性（仅当提供了邮箱时）
         if email:
             result = await _execute(db, select(User).where(User.email == email))
             if result.scalar_one_or_none():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="邮箱已被注册"
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱已被注册")
         # 用户名长度校验
         if len(username) < 3 or len(username) > 50:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名长度需在3-50之间"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用户名长度需在3-50之间")
         # 密码长度校验
         if len(password) < 8:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="密码长度不能少于8位"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码长度不能少于8位")
         # 密码哈希处理后存储，禁止明文存储
-        new_user = User(
-            username=username,
-            password_hash=get_password_hash(password),
-            email=email,
-            is_active=True
-        )
+        new_user = User(username=username, password_hash=get_password_hash(password), email=email, is_active=True)
         db.add(new_user)
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, new_user)
         logger.info(f"用户注册成功: username={username}")
         return create_response(
-            data={
-                "id": new_user.id,
-                "username": new_user.username,
-                "email": new_user.email,
-                "message": "注册成功"
-            }
+            data={"id": new_user.id, "username": new_user.username, "email": new_user.email, "message": "注册成功"}
         )
     except HTTPException:
         raise
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"注册异常: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="注册失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="注册失败，请稍后重试")
 
 
-@router.get("/me", response_model=ApiResponse, summary="获取当前用户信息", description="返回当前登录用户的详细信息（用户名、邮箱、角色等）。需携带 Bearer token。")
-async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
-):
+@router.get(
+    "/me",
+    response_model=ApiResponse,
+    summary="获取当前用户信息",
+    description="返回当前登录用户的详细信息（用户名、邮箱、角色等）。需携带 Bearer token。",
+)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
     获取当前登录用户信息
 
@@ -287,6 +252,6 @@ async def get_current_user_info(
             "is_active": current_user.is_active,
             "is_superuser": current_user.is_superuser,
             "permissions": list(permission_set),
-            "create_time": current_user.create_time
+            "create_time": current_user.create_time,
         }
     )

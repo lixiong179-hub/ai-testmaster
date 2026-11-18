@@ -18,6 +18,7 @@
     - 单元 3 保留原有「异常仅告警、回滚、不向上抛出」的非致命语义；
     - 调度器相关导入保持函数内延迟导入，避免模块导入期拉起 APScheduler。
 """
+
 from __future__ import annotations
 
 import os
@@ -59,8 +60,7 @@ def startup_ensure_default_admin() -> None:
             if not admin_password:
                 admin_password = secrets.token_urlsafe(16)
                 logger.warning(
-                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。"
-                    "请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！"
+                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！"
                 )
             admin = User(
                 username="admin",

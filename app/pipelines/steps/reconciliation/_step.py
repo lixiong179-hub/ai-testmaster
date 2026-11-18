@@ -87,10 +87,19 @@ class Reconciliation(PipelineStep):
         return StepResult(
             success=True,
             artifact_payload={
-                "project_id": project_id, "verdicts": [], "total_count": 0,
-                "stats": {"keep": 0, "needs_modify": 0, "locator_broken": 0,
-                          "locator_and_modify": 0, "deprecate": 0, "add_new": 0,
-                          "conflict": 0, "pending_review": 0},
+                "project_id": project_id,
+                "verdicts": [],
+                "total_count": 0,
+                "stats": {
+                    "keep": 0,
+                    "needs_modify": 0,
+                    "locator_broken": 0,
+                    "locator_and_modify": 0,
+                    "deprecate": 0,
+                    "add_new": 0,
+                    "conflict": 0,
+                    "pending_review": 0,
+                },
             },
             artifact_kind="merged_verdicts",
             artifact_confidence=0.0,

@@ -4,6 +4,7 @@
 密钥管理逻辑已拆分至 app.core.key_management，
 环境配置类已拆分至 app.core.settings_profiles。
 """
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 import os
@@ -148,8 +149,10 @@ class Settings(BaseSettings):
     XMIND_AI_PREVIEW_SAMPLE: int = 10
 
     @field_validator(
-        "XMIND_AI_TIMEOUT", "XMIND_AI_MAX_WORKERS",
-        "XMIND_AI_BATCH_SIZE", "XMIND_AI_MAX_TOKENS",
+        "XMIND_AI_TIMEOUT",
+        "XMIND_AI_MAX_WORKERS",
+        "XMIND_AI_BATCH_SIZE",
+        "XMIND_AI_MAX_TOKENS",
         "XMIND_AI_PREVIEW_SAMPLE",
     )
     @classmethod
@@ -575,9 +578,8 @@ class Settings(BaseSettings):
     def _ensure_secret_keys(self) -> None:
         """确保必要的安全密钥已设置，委托给 key_management.ensure_secret_keys。"""
         from app.core.key_management import ensure_secret_keys
+
         ensure_secret_keys(self)
-
-
 
 
 # 转发符号：测试与下游从本模块导入 `_generate_secret_key`（勿按 F401 删除）

@@ -3,6 +3,7 @@
 根据 settings.STORAGE_BACKEND 配置返回 LocalStorage 或 S3Storage 实例。
 单例缓存避免重复创建连接池。
 """
+
 from functools import lru_cache
 
 from app.core.config import settings
@@ -35,15 +36,15 @@ def get_storage() -> StorageBackend:
         root_dir = settings.STORAGE_LOCAL_ROOT_DIR or settings.UPLOAD_DIR
         return LocalStorage(root_dir=root_dir)
     if backend == "s3":
-        if not all([
-            settings.S3_ENDPOINT_URL,
-            settings.S3_ACCESS_KEY,
-            settings.S3_SECRET_KEY,
-            settings.S3_BUCKET,
-        ]):
-            raise ValueError(
-                "S3 模式需配置 S3_ENDPOINT_URL/S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET"
-            )
+        if not all(
+            [
+                settings.S3_ENDPOINT_URL,
+                settings.S3_ACCESS_KEY,
+                settings.S3_SECRET_KEY,
+                settings.S3_BUCKET,
+            ]
+        ):
+            raise ValueError("S3 模式需配置 S3_ENDPOINT_URL/S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET")
         return S3Storage(
             endpoint_url=settings.S3_ENDPOINT_URL,
             access_key=settings.S3_ACCESS_KEY,

@@ -3,7 +3,9 @@ WebSocket API端点
 
 用于实时推送测试执行状态
 """
+
 import asyncio
+
 """
 WebSocket端点模块
 
@@ -38,9 +40,7 @@ router = APIRouter()
 
 @router.websocket("/ws/execution/{execution_id}")
 async def execution_websocket(
-    websocket: WebSocket,
-    execution_id: str,
-    token: str = Query(..., description="JWT Token用于身份验证")
+    websocket: WebSocket, execution_id: str, token: str = Query(..., description="JWT Token用于身份验证")
 ):
     """
     WebSocket连接端点 - 用于实时接收测试执行状态
@@ -75,11 +75,9 @@ async def execution_websocket(
 
     try:
         # 发送连接成功消息
-        success = await manager.send_message(websocket, {
-            "type": "connected",
-            "execution_id": execution_id,
-            "message": "WebSocket连接成功"
-        })
+        success = await manager.send_message(
+            websocket, {"type": "connected", "execution_id": execution_id, "message": "WebSocket连接成功"}
+        )
 
         if not success:
             manager.disconnect(websocket, execution_id)
@@ -89,18 +87,12 @@ async def execution_websocket(
         while True:
             try:
                 # 接收客户端消息（带30秒超时）
-                data = await asyncio.wait_for(
-                    websocket.receive_text(),
-                    timeout=30.0
-                )
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
 
                 try:
                     message = json.loads(data)
                 except json.JSONDecodeError:
-                    await manager.send_message(websocket, {
-                        "type": "error",
-                        "message": "Invalid JSON format"
-                    })
+                    await manager.send_message(websocket, {"type": "error", "message": "Invalid JSON format"})
                     continue
 
                 # 处理心跳
@@ -112,10 +104,9 @@ async def execution_websocket(
                 # 处理其他客户端消息
                 elif message.get("type") == "subscribe":
                     # 客户端订阅特定消息类型
-                    await manager.send_message(websocket, {
-                        "type": "subscribed",
-                        "channels": message.get("channels", [])
-                    })
+                    await manager.send_message(
+                        websocket, {"type": "subscribed", "channels": message.get("channels", [])}
+                    )
 
                 elif message.get("type") == "close":
                     # 客户端主动关闭
@@ -173,11 +164,14 @@ async def pipeline_progress_websocket(
         return
 
     try:
-        success = await manager.send_message(websocket, {
-            "type": "connected",
-            "run_id": run_id,
-            "message": "Pipeline进度WebSocket连接成功",
-        })
+        success = await manager.send_message(
+            websocket,
+            {
+                "type": "connected",
+                "run_id": run_id,
+                "message": "Pipeline进度WebSocket连接成功",
+            },
+        )
         if not success:
             manager.disconnect(websocket, channel_id)
             return
@@ -185,15 +179,19 @@ async def pipeline_progress_websocket(
         while True:
             try:
                 data = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=30.0,
+                    websocket.receive_text(),
+                    timeout=30.0,
                 )
                 try:
                     message = json.loads(data)
                 except json.JSONDecodeError:
-                    await manager.send_message(websocket, {
-                        "type": "error",
-                        "message": "Invalid JSON format",
-                    })
+                    await manager.send_message(
+                        websocket,
+                        {
+                            "type": "error",
+                            "message": "Invalid JSON format",
+                        },
+                    )
                     continue
 
                 if message.get("type") == "ping":
@@ -256,11 +254,14 @@ async def quick_test_websocket(
         return
 
     try:
-        success = await manager.send_message(websocket, {
-            "type": "connected",
-            "task_id": task_id,
-            "message": "快速测试WebSocket连接成功",
-        })
+        success = await manager.send_message(
+            websocket,
+            {
+                "type": "connected",
+                "task_id": task_id,
+                "message": "快速测试WebSocket连接成功",
+            },
+        )
         if not success:
             manager.disconnect(websocket, channel_id)
             return
@@ -268,15 +269,19 @@ async def quick_test_websocket(
         while True:
             try:
                 data = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=30.0,
+                    websocket.receive_text(),
+                    timeout=30.0,
                 )
                 try:
                     message = json.loads(data)
                 except json.JSONDecodeError:
-                    await manager.send_message(websocket, {
-                        "type": "error",
-                        "message": "Invalid JSON format",
-                    })
+                    await manager.send_message(
+                        websocket,
+                        {
+                            "type": "error",
+                            "message": "Invalid JSON format",
+                        },
+                    )
                     continue
 
                 if message.get("type") == "ping":
@@ -311,7 +316,6 @@ async def get_websocket_stats() -> dict:
         "total_connections": manager.get_connection_count(),
         "active_executions": len(manager.active_connections),
         "executions": {
-            execution_id: len(connections)
-            for execution_id, connections in manager.active_connections.items()
-        }
+            execution_id: len(connections) for execution_id, connections in manager.active_connections.items()
+        },
     }

@@ -12,6 +12,7 @@
     - 统一返回：ToolResult.success / output / error / metadata
     - 上下文注入：execute 接收 ToolContext，包含 db / session_id / agent_type / user_id
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

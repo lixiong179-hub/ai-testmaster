@@ -29,9 +29,7 @@ class _VisionCoreMixin:
         self.model_type = model_type
         self.provider_config = MODEL_PROVIDER_CONFIGS[model_type]
 
-        self.api_key = api_key or self._get_from_env_or_settings(
-            self.provider_config.api_key_env
-        )
+        self.api_key = api_key or self._get_from_env_or_settings(self.provider_config.api_key_env)
         self.base_url = base_url or self._get_from_env_or_settings(
             self.provider_config.base_url_env,
             self.provider_config.default_base_url,
@@ -61,7 +59,7 @@ class _VisionCoreMixin:
         return getattr(settings, env_name, default)
 
     def _encode_image(self, image_bytes: bytes) -> str:
-        return base64.b64encode(image_bytes).decode('utf-8')
+        return base64.b64encode(image_bytes).decode("utf-8")
 
     def _build_request_payload(
         self,
@@ -71,30 +69,19 @@ class _VisionCoreMixin:
     ) -> dict[str, Any]:
         content = []
         for item in user_content:
-            if item.get('type') == 'image':
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/png;base64,{item['image']}"
-                    }
-                })
+            if item.get("type") == "image":
+                content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{item['image']}"}})
             else:
-                content.append({
-                    "type": "text",
-                    "text": item.get('text', '')
-                })
+                content.append({"type": "text", "text": item.get("text", "")})
 
         if self.model_type == VisionModelType.BAIDU:
             return self._build_baidu_payload(system_prompt, user_content, temperature)
 
         return {
             "model": self.model_name,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": content}
-            ],
+            "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": content}],
             "temperature": temperature or self.temperature,
-            "max_tokens": self.max_tokens
+            "max_tokens": self.max_tokens,
         }
 
     def _build_baidu_payload(
@@ -107,17 +94,17 @@ class _VisionCoreMixin:
 
         content_parts = []
         for item in user_content:
-            if item.get('type') == 'image':
+            if item.get("type") == "image":
                 content_parts.append("[图片]")
             else:
-                content_parts.append(item.get('text', ''))
+                content_parts.append(item.get("text", ""))
 
         messages.append({"role": "user", "content": "\n".join(content_parts)})
 
         return {
             "messages": messages,
             "temperature": temperature or self.temperature,
-            "max_output_tokens": self.max_tokens
+            "max_output_tokens": self.max_tokens,
         }
 
     def _parse_response(self, response: dict[str, Any]) -> str | None:
@@ -137,7 +124,7 @@ class _VisionCoreMixin:
         try:
             return response["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as e:
-            resp_keys = list(response.keys()) if isinstance(response, dict) else 'N/A'
+            resp_keys = list(response.keys()) if isinstance(response, dict) else "N/A"
             logger.error(f"解析响应失败: {e}, 响应键: {resp_keys}")
             return None
 
@@ -153,10 +140,7 @@ class _VisionCoreMixin:
             logger.error(f"{self.model_type.value} API Key 未配置")
             return None
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
 
         endpoint = self.provider_config.api_endpoint
         url = f"{self.base_url}{endpoint}"
@@ -164,12 +148,7 @@ class _VisionCoreMixin:
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"{self.model_type.value} API 请求 - 尝试 {attempt + 1}/{self.max_retries}")
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=self.timeout
-                )
+                response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
                 response.raise_for_status()
 
                 result = response.json()
@@ -195,7 +174,7 @@ class _VisionCoreMixin:
         model_name = self.model_type.value
 
         status_code = None
-        if hasattr(error, 'response') and error.response is not None:
+        if hasattr(error, "response") and error.response is not None:
             status_code = error.response.status_code
 
         if status_code == 401:

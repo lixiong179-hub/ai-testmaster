@@ -10,6 +10,7 @@
 
 所有端点均需要Bearer令牌认证。
 """
+
 import json
 from typing import Any
 
@@ -24,12 +25,14 @@ from app.schemas.test_case import FlowSortDataSchema
 
 class PreviewGraphPromptRequest(BaseModel):
     """Graph Prompt 预览请求体。"""
+
     flow_sort_data: FlowSortDataSchema = Field(..., description="流程编排数据")
     context: dict[str, Any] = Field(default_factory=dict, description="AI生成上下文")
 
 
 class PreviewGraphPromptResponse(BaseModel):
     """Graph Prompt 预览响应体。"""
+
     graph_prompt: str = Field(..., description="构建完成的Graph Prompt文本")
     node_count: int = Field(..., description="节点总数")
     edge_count: int = Field(..., description="连线总数")
@@ -74,9 +77,7 @@ async def preview_graph_prompt(
             edges=edges_list,
             module_info=module_info,
             requirement_content=request.context.get("requirement_content", ""),
-            test_point_json=json.dumps(
-                request.context.get("test_point", {}), ensure_ascii=False
-            ),
+            test_point_json=json.dumps(request.context.get("test_point", {}), ensure_ascii=False),
             ui_specs_text=request.context.get("ui_specs_text", ""),
             history_cases=request.context.get("history_cases"),
         )

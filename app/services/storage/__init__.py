@@ -14,6 +14,7 @@
     - boto3（S3 实现）需通过 `pip install boto3` 安装
     - LocalStorage 无外部依赖
 """
+
 from app.services.storage.base import StorageBackend, StorageObject
 from app.services.storage.local import LocalStorage
 from app.services.storage.s3 import S3Storage

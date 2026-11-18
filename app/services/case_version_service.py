@@ -18,6 +18,7 @@
       + TRACKED_FIELDS/MAX_VERSIONS_PER_CASE/ARCHIVE_OLDER_THAN_DAYS 常量
       拆分至 _case_version_archive；本模块 re-export 常量保持导入兼容
 """
+
 from typing import Any
 
 from loguru import logger
@@ -118,10 +119,7 @@ class CaseVersionService:
         if auto_flush:
             db.flush()
 
-        logger.info(
-            f"版本快照已创建: case_id={test_case_id}, "
-            f"version={next_version}, type={change_type}"
-        )
+        logger.info(f"版本快照已创建: case_id={test_case_id}, version={next_version}, type={change_type}")
 
         if auto_flush:
             archive_old_versions(db, test_case_id)
@@ -180,10 +178,14 @@ class CaseVersionService:
         if not case:
             return None
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.id == version_id,
-            TestCaseVersion.test_case_id == test_case_id,
-        ).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(
+                TestCaseVersion.id == version_id,
+                TestCaseVersion.test_case_id == test_case_id,
+            )
+            .first()
+        )
         if not version:
             return None
 
@@ -192,8 +194,15 @@ class CaseVersionService:
             raise ValueError(f"版本V{version.version_number}无快照数据，无法恢复")
 
         changed_fields: dict[str, dict[str, Any]] = {}
-        restorable_fields = ["title", "module", "precondition", "steps_json",
-                             "expected_result", "priority", "case_type"]
+        restorable_fields = [
+            "title",
+            "module",
+            "precondition",
+            "steps_json",
+            "expected_result",
+            "priority",
+            "case_type",
+        ]
         for field in restorable_fields:
             if field in snapshot:
                 old_value = getattr(case, field, None)
@@ -204,6 +213,7 @@ class CaseVersionService:
 
         # 跳过自动版本快照，恢复操作由下方手动创建
         from app.models.test_case import skip_version_snapshot, resume_version_snapshot
+
         skip_version_snapshot()
         try:
             db.flush()
@@ -220,8 +230,7 @@ class CaseVersionService:
         )
 
         logger.info(
-            f"版本恢复完成: case_id={test_case_id}, "
-            f"restored_to=V{version.version_number}, operator_id={operator_id}"
+            f"版本恢复完成: case_id={test_case_id}, restored_to=V{version.version_number}, operator_id={operator_id}"
         )
         return case
 

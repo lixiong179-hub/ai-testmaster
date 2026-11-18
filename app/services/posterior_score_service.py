@@ -17,6 +17,7 @@
     - W_execution = 0.3
     - W_modification = 0.2
 """
+
 from dataclasses import dataclass
 
 from loguru import logger
@@ -29,11 +30,13 @@ from app.models.test_case import TestCase, TestCaseExecution
 from app.pipelines.steps.reconciliation import MergedAction
 
 KEEP_VERDICTS = frozenset({MergedAction.KEEP.value})
-MODIFY_VERDICTS = frozenset({
-    MergedAction.NEEDS_MODIFY.value,
-    MergedAction.LOCATOR_BROKEN.value,
-    MergedAction.LOCATOR_AND_MODIFY.value,
-})
+MODIFY_VERDICTS = frozenset(
+    {
+        MergedAction.NEEDS_MODIFY.value,
+        MergedAction.LOCATOR_BROKEN.value,
+        MergedAction.LOCATOR_AND_MODIFY.value,
+    }
+)
 PASSED_STATUSES = frozenset({"passed"})
 
 _REVIEW_ABSENT_DEFAULT_RATE = 0.5
@@ -42,6 +45,7 @@ _REVIEW_ABSENT_DEFAULT_RATE = 0.5
 @dataclass
 class PosteriorInput:
     """单个用例的后验质量分输入数据"""
+
     case_id: int
     review_total: int
     review_keep_count: int
@@ -53,6 +57,7 @@ class PosteriorInput:
 @dataclass
 class PosteriorResult:
     """单个用例的后验质量分计算结果"""
+
     case_id: int
     score: float | None
     review_pass_rate: float
@@ -99,20 +104,12 @@ def compute_posterior_score(
         )
 
     no_review = inp.review_total == 0
-    review_pass_rate = (
-        inp.review_keep_count / inp.review_total if not no_review else _REVIEW_ABSENT_DEFAULT_RATE
-    )
-    execution_pass_rate = (
-        inp.execution_passed_count / inp.execution_total if inp.execution_total > 0 else 0.0
-    )
-    modification_rate = (
-        inp.review_modify_count / inp.review_total if not no_review else 0.0
-    )
+    review_pass_rate = inp.review_keep_count / inp.review_total if not no_review else _REVIEW_ABSENT_DEFAULT_RATE
+    execution_pass_rate = inp.execution_passed_count / inp.execution_total if inp.execution_total > 0 else 0.0
+    modification_rate = inp.review_modify_count / inp.review_total if not no_review else 0.0
 
     score = (
-        _w_review * review_pass_rate
-        + _w_execution * execution_pass_rate
-        + _w_modification * (1.0 - modification_rate)
+        _w_review * review_pass_rate + _w_execution * execution_pass_rate + _w_modification * (1.0 - modification_rate)
     ) * 100.0
 
     score = round(max(0.0, min(100.0, score)), 2)
@@ -142,19 +139,16 @@ def fetch_posterior_inputs(
     Returns:
         PosteriorInput 列表
     """
-    query = (
-        db.query(
-            TestCaseExecution.test_case_id.label("case_id"),
-            func.count(TestCaseExecution.id).label("execution_total"),
-            func.sum(
-                case(
-                    (TestCaseExecution.status.in_(PASSED_STATUSES), 1),
-                    else_=0,
-                )
-            ).label("execution_passed_count"),
-        )
-        .group_by(TestCaseExecution.test_case_id)
-    )
+    query = db.query(
+        TestCaseExecution.test_case_id.label("case_id"),
+        func.count(TestCaseExecution.id).label("execution_total"),
+        func.sum(
+            case(
+                (TestCaseExecution.status.in_(PASSED_STATUSES), 1),
+                else_=0,
+            )
+        ).label("execution_passed_count"),
+    ).group_by(TestCaseExecution.test_case_id)
     if case_ids is not None:
         if not case_ids:
             return []
@@ -201,14 +195,16 @@ def fetch_posterior_inputs(
     inputs: list[PosteriorInput] = []
     for row in exec_stats:
         r_total, r_keep, r_modify = review_map.get(row.case_id, (0, 0, 0))
-        inputs.append(PosteriorInput(
-            case_id=row.case_id,
-            review_total=r_total,
-            review_keep_count=r_keep,
-            review_modify_count=r_modify,
-            execution_total=row.execution_total,
-            execution_passed_count=int(row.execution_passed_count or 0),
-        ))
+        inputs.append(
+            PosteriorInput(
+                case_id=row.case_id,
+                review_total=r_total,
+                review_keep_count=r_keep,
+                review_modify_count=r_modify,
+                execution_total=row.execution_total,
+                execution_passed_count=int(row.execution_passed_count or 0),
+            )
+        )
 
     return inputs
 
@@ -242,10 +238,7 @@ def backfill_posterior_scores(
     db.flush()
     computed = sum(1 for r in results if not r.skipped)
     skipped = sum(1 for r in results if r.skipped)
-    logger.info(
-        f"Posterior score backfill: {computed} computed, {skipped} skipped, "
-        f"{len(results)} total"
-    )
+    logger.info(f"Posterior score backfill: {computed} computed, {skipped} skipped, {len(results)} total")
 
     return results
 

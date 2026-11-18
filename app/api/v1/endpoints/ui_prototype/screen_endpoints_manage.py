@@ -12,6 +12,7 @@ UI原型页面管理端点模块
 
 权限要求: 所有端点需要Bearer令牌认证
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy import select
@@ -28,6 +29,7 @@ from app.api.v1.endpoints.ui_prototype.helpers import _build_screen_response
 from app.core.exception import create_response
 from app.utils.db_time import utcnow
 from loguru import logger
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -46,25 +48,17 @@ async def review_ui_screen(
 ):
     """审核UI屏幕"""
     try:
-        screen_result = await _execute(db,
-            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
-        )
+        screen_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id))
         screen = screen_result.scalars().first()
         if not screen:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在")
 
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == screen.project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == screen.project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         # 内联 async 替代 ui_prototype_crud.update_ui_screen_review
         screen.review_status = request.review_status.value
@@ -80,10 +74,7 @@ async def review_ui_screen(
         raise
     except Exception as e:
         logger.error(f"审核UI屏幕失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="审核UI屏幕失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="审核UI屏幕失败，请稍后重试")
 
 
 @router.put("/screen/{screen_id}/order", response_model=ApiResponse)
@@ -95,25 +86,17 @@ async def update_ui_screen_order(
 ):
     """更新UI屏幕排序"""
     try:
-        screen_result = await _execute(db,
-            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
-        )
+        screen_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id))
         screen = screen_result.scalars().first()
         if not screen:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在")
 
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == screen.project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == screen.project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         # 内联 async 替代 ui_prototype_crud.update_ui_screen_order
         screen.screen_order = screen_order
@@ -126,7 +109,4 @@ async def update_ui_screen_order(
         raise
     except Exception as e:
         logger.error(f"更新UI屏幕顺序失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新UI屏幕顺序失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新UI屏幕顺序失败，请稍后重试")

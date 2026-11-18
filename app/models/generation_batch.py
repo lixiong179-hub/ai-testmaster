@@ -9,9 +9,15 @@ class GenerationBatch(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     batch_no = Column(String(40), unique=True, index=True, nullable=False, comment="人类可读批次号，例如GB202606010001")
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="创建人ID")
-    entry_type = Column(String(40), index=True, nullable=False, default="NEW_FEATURE_GENERATION", comment="任务入口类型")
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID"
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True, comment="创建人ID"
+    )
+    entry_type = Column(
+        String(40), index=True, nullable=False, default="NEW_FEATURE_GENERATION", comment="任务入口类型"
+    )
     scenario_type = Column(String(60), index=True, nullable=False, comment="资料组合场景")
     generation_strategy = Column(String(80), index=True, nullable=False, comment="生成策略")
     status = Column(String(30), index=True, nullable=False, default="created", comment="批次状态")
@@ -42,7 +48,9 @@ class GenerationBatchSave(Base):
     __tablename__ = "generation_batch_saves"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    batch_id = Column(Integer, ForeignKey("generation_batches.id", ondelete="CASCADE"), nullable=False, index=True, comment="批次ID")
+    batch_id = Column(
+        Integer, ForeignKey("generation_batches.id", ondelete="CASCADE"), nullable=False, index=True, comment="批次ID"
+    )
     idempotency_key = Column(String(100), nullable=False, comment="保存幂等键")
     save_mode = Column(String(30), nullable=False, comment="保存模式: draft/formal/passed_only")
     request_hash = Column(String(64), nullable=True, comment="请求体hash，用于排查重复提交")
@@ -51,6 +59,4 @@ class GenerationBatchSave(Base):
 
     batch = relationship("GenerationBatch", back_populates="saves")
 
-    __table_args__ = (
-        Index("ix_gen_batch_save_unique", "batch_id", "idempotency_key", unique=True),
-    )
+    __table_args__ = (Index("ix_gen_batch_save_unique", "batch_id", "idempotency_key", unique=True),)

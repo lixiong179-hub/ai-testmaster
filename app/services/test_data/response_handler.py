@@ -1,5 +1,5 @@
-"""测试数据生成 - AI响应解析与验证
-"""
+"""测试数据生成 - AI响应解析与验证"""
+
 import json
 import re
 from typing import Any
@@ -18,7 +18,7 @@ def parse_ai_response(content: str) -> Any:
                     return json.loads(fixed)
                 except json.JSONDecodeError:
                     continue
-        json_match = re.search(r'\[[\s\S]*\]', content)
+        json_match = re.search(r"\[[\s\S]*\]", content)
         if json_match:
             raw = json_match.group(0)
             for fix_fn in (fix_common_json_issues, clean_json_string):
@@ -32,7 +32,7 @@ def parse_ai_response(content: str) -> Any:
                 return json.loads(raw)
             except json.JSONDecodeError:
                 pass
-        json_match = re.search(r'\{[\s\S]*\}', content)
+        json_match = re.search(r"\{[\s\S]*\}", content)
         if json_match:
             raw = json_match.group(0)
             for fix_fn in (fix_common_json_issues, clean_json_string):
@@ -50,8 +50,7 @@ def parse_ai_response(content: str) -> Any:
 
 
 def validate_generated_data(
-    data: list[dict[str, Any]],
-    field_definitions: list[dict[str, Any]]
+    data: list[dict[str, Any]], field_definitions: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """验证生成数据的完整性。
 

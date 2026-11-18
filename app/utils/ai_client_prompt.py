@@ -20,6 +20,7 @@ AI提示词构建模块
 依赖：
     - loguru.logger: 日志记录
 """
+
 import re
 from typing import Any
 
@@ -131,14 +132,14 @@ def sanitize_input(text: str, max_length: int = 50000) -> str:
         return ""
     text = text[:max_length]
     injection_patterns = [
-        (r'ignore\s+(previous|above|all)\s+instructions?', ''),
-        (r'forget\s+(previous|above|all)\s+instructions?', ''),
-        (r'disregard\s+(previous|above|all)\s+instructions?', ''),
-        (r'you\s+are\s+now\s+a\s+', ''),
-        (r'system\s*:\s*', ''),
-        (r'忽略.*(指令|规则|约束)', ''),
-        (r'你现在是', ''),
-        (r'忘记.*(指令|规则)', ''),
+        (r"ignore\s+(previous|above|all)\s+instructions?", ""),
+        (r"forget\s+(previous|above|all)\s+instructions?", ""),
+        (r"disregard\s+(previous|above|all)\s+instructions?", ""),
+        (r"you\s+are\s+now\s+a\s+", ""),
+        (r"system\s*:\s*", ""),
+        (r"忽略.*(指令|规则|约束)", ""),
+        (r"你现在是", ""),
+        (r"忘记.*(指令|规则)", ""),
     ]
     for pattern, replacement in injection_patterns:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
@@ -165,11 +166,11 @@ def build_ui_spec_description(ui_spec: dict[str, Any], screen_name: str | None =
     parts = []
     if screen_name:
         parts.append(f"=== 页面：{screen_name} ===")
-    if ui_spec.get('screen_name') and not screen_name:
+    if ui_spec.get("screen_name") and not screen_name:
         parts.append(f"【屏幕名称】{ui_spec['screen_name']}")
-    if ui_spec.get('purpose'):
+    if ui_spec.get("purpose"):
         parts.append(f"{'页面功能' if screen_name else '【页面功能】'}：{ui_spec['purpose']}")
-    regions = ui_spec.get('regions', {})
+    regions = ui_spec.get("regions", {})
     if regions:
         region_items = regions.items() if isinstance(regions, dict) else regions
         parts.append(f"\n{'页面区域' if screen_name else '【页面区域结构】'}：")
@@ -177,60 +178,62 @@ def build_ui_spec_description(ui_spec: dict[str, Any], screen_name: str | None =
             if isinstance(item, tuple):
                 region_name, region_desc = item
             else:
-                region_name = item.get('name', '')
-                region_desc = item.get('description', '')
+                region_name = item.get("name", "")
+                region_desc = item.get("description", "")
             if region_desc:
                 parts.append(f"  - {region_name}: {region_desc}")
-    elements = ui_spec.get('elements', [])
+    elements = ui_spec.get("elements", [])
     if elements:
         max_elements = 30 if screen_name else 20
         parts.append(f"\n{'页面元素' if screen_name else '【页面元素】'}（共{len(elements)}个）：")
         for elem in elements[:max_elements]:
-            elem_type = elem.get('type', '未知')
-            label = elem.get('label', '') or elem.get('semantic', '') or elem.get('name', '')
-            position = elem.get('position', '')
-            state = elem.get('state', 'normal')
-            interactive = elem.get('interactive', False)
-            desc = elem.get('description', '')
+            elem_type = elem.get("type", "未知")
+            label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
+            position = elem.get("position", "")
+            state = elem.get("state", "normal")
+            interactive = elem.get("interactive", False)
+            desc = elem.get("description", "")
             if screen_name:
                 parts.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
             else:
-                parts.append(f"  - [{elem_type}] {label} | 位置:{position} | 状态:{state} | 可交互:{interactive} | {desc}")
-    navigation = ui_spec.get('navigation', {})
+                parts.append(
+                    f"  - [{elem_type}] {label} | 位置:{position} | 状态:{state} | 可交互:{interactive} | {desc}"
+                )
+    navigation = ui_spec.get("navigation", {})
     if navigation:
         parts.append(f"\n{'导航结构' if screen_name else '【导航结构】'}：")
         for nav_key, nav_val in navigation.items():
             if nav_val:
                 parts.append(f"  - {nav_key}: {nav_val}")
-    layout_checks = ui_spec.get('layout_constraints', [])
+    layout_checks = ui_spec.get("layout_constraints", [])
     if layout_checks:
         parts.append(f"\n{'布局约束' if screen_name else '【布局约束】'}（共{len(layout_checks)}项）：")
         for check in layout_checks[:10]:
-            check_type = check.get('type', '')
-            desc = check.get('description', '')
-            priority = check.get('priority', '')
+            check_type = check.get("type", "")
+            desc = check.get("description", "")
+            priority = check.get("priority", "")
             if screen_name:
                 parts.append(f"  - [{check_type}] {desc} (优先级:{priority})")
             else:
                 parts.append(f"  - [{check_type}][{priority}] {desc}")
-    ui_checks = ui_spec.get('ui_adaptation_checks', [])
+    ui_checks = ui_spec.get("ui_adaptation_checks", [])
     if ui_checks:
         parts.append(f"\n【UI适配检查点】（共{len(ui_checks)}项）：")
         for check in ui_checks[:10]:
-            check_type = check.get('check_type', '')
-            desc = check.get('description', '')
-            severity = check.get('severity', '')
+            check_type = check.get("check_type", "")
+            desc = check.get("description", "")
+            severity = check.get("severity", "")
             parts.append(f"  - [{check_type}][{severity}] {desc}")
-    flows = ui_spec.get('flows', {})
+    flows = ui_spec.get("flows", {})
     if flows:
-        next_screens = flows.get('expected_next_screens', [])
+        next_screens = flows.get("expected_next_screens", [])
         if next_screens:
             if isinstance(next_screens, list):
                 screen_names = [str(s) if isinstance(s, dict) else str(s) for s in next_screens]
                 parts.append(f"\n{'预期跳转页面' if screen_name else '【预期跳转页面】'}：{', '.join(screen_names)}")
             else:
                 parts.append(f"\n{'预期跳转页面' if screen_name else '【预期跳转页面】'}：{str(next_screens)}")
-    return '\n'.join(parts) if parts else "无有效UI原型图解析结果"
+    return "\n".join(parts) if parts else "无有效UI原型图解析结果"
 
 
 def build_ui_specs_description(ui_specs: list[dict[str, Any]]) -> str:
@@ -249,14 +252,14 @@ def build_ui_specs_description(ui_specs: list[dict[str, Any]]) -> str:
         return "无UI原型图解析结果"
     all_parts = []
     for spec_item in ui_specs:
-        s_name = spec_item.get('screen_name', '未命名页面')
-        ui_spec = spec_item.get('ui_spec', {})
+        s_name = spec_item.get("screen_name", "未命名页面")
+        ui_spec = spec_item.get("ui_spec", {})
         if not ui_spec:
             continue
         description = build_ui_spec_description(ui_spec, screen_name=s_name)
         if description and description != "无有效UI原型图解析结果":
             all_parts.append(description)
-    return '\n\n'.join(all_parts) if all_parts else "无有效UI原型图解析结果"
+    return "\n\n".join(all_parts) if all_parts else "无有效UI原型图解析结果"
 
 
 def build_project_env_info(project_config: dict[str, Any]) -> str:
@@ -274,11 +277,11 @@ def build_project_env_info(project_config: dict[str, Any]) -> str:
     """
     if not project_config:
         return "## 项目环境配置：未配置（请使用通用测试数据）"
-    project_name = project_config.get('project_name', '未知项目')
-    project_type = project_config.get('project_type', 'web')
+    project_name = project_config.get("project_name", "未知项目")
+    project_type = project_config.get("project_type", "web")
 
     login_hint = "账号已登录"
-    env_hint = "浏览器网络正常" if project_type == 'web' else "设备网络正常"
+    env_hint = "浏览器网络正常" if project_type == "web" else "设备网络正常"
 
     parts = [
         "## 项目环境配置",
@@ -286,10 +289,10 @@ def build_project_env_info(project_config: dict[str, Any]) -> str:
         f"- **项目类型**：{project_type}",
         "",
         "**重要说明（关于前置条件）：**",
-        f"前置条件必须包含\"{login_hint}\"和\"{env_hint}\"，有权限相关场景必须补充权限状态。",
+        f'前置条件必须包含"{login_hint}"和"{env_hint}"，有权限相关场景必须补充权限状态。',
         "你编写的测试用例只需关注**业务测试步骤本身**。",
         "- 不要在步骤中描述登录操作或包含任何账号密码",
         f"- precondition 字段必须包含登录状态和网络环境，格式如：{login_hint}、{env_hint}、[业务权限]",
-        "- 测试数据中不包含具体URL或密码"
+        "- 测试数据中不包含具体URL或密码",
     ]
-    return '\n'.join(parts)
+    return "\n".join(parts)

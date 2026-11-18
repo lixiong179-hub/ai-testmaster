@@ -84,10 +84,13 @@ def merge(
         if fw_label == "NEW" or matched_cid is None:
             merged.append(
                 MergedVerdict(
-                    source="forward_only", case_id=None,
+                    source="forward_only",
+                    case_id=None,
                     candidate_index=fv.get("candidate_index"),
-                    action=MergedAction.ADD_NEW, backward_verdict=None,
-                    forward_label=fw_label, confidence=fv.get("confidence", 0.8),
+                    action=MergedAction.ADD_NEW,
+                    backward_verdict=None,
+                    forward_label=fw_label,
+                    confidence=fv.get("confidence", 0.8),
                     reason=f"新增场景: {fv.get('reason', '无理由')}",
                     conflict_marker=False,
                 )
@@ -100,10 +103,13 @@ def merge(
         if bw is None:
             merged.append(
                 MergedVerdict(
-                    source="forward_only", case_id=matched_cid,
+                    source="forward_only",
+                    case_id=matched_cid,
                     candidate_index=fv.get("candidate_index"),
-                    action=MergedAction.ADD_NEW, backward_verdict=None,
-                    forward_label=fw_label, confidence=fv.get("confidence", 0.8),
+                    action=MergedAction.ADD_NEW,
+                    backward_verdict=None,
+                    forward_label=fw_label,
+                    confidence=fv.get("confidence", 0.8),
                     reason=f"未找到反向裁决(case_id={matched_cid})，作为新增",
                     conflict_marker=False,
                 )
@@ -118,11 +124,15 @@ def merge(
 
         merged.append(
             MergedVerdict(
-                source="merged", case_id=matched_cid,
+                source="merged",
+                case_id=matched_cid,
                 candidate_index=fv.get("candidate_index"),
-                action=action, backward_verdict=bw_verdict,
-                forward_label=fw_label, confidence=confidence,
-                reason=reason, conflict_marker=conflict,
+                action=action,
+                backward_verdict=bw_verdict,
+                forward_label=fw_label,
+                confidence=confidence,
+                reason=reason,
+                conflict_marker=conflict,
             )
         )
 
@@ -133,9 +143,12 @@ def merge(
         action, conflict = _lookup_matrix(bw_verdict, None)
         merged.append(
             MergedVerdict(
-                source="backward_only", case_id=cid,
-                candidate_index=None, action=action,
-                backward_verdict=bw_verdict, forward_label=None,
+                source="backward_only",
+                case_id=cid,
+                candidate_index=None,
+                action=action,
+                backward_verdict=bw_verdict,
+                forward_label=None,
                 confidence=bw.get("confidence", 0.7),
                 reason=f"反向裁决: {bw.get('hint', '')}"[:100],
                 conflict_marker=conflict,
@@ -156,8 +169,10 @@ def _lookup_matrix(bw_verdict: str, fw_label: str | None) -> tuple:
 
 
 def _build_merge_reason(
-    action: MergedAction, conflict: bool,
-    bw: dict[str, Any], fv: dict[str, Any],
+    action: MergedAction,
+    conflict: bool,
+    bw: dict[str, Any],
+    fv: dict[str, Any],
 ) -> str:
     if conflict:
         return f"冲突: 反向={bw.get('verdict')}, 前向={fv.get('label')}，需人工决策"
@@ -174,11 +189,15 @@ def _build_merge_reason(
 
 def _verdict_to_dict(v: MergedVerdict) -> dict[str, Any]:
     return {
-        "source": v.source, "case_id": v.case_id,
+        "source": v.source,
+        "case_id": v.case_id,
         "candidate_index": v.candidate_index,
-        "action": v.action.value, "backward_verdict": v.backward_verdict,
-        "forward_label": v.forward_label, "confidence": v.confidence,
-        "reason": v.reason, "conflict_marker": v.conflict_marker,
+        "action": v.action.value,
+        "backward_verdict": v.backward_verdict,
+        "forward_label": v.forward_label,
+        "confidence": v.confidence,
+        "reason": v.reason,
+        "conflict_marker": v.conflict_marker,
     }
 
 
@@ -196,10 +215,13 @@ def _compute_avg_confidence(verdicts: list[MergedVerdict]) -> float:
 
 
 def _record_conflict_metric(
-    db, project_id: int = 0, detail: dict[str, Any] | None = None,
+    db,
+    project_id: int = 0,
+    detail: dict[str, Any] | None = None,
 ) -> None:
     try:
         from app.services.metrics_service import record_metric
+
         record_metric("conflict_detected", project_id=project_id if project_id else None, detail=detail)
     except Exception:
         pass

@@ -12,6 +12,7 @@
     - login 阶段使用 mfa_pending_token 关联密码已验证的会话（短 TTL）
     - 备份码消费后立即持久化剩余列表（一次性）
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +31,7 @@ from app.services.mfa_service import MFAService
 from app.utils.db_time import utcnow
 from app.utils.jwt_utils import create_access_token, decode_token
 
+
 # [B-08 结论 2026-11-12] 「MFA 多因子认证」**明确不做前端接线**：属企业/外部 IdP 集成能力，
 # 前端登录页（src/views/login/index.vue）只提供账号/手机号 + 图形验证码两种形态，无二次验证入口，
 # `src/` 内 mfa 命中 0。接口保留供外部系统/脚本调用（原 R4-6 冻结结论继续有效）。
@@ -47,8 +49,12 @@ _MFA_PENDING_TOKEN_TTL_MINUTES = 5
 _mfa_service = MFAService()
 
 
-@router.post("/mfa/setup", response_model=ApiResponse, summary="MFA 设置 — 生成密钥",
-             description="生成 TOTP 密钥与 otpauth URI。密钥仅返回一次，需调用 /mfa/verify 确认后持久化。")
+@router.post(
+    "/mfa/setup",
+    response_model=ApiResponse,
+    summary="MFA 设置 — 生成密钥",
+    description="生成 TOTP 密钥与 otpauth URI。密钥仅返回一次，需调用 /mfa/verify 确认后持久化。",
+)
 async def mfa_setup(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -76,8 +82,12 @@ async def mfa_setup(
     )
 
 
-@router.post("/mfa/verify", response_model=ApiResponse, summary="MFA 验证 — 启用 MFA",
-             description="校验 TOTP 动态码，通过后持久化密钥并启用 MFA，同时生成备份码。")
+@router.post(
+    "/mfa/verify",
+    response_model=ApiResponse,
+    summary="MFA 验证 — 启用 MFA",
+    description="校验 TOTP 动态码，通过后持久化密钥并启用 MFA，同时生成备份码。",
+)
 async def mfa_verify(
     secret: str = Form(...),
     code: str = Form(...),
@@ -116,8 +126,12 @@ async def mfa_verify(
     )
 
 
-@router.post("/mfa/disable", response_model=ApiResponse, summary="MFA 禁用",
-             description="禁用 MFA。需提供当前有效的 TOTP 动态码以防止恶意禁用。")
+@router.post(
+    "/mfa/disable",
+    response_model=ApiResponse,
+    summary="MFA 禁用",
+    description="禁用 MFA。需提供当前有效的 TOTP 动态码以防止恶意禁用。",
+)
 async def mfa_disable(
     code: str = Form(...),
     current_user: User = Depends(get_current_user),
@@ -163,8 +177,12 @@ async def mfa_disable(
     return create_response(data={"mfa_enabled": False})
 
 
-@router.post("/mfa/backup-codes", response_model=ApiResponse, summary="MFA 备份码重新生成",
-             description="重新生成 10 个备份码（旧备份码全部失效）。需提供当前 TOTP 动态码。")
+@router.post(
+    "/mfa/backup-codes",
+    response_model=ApiResponse,
+    summary="MFA 备份码重新生成",
+    description="重新生成 10 个备份码（旧备份码全部失效）。需提供当前 TOTP 动态码。",
+)
 async def mfa_regenerate_backup_codes(
     code: str = Form(...),
     current_user: User = Depends(get_current_user),
@@ -200,8 +218,12 @@ async def mfa_regenerate_backup_codes(
     )
 
 
-@router.post("/mfa/login", response_model=ApiResponse, summary="MFA 登录验证",
-             description="密码验证后提交 TOTP 动态码完成登录。mfa_pending_token 由 /login 在 MFA 启用时返回。")
+@router.post(
+    "/mfa/login",
+    response_model=ApiResponse,
+    summary="MFA 登录验证",
+    description="密码验证后提交 TOTP 动态码完成登录。mfa_pending_token 由 /login 在 MFA 启用时返回。",
+)
 async def mfa_login(
     mfa_pending_token: str = Form(...),
     code: str = Form(...),
@@ -238,6 +260,7 @@ async def mfa_login(
 
     # 查询用户
     from sqlalchemy import select
+
     result = await _execute(db, select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None or not user.mfa_enabled:

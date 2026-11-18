@@ -7,7 +7,6 @@ from loguru import logger
 
 
 class _ApiSetupHelpersMixin:
-
     def _extract_api_vars(
         self,
         response: httpx.Response,
@@ -59,10 +58,10 @@ class _ApiSetupHelpersMixin:
         return result
 
     def _get_base_url(self) -> str | None:
-        if hasattr(self, '_project_base_url') and self._project_base_url:
+        if hasattr(self, "_project_base_url") and self._project_base_url:
             return self._project_base_url
 
-        if self.browser and getattr(self.browser, '_page', None):
+        if self.browser and getattr(self.browser, "_page", None):
             current_url = self.browser._page.url
             if current_url and current_url.startswith(("http://", "https://")):
                 parts = current_url.split("/")
@@ -75,7 +74,7 @@ class _ApiSetupHelpersMixin:
     async def _get_auth_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {"Content-Type": "application/json"}
 
-        if not self.browser or not getattr(self.browser, '_context', None):
+        if not self.browser or not getattr(self.browser, "_context", None):
             return headers
 
         try:
@@ -118,11 +117,13 @@ class _ApiSetupHelpersMixin:
             if action_type == "navigate":
                 url = step.get("input_value", "") or action
                 if url and url.startswith("/"):
-                    api_calls.append({
-                        "method": "GET",
-                        "url": url,
-                        "assert": {"status_code": 200},
-                    })
+                    api_calls.append(
+                        {
+                            "method": "GET",
+                            "url": url,
+                            "assert": {"status_code": 200},
+                        }
+                    )
 
         return api_calls
 
@@ -144,10 +145,9 @@ class _ApiSetupHelpersMixin:
 
             import socket
             import asyncio
+
             loop = asyncio.get_event_loop()
-            resolved_ip = await loop.run_in_executor(
-                None, socket.gethostbyname, hostname
-            )
+            resolved_ip = await loop.run_in_executor(None, socket.gethostbyname, hostname)
             ip = ipaddress.ip_address(resolved_ip)
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
                 return False

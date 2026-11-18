@@ -32,6 +32,7 @@ AI生成流程:
     - API密钥通过settings配置读取，禁止硬编码
     - 数据验证防止AI返回不完整数据
 """
+
 import json
 from typing import Any
 from loguru import logger
@@ -75,7 +76,7 @@ class GeneratorMixin:
         field_definitions: list[dict[str, Any]],
         count: int = 1,
         context: str | None = None,
-        data_type: str = "normal"
+        data_type: str = "normal",
     ) -> list[dict[str, Any]]:
         """为指定字段定义生成测试数据。
 
@@ -107,15 +108,12 @@ class GeneratorMixin:
 
         prompt = PromptBuilder().for_test_data(field_definitions, count, context, data_type)
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}"
-        }
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}"}
         payload = {
             "model": settings.DEEPSEEK_MODEL,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
-            "max_tokens": 3000
+            "max_tokens": 3000,
         }
 
         max_retries = 3
@@ -123,9 +121,7 @@ class GeneratorMixin:
         for attempt in range(max_retries):
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout)) as client:
-                    response = await client.post(
-                        settings.DEEPSEEK_API_URL, headers=headers, json=payload
-                    )
+                    response = await client.post(settings.DEEPSEEK_API_URL, headers=headers, json=payload)
                     response.raise_for_status()
                     result = response.json()
 
@@ -151,13 +147,15 @@ class GeneratorMixin:
                 logger.warning(last_error)
                 if attempt < max_retries - 1:
                     import asyncio
-                    await asyncio.sleep(2 ** attempt)
+
+                    await asyncio.sleep(2**attempt)
             except httpx.HTTPStatusError as e:
                 last_error = f"AI API HTTP错误: {e.response.status_code}"
                 logger.error(last_error)
                 if attempt < max_retries - 1:
                     import asyncio
-                    await asyncio.sleep(2 ** attempt)
+
+                    await asyncio.sleep(2**attempt)
             except (ValueError, json.JSONDecodeError) as e:
                 last_error = f"AI响应解析失败: {e}"
                 logger.error(last_error)
@@ -167,10 +165,7 @@ class GeneratorMixin:
         raise ValueError(f"AI生成失败: {last_error}")
 
     async def generate_test_data_batch(
-        self,
-        field_definitions: list[dict[str, Any]],
-        counts: dict[str, int],
-        context: str | None = None
+        self, field_definitions: list[dict[str, Any]], counts: dict[str, int], context: str | None = None
     ) -> dict[str, list[dict[str, Any]]]:
         """批量生成多种类型的测试数据。
 
@@ -190,10 +185,7 @@ class GeneratorMixin:
         for data_type, count in counts.items():
             try:
                 data = await self.generate_test_data(
-                    field_definitions=field_definitions,
-                    count=count,
-                    context=context,
-                    data_type=data_type
+                    field_definitions=field_definitions, count=count, context=context, data_type=data_type
                 )
                 result[data_type] = data
             except Exception as e:

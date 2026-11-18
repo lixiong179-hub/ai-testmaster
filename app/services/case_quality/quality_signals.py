@@ -8,6 +8,7 @@ run_quality_feedback_loop 在第 N+1 轮注入重生成 Prompt。
   让 AI 在下一轮针对具体问题修复，而非无信息地重复生成。
 - 与 QualityScoringService 共享维度名，保证信号与评分口径一致。
 """
+
 from typing import Any
 
 # 维度得分低于此阈值视为低分维度，需在信号中重点标注修复
@@ -40,13 +41,13 @@ def build_quality_signals(
     scores = dim_scores
     if scores is None and case is not None:
         from app.services.case_quality.quality_scoring_service import QualityScoringService
+
         scores = QualityScoringService.score_dimensions(case)
     if not scores:
         scores = {}
 
     low_dimensions: list[str] = [
-        name for name, score in scores.items()
-        if isinstance(score, (int, float)) and score < LOW_DIMENSION_THRESHOLD
+        name for name, score in scores.items() if isinstance(score, (int, float)) and score < LOW_DIMENSION_THRESHOLD
     ]
 
     return {
@@ -76,9 +77,7 @@ def format_quality_signals(signals: dict[str, Any] | None) -> str:
     if not issues and not dim_scores:
         return ""
 
-    lines: list[str] = [
-        "## 质量信号（上轮生成的具体问题，本轮必须逐条修复）"
-    ]
+    lines: list[str] = ["## 质量信号（上轮生成的具体问题，本轮必须逐条修复）"]
 
     if issues:
         lines.append("### 具体问题")

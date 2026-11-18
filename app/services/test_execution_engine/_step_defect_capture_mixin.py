@@ -4,6 +4,7 @@
 - _clear_browser_defect_evidence: 步骤执行前清空缺陷收集器
 - _collect_step_defect_evidence: 步骤完成后采集内存快照并收集缺陷证据
 """
+
 from loguru import logger
 
 from app.services.test_execution_engine.models import StepExecutionResult
@@ -17,7 +18,7 @@ class StepDefectCaptureMixin:
 
     def _clear_browser_defect_evidence(self) -> None:
         """步骤执行前清空浏览器缺陷收集器。"""
-        if self.browser and hasattr(self.browser, 'clear_defect_evidence'):
+        if self.browser and hasattr(self.browser, "clear_defect_evidence"):
             try:
                 self.browser.clear_defect_evidence()
             except Exception as e:
@@ -28,14 +29,14 @@ class StepDefectCaptureMixin:
 
         即使用例通过（status=passed），defect_evidence 仍可能有内容（隐性缺陷）。
         """
-        if not self.browser or not hasattr(self.browser, 'collect_memory_sample'):
+        if not self.browser or not hasattr(self.browser, "collect_memory_sample"):
             return
         try:
             await self.browser.collect_memory_sample()
         except Exception as e:
             logger.debug(f"采集内存快照异常(不影响执行): {e}")
 
-        if hasattr(self.browser, 'get_defect_evidence'):
+        if hasattr(self.browser, "get_defect_evidence"):
             try:
                 evidence = self.browser.get_defect_evidence()
                 # 仅当存在实质缺陷内容时才写入，避免存储空结构

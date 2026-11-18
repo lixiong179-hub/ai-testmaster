@@ -3,6 +3,7 @@
 加载测试点数据（指定 ID 或分页+未覆盖优先排序），并获取项目文件内容
 （支持缓存与强制刷新）。
 """
+
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -41,11 +42,15 @@ def load_test_points(
             point = test_point_crud.get_test_point_by_id(db, point_id, project_id)
             if point:
                 function = _extract_function_from_ai_prompt(point.ai_prompt)
-                test_points.append({
-                    "id": point.id, "module": point.module,
-                    "function": function,
-                    "point": point.point, "priority": point.priority,
-                })
+                test_points.append(
+                    {
+                        "id": point.id,
+                        "module": point.module,
+                        "function": function,
+                        "point": point.point,
+                        "priority": point.priority,
+                    }
+                )
     else:
         skip = (page - 1) * page_size
         page_limit = min(page_size, MAX_TEST_POINT_PAGE_SIZE)
@@ -62,9 +67,7 @@ def load_test_points(
             .all()
             if row[0] is not None
         }
-        all_points = db.query(TestPoint).filter(
-            TestPoint.project_id == project_id
-        ).all()
+        all_points = db.query(TestPoint).filter(TestPoint.project_id == project_id).all()
         total_count = len(all_points)
         all_points.sort(
             key=lambda point: (
@@ -73,17 +76,23 @@ def load_test_points(
                 point.id,
             )
         )
-        page_points = all_points[skip: skip + page_limit]
+        page_points = all_points[skip : skip + page_limit]
         for point in page_points:
             function = _extract_function_from_ai_prompt(point.ai_prompt)
-            test_points.append({
-                "id": point.id, "module": point.module,
-                "function": function,
-                "point": point.point, "priority": point.priority,
-            })
+            test_points.append(
+                {
+                    "id": point.id,
+                    "module": point.module,
+                    "function": function,
+                    "point": point.point,
+                    "priority": point.priority,
+                }
+            )
         pagination = {
-            "page": page, "page_size": len(page_points),
-            "total": total_count, "has_more": (skip + page_limit) < total_count,
+            "page": page,
+            "page_size": len(page_points),
+            "total": total_count,
+            "has_more": (skip + page_limit) < total_count,
             "uncovered_first": True,
             "covered_test_point_count": len(covered_test_point_ids),
         }
@@ -103,10 +112,11 @@ async def get_file_content_helper(
         2. 内容为空或状态 pending/failed -> 重新提取
         3. 提取失败 -> 返回现有内容
     """
-    if file.content and file.extract_status == 'completed' and not force_refresh:
+    if file.content and file.extract_status == "completed" and not force_refresh:
         return file.content
-    if not file.content or file.extract_status in ['pending', 'failed']:
+    if not file.content or file.extract_status in ["pending", "failed"]:
         from app.services.file_content_extractor import FileContentExtractor
+
         extractor = FileContentExtractor(db)
         result = await extractor.extract_file_content(file, force_refresh)
         if result.get("success"):

@@ -14,12 +14,12 @@ class _InspectorMixin:
 
         for column in table.columns:
             col_info = {
-                'name': column.name,
-                'type': str(column.type),
-                'nullable': column.nullable,
-                'default': self._resolve_sql_default(column),
-                'primary_key': column.primary_key,
-                'comment': column.comment or ''
+                "name": column.name,
+                "type": str(column.type),
+                "nullable": column.nullable,
+                "default": self._resolve_sql_default(column),
+                "primary_key": column.primary_key,
+                "comment": column.comment or "",
             }
             columns.append(col_info)
 
@@ -28,9 +28,9 @@ class _InspectorMixin:
     def _resolve_sql_default(self, column) -> str | None:
         server_default = column.server_default
         if server_default is not None:
-            arg = getattr(server_default, 'arg', None)
+            arg = getattr(server_default, "arg", None)
             if arg is not None:
-                if hasattr(arg, 'text'):
+                if hasattr(arg, "text"):
                     return arg.text
                 return str(arg)
 
@@ -38,11 +38,11 @@ class _InspectorMixin:
         if col_default is None:
             return None
 
-        arg = getattr(col_default, 'arg', None)
+        arg = getattr(col_default, "arg", None)
         if arg is None:
             return None
         if isinstance(arg, bool):
-            return '1' if arg else '0'
+            return "1" if arg else "0"
         if isinstance(arg, (int, float)):
             return str(arg)
         if isinstance(arg, str):
@@ -52,14 +52,17 @@ class _InspectorMixin:
     def get_db_columns(self, table_name: str) -> list[dict]:
         try:
             columns = self.inspector.get_columns(table_name)
-            return [{
-                'name': col['name'],
-                'type': str(col['type']),
-                'nullable': col.get('nullable', True),
-                'default': str(col.get('default')) if col.get('default') else None,
-                'primary_key': col.get('primary_key', False),
-                'comment': col.get('comment', '')
-            } for col in columns]
+            return [
+                {
+                    "name": col["name"],
+                    "type": str(col["type"]),
+                    "nullable": col.get("nullable", True),
+                    "default": str(col.get("default")) if col.get("default") else None,
+                    "primary_key": col.get("primary_key", False),
+                    "comment": col.get("comment", ""),
+                }
+                for col in columns
+            ]
         except Exception as e:
             logger.warning(f"无法获取表 {table_name} 的列信息: {e}")
             return []
@@ -68,7 +71,7 @@ class _InspectorMixin:
         model_cols = self.get_model_columns(table_name, Base)
         db_cols = self.get_db_columns(table_name)
 
-        db_col_names = {col['name'] for col in db_cols}
-        missing_cols = [col for col in model_cols if col['name'] not in db_col_names]
+        db_col_names = {col["name"] for col in db_cols}
+        missing_cols = [col for col in model_cols if col["name"] not in db_col_names]
 
         return missing_cols, list(db_col_names)

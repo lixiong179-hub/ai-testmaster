@@ -3,6 +3,7 @@
 
 所有函数接收 db session 参数，由脚本 CLI 或测试直接调用。
 """
+
 import gzip
 import json
 import logging
@@ -19,15 +20,21 @@ from app.utils.db_time import utcnow
 _logger = logging.getLogger(__name__)
 
 _TABLES_FOR_BACKUP = [
-    {"name": "pipeline_runs", "columns": "id, iteration_id, input_hash, pipeline_version, status, started_at, finished_at, error"},
+    {
+        "name": "pipeline_runs",
+        "columns": "id, iteration_id, input_hash, pipeline_version, status, started_at, finished_at, error",
+    },
     {"name": "artifacts", "columns": "id, run_id, kind, schema_version, confidence, content_hash, created_at"},
-    {"name": "review_decision", "columns": "id, review_id, target_kind, target_id, target_version, ai_verdict, ai_confidence, "
-                "ai_reason, modification_hint, deprecate_reason, human_verdict, human_user_id, "
-                "human_reason, final_verdict, decided_at, conflict_marker, accepted_low_confidence"},
+    {
+        "name": "review_decision",
+        "columns": "id, review_id, target_kind, target_id, target_version, ai_verdict, ai_confidence, "
+        "ai_reason, modification_hint, deprecate_reason, human_verdict, human_user_id, "
+        "human_reason, final_verdict, decided_at, conflict_marker, accepted_low_confidence",
+    },
 ]
 
 _ALLOWED_TABLE_NAMES = {t["name"] for t in _TABLES_FOR_BACKUP}
-_COLUMN_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+_COLUMN_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
 def archive_iterations(db: Session, retention_days: int | None = None, dry_run: bool = False) -> int:
@@ -71,15 +78,19 @@ def archive_iterations(db: Session, retention_days: int | None = None, dry_run: 
         )
 
         artifacts = db.execute(
-            text("SELECT id, payload FROM artifacts WHERE run_id IN "
-                 "(SELECT id FROM pipeline_runs WHERE iteration_id = :iid)"),
+            text(
+                "SELECT id, payload FROM artifacts WHERE run_id IN "
+                "(SELECT id FROM pipeline_runs WHERE iteration_id = :iid)"
+            ),
             {"iid": iteration_id},
         ).fetchall()
 
         for art in artifacts:
             if art.payload is None:
                 continue
-            payload_str = json.dumps(art.payload, ensure_ascii=False) if not isinstance(art.payload, str) else art.payload
+            payload_str = (
+                json.dumps(art.payload, ensure_ascii=False) if not isinstance(art.payload, str) else art.payload
+            )
             compressed = gzip.compress(payload_str.encode("utf-8"))
             if len(compressed) < len(payload_str.encode("utf-8")):
                 db.execute(
@@ -99,7 +110,9 @@ def archive_iterations(db: Session, retention_days: int | None = None, dry_run: 
     return len(rows)
 
 
-def cleanup_audit_logs(db: Session, retention_days: int | None = None, dry_run: bool = False, output_dir: str | None = None) -> int:
+def cleanup_audit_logs(
+    db: Session, retention_days: int | None = None, dry_run: bool = False, output_dir: str | None = None
+) -> int:
     """清理超期 audit_log（导出后删除）
 
     先将超期 audit_log 导出为 JSONL 文件，再从数据库删除。
@@ -311,7 +324,10 @@ def migrate_artifacts(db: Session, from_version: str, to_version: str, dry_run: 
             "INSERT INTO audit_log (action, actor_id, target_kind, target_id, detail, created_at) "
             "VALUES ('config_change', NULL, 'artifact_schema', 0, :detail, :now)"
         ),
-        {"detail": json.dumps({"from_version": from_version, "to_version": to_version, "count": migrated}), "now": now_utc},
+        {
+            "detail": json.dumps({"from_version": from_version, "to_version": to_version, "count": migrated}),
+            "now": now_utc,
+        },
     )
 
     db.flush()

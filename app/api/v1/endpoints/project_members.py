@@ -20,6 +20,7 @@
     - 复用 ProjectAccessService 完成角色层级校验，避免在本模块重复实现。
     - ProjectMember.role 为 owner/admin/member/viewer 四级，层级数值由 ROLE_LEVEL 定义。
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
@@ -40,6 +41,7 @@ from app.schemas.project import (
     TransferOwnershipRequest,
 )
 from app.services.project_access_service import ProjectAccessService
+
 
 # [B-08 结论 2026-11-12] 「项目成员管理」**待接线（当前不做）**：核查确认前端**没有**等价能力
 # ——项目详情页 6 个 Tab（basic-info/env-config/file/self-healing/quality-rule/test-capability）
@@ -92,15 +94,14 @@ def _member_to_response(member: ProjectMember, user: User) -> ProjectMemberRespo
     )
 
 
-async def _load_member_with_user(
-    db: Session, project_id: int, user_id: int
-) -> tuple[ProjectMember, User]:
+async def _load_member_with_user(db: Session, project_id: int, user_id: int) -> tuple[ProjectMember, User]:
     """加载成员记录及关联用户，成员不存在抛 404。"""
-    result = await _execute(db,
+    result = await _execute(
+        db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == user_id,
-        )
+        ),
     )
     member = result.scalar_one_or_none()
     if member is None:
@@ -133,7 +134,10 @@ async def add_project_member(
     await _ensure_project_exists_async(db, project_id)
     await asyncio.to_thread(
         ProjectAccessService.check_project_access,
-        db, project_id, current_user, "admin",
+        db,
+        project_id,
+        current_user,
+        "admin",
     )
 
     if payload.role == "owner":
@@ -149,11 +153,12 @@ async def add_project_member(
 
     await _ensure_user_exists_async(db, payload.user_id)
 
-    existing = await _execute(db,
+    existing = await _execute(
+        db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == payload.user_id,
-        )
+        ),
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
@@ -171,9 +176,7 @@ async def add_project_member(
 
     user = await _ensure_user_exists_async(db, member.user_id)
     await asyncio.to_thread(db.commit)
-    logger.info(
-        f"用户 {current_user.id} 添加成员 {payload.user_id} 到项目 {project_id}，角色={payload.role}"
-    )
+    logger.info(f"用户 {current_user.id} 添加成员 {payload.user_id} 到项目 {project_id}，角色={payload.role}")
     return create_response(
         data=_member_to_response(member, user).model_dump(mode="json"),
         msg="成员添加成功",
@@ -190,14 +193,18 @@ async def list_project_members(
     await _ensure_project_exists_async(db, project_id)
     await asyncio.to_thread(
         ProjectAccessService.check_project_access,
-        db, project_id, current_user, "viewer",
+        db,
+        project_id,
+        current_user,
+        "viewer",
     )
 
-    result = await _execute(db,
+    result = await _execute(
+        db,
         select(ProjectMember, User)
         .join(User, User.id == ProjectMember.user_id)
         .where(ProjectMember.project_id == project_id)
-        .order_by(ProjectMember.id)
+        .order_by(ProjectMember.id),
     )
     rows = result.all()
     members = [_member_to_response(m, u) for m, u in rows]
@@ -225,7 +232,10 @@ async def update_project_member_role(
     await _ensure_project_exists_async(db, project_id)
     await asyncio.to_thread(
         ProjectAccessService.check_project_access,
-        db, project_id, current_user, "admin",
+        db,
+        project_id,
+        current_user,
+        "admin",
     )
 
     if payload.role == "owner":
@@ -255,9 +265,7 @@ async def update_project_member_role(
     await asyncio.to_thread(db.flush)
     user = await _ensure_user_exists_async(db, member.user_id)
     await asyncio.to_thread(db.commit)
-    logger.info(
-        f"用户 {current_user.id} 修改项目 {project_id} 成员 {user_id} 角色为 {payload.role}"
-    )
+    logger.info(f"用户 {current_user.id} 修改项目 {project_id} 成员 {user_id} 角色为 {payload.role}")
     return create_response(
         data=_member_to_response(member, user).model_dump(mode="json"),
         msg="成员角色更新成功",
@@ -280,7 +288,10 @@ async def remove_project_member(
     await _ensure_project_exists_async(db, project_id)
     await asyncio.to_thread(
         ProjectAccessService.check_project_access,
-        db, project_id, current_user, "admin",
+        db,
+        project_id,
+        current_user,
+        "admin",
     )
 
     if user_id == current_user.id and not getattr(current_user, "is_superuser", False):
@@ -298,9 +309,7 @@ async def remove_project_member(
 
     await asyncio.to_thread(db.delete, member)
     await asyncio.to_thread(db.commit)
-    logger.info(
-        f"用户 {current_user.id} 从项目 {project_id} 移除成员 {user_id}"
-    )
+    logger.info(f"用户 {current_user.id} 从项目 {project_id} 移除成员 {user_id}")
     return create_response(data=None, msg="成员移除成功")
 
 
@@ -322,7 +331,10 @@ async def transfer_project_ownership(
     await _ensure_project_exists_async(db, project_id)
     current_member = await asyncio.to_thread(
         ProjectAccessService.check_project_access,
-        db, project_id, current_user, "owner",
+        db,
+        project_id,
+        current_user,
+        "owner",
     )
 
     if payload.new_owner_user_id == current_user.id:
@@ -331,11 +343,12 @@ async def transfer_project_ownership(
             detail="不能转让给自己",
         )
 
-    target_result = await _execute(db,
+    target_result = await _execute(
+        db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == payload.new_owner_user_id,
-        )
+        ),
     )
     target_member = target_result.scalar_one_or_none()
     if target_member is None:
@@ -351,9 +364,7 @@ async def transfer_project_ownership(
 
     target_user = await _ensure_user_exists_async(db, target_member.user_id)
     await asyncio.to_thread(db.commit)
-    logger.info(
-        f"项目 {project_id} 所有权由用户 {current_user.id} 转让给用户 {payload.new_owner_user_id}"
-    )
+    logger.info(f"项目 {project_id} 所有权由用户 {current_user.id} 转让给用户 {payload.new_owner_user_id}")
     return create_response(
         data=_member_to_response(target_member, target_user).model_dump(mode="json"),
         msg="所有权转让成功",

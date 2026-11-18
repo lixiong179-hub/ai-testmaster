@@ -4,6 +4,7 @@
 公共 API。本模块保留 CaseMigrationService 类定义以维持导入路径
 兼容（``from app.services.case_migration import CaseMigrationService``）。
 """
+
 import uuid
 from datetime import datetime
 from typing import Any
@@ -57,14 +58,18 @@ class CaseMigrationService(
             batch_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
         source_data = self._case_to_dict(source_case)
         if source_data.get("case_type") == "api_automation":
-            return await self._clone_case(
-                source_case, target_device, target_project_id, source_device, batch_id
-            )
+            return await self._clone_case(source_case, target_device, target_project_id, source_device, batch_id)
         if not ai_client:
             return {"success": False, "error": "UI用例迁移需要AI客户端"}
         return await self._ai_migrate_case(
-            source_case, source_data, target_device, target_project_id,
-            source_device, target_ui_specs, ai_client, batch_id,
+            source_case,
+            source_data,
+            target_device,
+            target_project_id,
+            source_device,
+            target_ui_specs,
+            ai_client,
+            batch_id,
         )
 
     async def preview_batch(
@@ -130,9 +135,7 @@ class CaseMigrationService(
                 if not isinstance(preview_cases, list) or not preview_cases:
                     errors.append(f"预览用例为空: {source_case.id}")
                     continue
-                case_nos = await CaseNumberService.generate_batch_async(
-                    target_project_id, len(preview_cases), self.db
-                )
+                case_nos = await CaseNumberService.generate_batch_async(target_project_id, len(preview_cases), self.db)
                 for idx, case_data in enumerate(preview_cases):
                     if not isinstance(case_data, dict):
                         continue
@@ -143,9 +146,7 @@ class CaseMigrationService(
                         title=str(case_data.get("title") or source_case.title or "迁移用例"),
                         precondition=str(case_data.get("precondition") or source_case.precondition or ""),
                         steps_json=case_data.get("steps") if isinstance(case_data.get("steps"), list) else [],
-                        expected_result=str(
-                            case_data.get("expected_result") or source_case.expected_result or ""
-                        ),
+                        expected_result=str(case_data.get("expected_result") or source_case.expected_result or ""),
                         priority=int(case_data.get("priority") or source_case.priority or 2),
                         case_type=source_case.case_type,
                         generate_status=1,
@@ -173,9 +174,7 @@ class CaseMigrationService(
         }
 
     async def get_batch_cases(self, batch_id: str) -> dict[str, Any]:
-        stmt = select(TestCase).where(
-            TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False)
-        )
+        stmt = select(TestCase).where(TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False))
         cases = (await self.db.execute(stmt)).scalars().all()
         return {
             "batch_id": batch_id,
@@ -184,9 +183,7 @@ class CaseMigrationService(
         }
 
     async def rollback_batch(self, batch_id: str) -> dict[str, Any]:
-        stmt = select(TestCase).where(
-            TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False)
-        )
+        stmt = select(TestCase).where(TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False))
         cases = (await self.db.execute(stmt)).scalars().all()
         for case in cases:
             case.is_deleted = True

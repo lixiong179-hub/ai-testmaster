@@ -21,6 +21,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 import hashlib
 import json
 from datetime import timedelta
@@ -47,6 +48,7 @@ class AuditLog(Base):
         pipeline_resume, pipeline_cancel, permission_change, config_change,
         case_version_create, locator_version_create, force_cancel_review
     """
+
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -55,9 +57,13 @@ class AuditLog(Base):
     target_kind = Column(String(32), nullable=False, comment="目标实体类型")
     target_id = Column(Integer, nullable=False, comment="目标实体ID")
     detail = Column(JSON, nullable=True, comment="变更详情（before/after快照）")
-    run_id = Column(Integer, ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, comment="关联PipelineRun")
+    run_id = Column(
+        Integer, ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, comment="关联PipelineRun"
+    )
     iteration_id = Column(Integer, ForeignKey("iterations.id", ondelete="SET NULL"), nullable=True, comment="关联迭代")
-    prev_hash = Column(String(64), nullable=False, default=_GENESIS_HASH, comment="上一条记录的 hash（首条为创世 hash）")
+    prev_hash = Column(
+        String(64), nullable=False, default=_GENESIS_HASH, comment="上一条记录的 hash（首条为创世 hash）"
+    )
     hash = Column(String(64), nullable=True, comment="本条记录的 hash（before_flush 时计算）")
     created_at = Column(DateTime, nullable=False, default=utcnow, comment="操作时间（服务器时间）")
 
@@ -108,12 +114,10 @@ def _guard_audit_log_immutability(session, flush_context, instances):
     for instance in session.dirty:
         if isinstance(instance, AuditLog):
             raise RuntimeError(
-                f"UPDATE on audit_log is forbidden (id={instance.id}). "
-                f"Audit logs are immutable and append-only."
+                f"UPDATE on audit_log is forbidden (id={instance.id}). Audit logs are immutable and append-only."
             )
     for instance in session.deleted:
         if isinstance(instance, AuditLog):
             raise RuntimeError(
-                f"DELETE on audit_log is forbidden (id={instance.id}). "
-                f"Audit logs are immutable and append-only."
+                f"DELETE on audit_log is forbidden (id={instance.id}). Audit logs are immutable and append-only."
             )

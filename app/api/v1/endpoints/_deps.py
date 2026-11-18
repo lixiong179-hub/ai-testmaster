@@ -8,6 +8,7 @@
     _user_perm_routes → _deps
     user → _deps / _user_*_routes
 """
+
 from fastapi import HTTPException, status
 
 from app.models.user import User

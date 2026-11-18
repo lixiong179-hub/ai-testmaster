@@ -12,6 +12,7 @@
 - AI 调用/JSON 解析/单测试点失败均异常捕获降级，不阻断整体生成；
 - 复用 CaseNumberService 生成 case_no，参数化查询防注入。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -95,9 +96,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             case_dicts.extend(cases)
 
         if not case_dicts:
-            logger.warning(
-                f"AI 生成全部失败，降级为仅生成登录用例: project_id={project_id} user_id={user_id}"
-            )
+            logger.warning(f"AI 生成全部失败，降级为仅生成登录用例: project_id={project_id} user_id={user_id}")
             case_dicts = self._fallback_login_cases(site_map)
 
         if not case_dicts:
@@ -153,6 +152,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         """懒加载默认 AIClient（主备切换），支持测试注入替换。"""
         if self._ai_client is None:
             from app.api.v1.endpoints.pipeline_resume import create_ai_client
+
             self._ai_client = create_ai_client()
         return self._ai_client
 
@@ -193,33 +193,42 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             return []
         steps: list[dict[str, Any]] = []
         if len(textboxes) >= 1:
-            steps.append({
-                "action": f"在 {textboxes[0].get('name', '用户名')} 输入有效用户名",
-                "action_type": "input", "target_element": textboxes[0].get("name", ""),
-            })
+            steps.append(
+                {
+                    "action": f"在 {textboxes[0].get('name', '用户名')} 输入有效用户名",
+                    "action_type": "input",
+                    "target_element": textboxes[0].get("name", ""),
+                }
+            )
         if len(textboxes) >= 2:
-            steps.append({
-                "action": f"在 {textboxes[1].get('name', '密码')} 输入有效密码",
-                "action_type": "input", "target_element": textboxes[1].get("name", ""),
-            })
-        steps.append({
-            "action": "点击登录按钮提交登录",
-            "action_type": "click", "target_element": buttons[0].get("name", ""),
-        })
-        return [{
-            "title": "用户使用有效凭据登录成功",
-            "case_category": "positive",
-            "precondition": "已注册有效账号且处于未登录状态",
-            "priority": 1,
-            "steps": steps,
-            "expected_result": "登录成功并跳转到登录后页面",
-            "element_verified_ratio": 1.0,
-            "module": "login",
-        }]
+            steps.append(
+                {
+                    "action": f"在 {textboxes[1].get('name', '密码')} 输入有效密码",
+                    "action_type": "input",
+                    "target_element": textboxes[1].get("name", ""),
+                }
+            )
+        steps.append(
+            {
+                "action": "点击登录按钮提交登录",
+                "action_type": "click",
+                "target_element": buttons[0].get("name", ""),
+            }
+        )
+        return [
+            {
+                "title": "用户使用有效凭据登录成功",
+                "case_category": "positive",
+                "precondition": "已注册有效账号且处于未登录状态",
+                "priority": 1,
+                "steps": steps,
+                "expected_result": "登录成功并跳转到登录后页面",
+                "element_verified_ratio": 1.0,
+                "module": "login",
+            }
+        ]
 
-    def _persist_cases(
-        self, case_dicts: list[dict[str, Any]], project_id: int, session: Session
-    ) -> list[TestCase]:
+    def _persist_cases(self, case_dicts: list[dict[str, Any]], project_id: int, session: Session) -> list[TestCase]:
         """批量生成 case_no 并持久化用例，写入 grounding_source 与锚定 ratio。
 
         使用 session.add_all 一次性批量入栈（替代循环 add），commit 触发批量
@@ -229,8 +238,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         """
         case_nos = CaseNumberService.generate_batch(project_id, len(case_dicts), session)
         persisted: list[TestCase] = [
-            self._build_test_case(case_data, project_id, case_no)
-            for case_data, case_no in zip(case_dicts, case_nos)
+            self._build_test_case(case_data, project_id, case_no) for case_data, case_no in zip(case_dicts, case_nos)
         ]
         session.add_all(persisted)
         try:
@@ -239,14 +247,10 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             session.rollback()
             logger.error(f"用例持久化失败，已回滚: project_id={project_id} err={e}")
             raise
-        logger.info(
-            f"页面驱动用例生成完成: project_id={project_id} count={len(persisted)}"
-        )
+        logger.info(f"页面驱动用例生成完成: project_id={project_id} count={len(persisted)}")
         return persisted
 
-    def _build_test_case(
-        self, case_data: dict[str, Any], project_id: int, case_no: str
-    ) -> TestCase:
+    def _build_test_case(self, case_data: dict[str, Any], project_id: int, case_no: str) -> TestCase:
         """从用例字典构造 TestCase，统一字段规范化与锚定来源标记。"""
         steps_json = self._normalize_steps(case_data.get("steps"))
         return TestCase(
@@ -279,17 +283,19 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             action_type = str(step.get("action_type", "") or "").strip().lower()
             if action_type not in _VALID_ACTION_TYPES:
                 action_type = "navigate"
-            normalized.append({
-                "step": str(idx),
-                "description": str(step.get("description", "") or ""),
-                "action": str(step.get("action", "执行") or "执行"),
-                "expected_result": str(step.get("expected_result", "") or ""),
-                "param": str(step.get("param", "") or ""),
-                "action_type": action_type,
-                "input_value": str(step.get("input_value", "") or ""),
-                "target_element": str(step.get("target_element", "") or ""),
-                "test_data": step.get("test_data", []) if isinstance(step.get("test_data"), list) else [],
-            })
+            normalized.append(
+                {
+                    "step": str(idx),
+                    "description": str(step.get("description", "") or ""),
+                    "action": str(step.get("action", "执行") or "执行"),
+                    "expected_result": str(step.get("expected_result", "") or ""),
+                    "param": str(step.get("param", "") or ""),
+                    "action_type": action_type,
+                    "input_value": str(step.get("input_value", "") or ""),
+                    "target_element": str(step.get("target_element", "") or ""),
+                    "test_data": step.get("test_data", []) if isinstance(step.get("test_data"), list) else [],
+                }
+            )
         return normalized
 
     @staticmethod

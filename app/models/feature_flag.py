@@ -4,6 +4,7 @@
 支持全局开关、灰度比例（rollout_percentage）和项目级定向投放（target_type/target_project_ids），
 用于控制功能的渐进式发布与精准投放。
 """
+
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, JSON
 from app.utils.db_time import utcnow
 from app.db.database import Base
@@ -11,6 +12,7 @@ from app.db.database import Base
 
 class FeatureFlag(Base):
     """运行时特性开关，以 key 为主键，支持灰度与项目级定向"""
+
     __tablename__ = "feature_flags"
 
     key = Column(String(80), primary_key=True, comment="特性开关唯一标识")

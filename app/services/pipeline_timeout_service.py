@@ -14,6 +14,7 @@ paused_at 超过配置天数的记录，自动取消并记录审计日志。
     - app.services.audit_service : 写入审计日志
     - app.services.pipeline_service._run : update_run_status
 """
+
 from datetime import timedelta
 
 from loguru import logger
@@ -38,7 +39,9 @@ def cancel_timed_out_pipelines(db: Session) -> int:
         取消的记录数。
     """
     timeoutDays = get_config(
-        db, "PIPELINE_PAUSE_TIMEOUT_DAYS", default=7,
+        db,
+        "PIPELINE_PAUSE_TIMEOUT_DAYS",
+        default=7,
     )
     if not isinstance(timeoutDays, (int, float)) or timeoutDays <= 0:
         logger.warning(
@@ -72,7 +75,8 @@ def cancel_timed_out_pipelines(db: Session) -> int:
         except Exception as e:
             logger.error(
                 "取消超时 PipelineRun id={} 失败: {}",
-                run.id, e,
+                run.id,
+                e,
             )
             try:
                 if nested.is_active:
@@ -83,13 +87,16 @@ def cancel_timed_out_pipelines(db: Session) -> int:
     if cancelledCount > 0:
         logger.info(
             "Pipeline 暂停超时扫描完成: 共 {} 条超时，成功取消 {} 条",
-            len(timedOutRuns), cancelledCount,
+            len(timedOutRuns),
+            cancelledCount,
         )
     return cancelledCount
 
 
 def _cancel_single_run(
-    db: Session, run: PipelineRun, timeoutDays: int,
+    db: Session,
+    run: PipelineRun,
+    timeoutDays: int,
 ) -> None:
     """取消单条超时的 PipelineRun 并记录审计日志。
 

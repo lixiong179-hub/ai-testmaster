@@ -1,8 +1,9 @@
-﻿"""
+"""
 测试数据API
 
 提供测试数据的CRUD接口
 """
+
 """
 测试数据端点模块
 
@@ -44,8 +45,10 @@ router = APIRouter(prefix="/test-data", tags=["测试数据"])
 # 请求/响应模型
 # ============================================================================
 
+
 class TestDataCreateRequest(BaseModel):
     """创建测试数据请求"""
+
     step_id: int = Field(..., description="步骤ID")
     field_name: str = Field(..., description="字段名称")
     field_type: DataType = Field(default=DataType.TEXT, description="字段类型")
@@ -64,6 +67,7 @@ class TestDataCreateRequest(BaseModel):
 
 class TestDataUpdateRequest(BaseModel):
     """更新测试数据请求"""
+
     field_name: str | None = Field(None, description="字段名称")
     field_type: DataType | None = Field(None, description="字段类型")
     generation_rule: GenerationRule | None = Field(None, description="生成规则")
@@ -81,6 +85,7 @@ class TestDataUpdateRequest(BaseModel):
 
 class TestDataResponse(BaseModel):
     """测试数据响应"""
+
     id: int
     step_id: int
     field_name: str
@@ -103,12 +108,14 @@ class TestDataResponse(BaseModel):
 
 class StepTestDataResponse(BaseModel):
     """步骤测试数据响应"""
+
     step_id: int
     data_list: list[TestDataResponse]
 
 
 class GenerateStepDataResponse(BaseModel):
     """生成步骤数据响应"""
+
     step_id: int
     generated_data: dict
 
@@ -117,11 +124,10 @@ class GenerateStepDataResponse(BaseModel):
 # API端点
 # ============================================================================
 
+
 @router.post("/", response_model=TestDataResponse)
 async def create_test_data(
-    request: TestDataCreateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: TestDataCreateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """创建测试数据"""
     try:
@@ -130,42 +136,29 @@ async def create_test_data(
         return test_data.to_dict()
     except Exception as e:
         logger.error(f"创建测试数据失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建失败")
 
 
 @router.get("/{test_data_id}", response_model=TestDataResponse)
 async def get_test_data(
-    test_data_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_data_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """获取单个测试数据"""
     service = TestDataService(db)
     test_data = await service.get_test_data_async(test_data_id)
     if not test_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试数据不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试数据不存在")
     return test_data.to_dict()
 
 
 @router.get("/step/{step_id}", response_model=StepTestDataResponse)
 async def get_test_data_by_step(
-    step_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    step_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """获取步骤的所有测试数据"""
     service = TestDataService(db)
     data_list = await service.get_test_data_by_step_async(step_id)
-    return {
-        "step_id": step_id,
-        "data_list": [data.to_dict() for data in data_list]
-    }
+    return {"step_id": step_id, "data_list": [data.to_dict() for data in data_list]}
 
 
 @router.put("/{test_data_id}", response_model=TestDataResponse)
@@ -173,78 +166,52 @@ async def update_test_data(
     test_data_id: int,
     request: TestDataUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """更新测试数据"""
     update_data = {k: v for k, v in request.model_dump().items() if v is not None}
     service = TestDataService(db)
     test_data = await service.update_test_data_async(test_data_id, **update_data)
     if not test_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试数据不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试数据不存在")
     return test_data.to_dict()
 
 
 @router.delete("/{test_data_id}")
 async def delete_test_data(
-    test_data_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_data_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """删除测试数据"""
     service = TestDataService(db)
     success = await service.delete_test_data_async(test_data_id)
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试数据不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试数据不存在")
     return {"success": True, "message": "删除成功"}
 
 
 @router.post("/step/{step_id}/generate", response_model=GenerateStepDataResponse)
 async def generate_step_data(
-    step_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    step_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """生成步骤的测试数据"""
     try:
         service = TestDataService(db)
         generated_data = await service.generate_step_data_async(step_id)
-        return {
-            "step_id": step_id,
-            "generated_data": generated_data
-        }
+        return {"step_id": step_id, "generated_data": generated_data}
     except Exception as e:
         logger.error(f"生成步骤数据失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="生成失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="生成失败")
 
 
 @router.post("/step/{step_id}/auto-generate")
 async def auto_generate_test_data(
-    step_id: int,
-    action_description: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    step_id: int, action_description: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """根据操作描述自动推断生成测试数据"""
     try:
         service = TestDataService(db)
         created_list = await service.auto_generate_for_step_async(step_id, action_description)
-        return {
-            "success": True,
-            "count": len(created_list),
-            "data_list": [data.to_dict() for data in created_list]
-        }
+        return {"success": True, "count": len(created_list), "data_list": [data.to_dict() for data in created_list]}
     except Exception as e:
         logger.error(f"自动生成测试数据失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="生成失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="生成失败")

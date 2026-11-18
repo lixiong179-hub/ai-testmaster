@@ -3,6 +3,7 @@
 端点:
     GET /{test_case_id}/lineage - 返回血缘树（祖先 + 后代）
 """
+
 from sqlalchemy.orm import Session
 import asyncio
 
@@ -30,6 +31,7 @@ async def get_case_lineage(
     Returns:
         血缘树数据，包含祖先链、后代子树、链长度和警告信息
     """
+
     # get_lineage 是 sync 读操作，使用独立 sync 会话 + to_thread 释放事件循环
     def _do_get_lineage(sync_db) -> LineageResult | None:
         return get_lineage(sync_db, test_case_id)

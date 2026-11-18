@@ -18,6 +18,7 @@
     python -m app.tasks.worker start_worker
     python -m app.tasks.worker start_beat
 """
+
 import logging
 import sys
 
@@ -40,11 +41,16 @@ def start_worker(concurrency: int = 4, pool: str = "gevent", loglevel: str = "IN
 
     argv = [
         "worker",
-        "--loglevel", loglevel,
-        "--concurrency", str(concurrency),
-        "--pool", pool,
-        "-Q", "test_execution,scheduler",
-        "--hostname", "worker@%h",
+        "--loglevel",
+        loglevel,
+        "--concurrency",
+        str(concurrency),
+        "--pool",
+        pool,
+        "-Q",
+        "test_execution,scheduler",
+        "--hostname",
+        "worker@%h",
     ]
     cmd = worker_cmd(app=celery_app)
     cmd.execute_from_commandline(argv)
@@ -60,9 +66,12 @@ def start_beat(loglevel: str = "INFO") -> None:
 
     argv = [
         "beat",
-        "--loglevel", loglevel,
-        "--schedule", "/tmp/celerybeat-schedule",
-        "--pidfile", "/tmp/celerybeat.pid",
+        "--loglevel",
+        loglevel,
+        "--schedule",
+        "/tmp/celerybeat-schedule",
+        "--pidfile",
+        "/tmp/celerybeat.pid",
     ]
     cmd = beat_cmd(app=celery_app)
     cmd.execute_from_commandline(argv)

@@ -2,6 +2,7 @@
 
 提供场景4运行前的预检功能，检查历史用例、测试点、UI页面等前置条件。
 """
+
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -56,53 +57,80 @@ async def precheck_scenario_4(
         TestCase.is_deleted.is_(False),
     )
 
-    history_cases_total = await _count(
-        db, select(func.count()).select_from(TestCase).where(*base_filter)
-    )
+    history_cases_total = await _count(db, select(func.count()).select_from(TestCase).where(*base_filter))
     history_cases_included = await _count(
-        db, select(func.count()).select_from(TestCase).where(
-            *base_filter, TestCase.lifecycle_status != "archived",
-        )
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
+            *base_filter,
+            TestCase.lifecycle_status != "archived",
+        ),
     )
     history_cases_active = await _count(
-        db, select(func.count()).select_from(TestCase).where(
-            *base_filter, TestCase.lifecycle_status == "active",
-        )
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
+            *base_filter,
+            TestCase.lifecycle_status == "active",
+        ),
     )
     history_cases_draft = await _count(
-        db, select(func.count()).select_from(TestCase).where(
-            *base_filter, TestCase.lifecycle_status == "draft",
-        )
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
+            *base_filter,
+            TestCase.lifecycle_status == "draft",
+        ),
     )
     history_cases_pending_review = await _count(
-        db, select(func.count()).select_from(TestCase).where(
-            *base_filter, TestCase.lifecycle_status == "pending_review",
-        )
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
+            *base_filter,
+            TestCase.lifecycle_status == "pending_review",
+        ),
     )
     history_cases_archived = await _count(
-        db, select(func.count()).select_from(TestCase).where(
-            *base_filter, TestCase.lifecycle_status == "archived",
-        )
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
+            *base_filter,
+            TestCase.lifecycle_status == "archived",
+        ),
     )
     history_cases_deleted = await _count(
-        db, select(func.count()).select_from(TestCase).where(
+        db,
+        select(func.count())
+        .select_from(TestCase)
+        .where(
             TestCase.project_id == body.project_id,
             TestCase.is_deleted.is_(True),
-        )
+        ),
     )
 
     test_points_total = await _count(
-        db, select(func.count()).select_from(TestPoint).where(
+        db,
+        select(func.count())
+        .select_from(TestPoint)
+        .where(
             TestPoint.project_id == body.project_id,
-        )
+        ),
     )
     test_points_selected = 0
     if body.test_point_ids:
         owned_count = await _count(
-            db, select(func.count()).select_from(TestPoint).where(
+            db,
+            select(func.count())
+            .select_from(TestPoint)
+            .where(
                 TestPoint.id.in_(body.test_point_ids),
                 TestPoint.project_id == body.project_id,
-            )
+            ),
         )
         if owned_count != len(body.test_point_ids):
             raise HTTPException(
@@ -114,11 +142,14 @@ async def precheck_scenario_4(
     requirement_files_selected = 0
     if body.requirement_file_ids:
         owned_requirement_count = await _count(
-            db, select(func.count()).select_from(ProjectFile).where(
+            db,
+            select(func.count())
+            .select_from(ProjectFile)
+            .where(
                 ProjectFile.id.in_(body.requirement_file_ids),
                 ProjectFile.project_id == body.project_id,
                 ProjectFile.is_active.is_(True),
-            )
+            ),
         )
         if owned_requirement_count != len(body.requirement_file_ids):
             raise HTTPException(
@@ -175,13 +206,17 @@ async def precheck_scenario_4(
 
     if screen_ids_to_check:
         all_screens = (
-            await asyncio.to_thread(
-                db.execute,
-                select(UIPrototypeScreen).where(
-                    UIPrototypeScreen.id.in_(screen_ids_to_check),
-                ),
+            (
+                await asyncio.to_thread(
+                    db.execute,
+                    select(UIPrototypeScreen).where(
+                        UIPrototypeScreen.id.in_(screen_ids_to_check),
+                    ),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for screen in all_screens:
             if screen.parse_status == "completed":
                 parsed_screen_count += 1
@@ -210,40 +245,42 @@ async def precheck_scenario_4(
 
     can_run = len(blocking_reasons) == 0
 
-    return create_response(data={
-        "project_id": body.project_id,
-        "history_cases": {
-            "total": history_cases_total,
-            "included": history_cases_included,
-            "active": history_cases_active,
-            "draft": history_cases_draft,
-            "pending_review": history_cases_pending_review,
-            "archived": history_cases_archived,
-            "deleted": history_cases_deleted,
-        },
-        "test_points": {
-            "total": test_points_total,
-            "selected": test_points_selected,
-        },
-        "requirements": {
-            "selected": requirement_files_selected,
-        },
-        "ui": {
-            "selected_screen_count": selected_screen_count,
-            "parsed_screen_count": parsed_screen_count,
-            "unparsed_screen_count": unparsed_screen_count,
-            "parse_failed_count": parse_failed_count,
-            "usable_screen_ids": usable_screen_ids,
-        },
-        "can_run": can_run,
-        "change_source": change_source,
-        "recommended_pipeline_scenario": recommended_pipeline_scenario,
-        "context_quality": {
-            "has_history_cases": history_cases_included > 0,
-            "has_requirement": requirement_files_selected > 0,
-            "has_test_points": test_points_selected > 0 or test_points_total > 0,
-            "has_ui_flow": parsed_screen_count >= 2,
-        },
-        "blocking_reasons": blocking_reasons,
-        "warnings": warnings,
-    })
+    return create_response(
+        data={
+            "project_id": body.project_id,
+            "history_cases": {
+                "total": history_cases_total,
+                "included": history_cases_included,
+                "active": history_cases_active,
+                "draft": history_cases_draft,
+                "pending_review": history_cases_pending_review,
+                "archived": history_cases_archived,
+                "deleted": history_cases_deleted,
+            },
+            "test_points": {
+                "total": test_points_total,
+                "selected": test_points_selected,
+            },
+            "requirements": {
+                "selected": requirement_files_selected,
+            },
+            "ui": {
+                "selected_screen_count": selected_screen_count,
+                "parsed_screen_count": parsed_screen_count,
+                "unparsed_screen_count": unparsed_screen_count,
+                "parse_failed_count": parse_failed_count,
+                "usable_screen_ids": usable_screen_ids,
+            },
+            "can_run": can_run,
+            "change_source": change_source,
+            "recommended_pipeline_scenario": recommended_pipeline_scenario,
+            "context_quality": {
+                "has_history_cases": history_cases_included > 0,
+                "has_requirement": requirement_files_selected > 0,
+                "has_test_points": test_points_selected > 0 or test_points_total > 0,
+                "has_ui_flow": parsed_screen_count >= 2,
+            },
+            "blocking_reasons": blocking_reasons,
+            "warnings": warnings,
+        }
+    )

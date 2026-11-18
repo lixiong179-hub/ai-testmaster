@@ -55,6 +55,7 @@ try:
 except ImportError:
     _MAGIC_AVAILABLE = False
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -102,10 +103,8 @@ async def upload_file(
 ):
     saved_file_path = None
     try:
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
@@ -119,25 +118,17 @@ async def upload_file(
             raise HTTPException(status_code=400, detail="不支持的文件格式")
 
         allowed_extensions = settings.allowed_extensions_list
-        if allowed_extensions and file_ext.lower() not in [
-            e.lower().lstrip(".") for e in allowed_extensions
-        ]:
+        if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    f"不允许的文件类型: .{file_ext}，"
-                    f"允许的类型: {', '.join(allowed_extensions)}"
-                ),
+                detail=(f"不允许的文件类型: .{file_ext}，允许的类型: {', '.join(allowed_extensions)}"),
             )
 
         contents = await file.read()
         if len(contents) > settings.MAX_UPLOAD_SIZE:
             raise HTTPException(
                 status_code=400,
-                detail=(
-                    f"文件过大，最大允许 "
-                    f"{settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
-                ),
+                detail=(f"文件过大，最大允许 {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"),
             )
 
         if _MAGIC_AVAILABLE:
@@ -211,9 +202,7 @@ async def submit_url(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    raise HTTPException(
-        status_code=410, detail="URL提交功能已弃用，请使用文件上传"
-    )
+    raise HTTPException(status_code=410, detail="URL提交功能已弃用，请使用文件上传")
 
 
 @router.post("/update-sort")
@@ -227,24 +216,21 @@ async def update_file_sort(
             raise HTTPException(status_code=400, detail="文件ID列表不能为空")
 
         if len(file_ids) > 100:
-            raise HTTPException(
-                status_code=400, detail="单次更新数量不能超过100个"
-            )
+            raise HTTPException(status_code=400, detail="单次更新数量不能超过100个")
 
         unique_file_ids = list(dict.fromkeys(file_ids))
 
         # 查询用户拥有的项目ID集合（参数化批量查询，杜绝SQL注入）
-        project_result = await _execute(db,
-            select(Project.id).where(Project.user_id == current_user.id)
-        )
+        project_result = await _execute(db, select(Project.id).where(Project.user_id == current_user.id))
         user_project_ids = set(project_result.scalars().all())
 
         # 批量查询所有文件记录，避免循环内逐条查询（N+1 修复）
-        file_result = await _execute(db,
+        file_result = await _execute(
+            db,
             select(ProjectFile).where(
                 ProjectFile.id.in_(unique_file_ids),
                 ProjectFile.is_active.is_(True),
-            )
+            ),
         )
         file_records = file_result.scalars().all()
         file_map = {record.id: record for record in file_records}
@@ -259,12 +245,7 @@ async def update_file_sort(
 
         await asyncio.to_thread(db.commit)
 
-        logger.info(
-
-                f"更新文件排序: 用户={current_user.username}, "
-                f"更新{updated_count}/{len(unique_file_ids)}个"
-
-        )
+        logger.info(f"更新文件排序: 用户={current_user.username}, 更新{updated_count}/{len(unique_file_ids)}个")
 
         return {
             "code": 200,

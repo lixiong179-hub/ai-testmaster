@@ -15,6 +15,7 @@
 - case_ids -> TestTask.case_ids (JSON字段)
 - status -> TestTask.status (整数枚举：0等待/1执行中/2完成/3失败/4停止)
 """
+
 from pydantic import BaseModel, Field
 from typing import Any
 from datetime import datetime
@@ -29,6 +30,7 @@ class TestTaskCreate(BaseModel):
     对应API：POST /api/v1/test-tasks/
     与Model映射：映射 TestTask Model 的 task_name/project_id/case_ids 字段
     """
+
     task_name: str = Field(..., description="任务名称")  # 必填，任务标识名称，如"登录模块回归测试"
     project_id: int = Field(..., description="项目ID")  # 必填，任务所属项目，实现多项目隔离
     case_ids: list[int] = Field(..., description="待执行用例ID列表")  # 必填，需执行的测试用例ID列表，存储为JSON
@@ -43,6 +45,7 @@ class TestTaskUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/test-tasks/{task_id}
     与Model映射：字段对应 TestTask Model 的 task_name/status/progress/success_count/fail_count
     """
+
     task_name: str | None = Field(None, description="任务名称")  # 可选，更新任务名称
     status: int | None = Field(None, description="任务状态")  # 可选，0=等待/1执行中/2完成/3失败/4停止
     progress: int | None = Field(None, ge=0, le=100, description="执行进度")  # 可选，0-100百分比
@@ -59,6 +62,7 @@ class TestTaskResponse(BaseModel):
     对应API：GET /api/v1/test-tasks/{task_id}
     与Model映射：完整映射 TestTask Model 的所有业务字段
     """
+
     id: int  # 任务主键ID，与TestTask.id对应
     task_name: str  # 任务名称，与TestTask.task_name对应
     project_id: int  # 所属项目ID，与TestTask.project_id对应
@@ -88,6 +92,7 @@ class TestTaskListResponse(BaseModel):
     业务用途：返回分页查询结果
     对应API：GET /api/v1/test-tasks/ 的响应
     """
+
     total: int  # 符合条件的任务总数
     items: list[TestTaskResponse]  # 当前页的任务列表
     page: int  # 当前页码
@@ -101,6 +106,7 @@ class TestTaskCreateResponse(BaseModel):
     业务用途：创建任务成功后返回精简信息，避免返回完整数据
     对应API：POST /api/v1/test-tasks/ 的成功响应
     """
+
     task_id: int  # 新创建的任务ID
     task_name: str  # 任务名称
     project_id: int  # 所属项目ID

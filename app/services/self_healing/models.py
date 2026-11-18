@@ -2,6 +2,7 @@
 
 本模块为自愈体系的基础数据层，不依赖任何外部服务，可独立导入使用。
 """
+
 import enum
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,6 +17,7 @@ class FailureType(enum.Enum):
         LOAD_DELAY: 元素未及时加载或不可见，重试即可恢复。
         ENV_NOISE: 环境噪声（弹窗/网络异常/浏览器崩溃），应跳过而非自愈。
     """
+
     ELEMENT_GONE = "element_gone"
     DOM_CHANGED = "dom_changed"
     LOAD_DELAY = "load_delay"
@@ -32,6 +34,7 @@ class FailureAnalysis:
         suggested_strategy: 建议策略，取值为 "retry" / "ai_heal" / "skip"。
         evidence: 分类依据，如 matched_keywords、dom_check_result 等可追溯证据。
     """
+
     failure_type: FailureType
     confidence: float
     suggested_strategy: str
@@ -48,6 +51,7 @@ class HealResult:
         token_cost: 本次自愈消耗的 Token 数量。
         strategy: 实际命中的自愈策略，取值为 "mcp" / "vision" / "stagehand" / "retry" / "skip"。
     """
+
     selector: str | None
     confidence: float
     token_cost: int

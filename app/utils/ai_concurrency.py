@@ -19,6 +19,7 @@
     信号量在首次使用时按 settings.AI_CASE_GENERATION_CONCURRENCY 懒加载创建，
     避免导入时副作用；测试可通过 reset_ai_generation_semaphore 重置。
 """
+
 from __future__ import annotations
 
 import asyncio

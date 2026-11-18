@@ -12,6 +12,7 @@ Playwright 1.58 兼容性：page.accessibility 已被移除（3 年弃用期结�
 返回值为 YAML 字符串（格式见 https://playwright.dev/python/docs/aria-snapshots），
 通过自研 _parse_aria_yaml 解析为 dict 树保持下游接口稳定。
 """
+
 import json
 import re
 from datetime import datetime, UTC
@@ -29,8 +30,16 @@ if TYPE_CHECKING:
 
 # 可交互角色集合：仅采集这些角色的节点作为可操作元素清单
 INTERACTIVE_ROLES = {
-    "button", "link", "textbox", "searchbox", "combobox",
-    "checkbox", "radio", "menuitem", "tab", "treeitem",
+    "button",
+    "link",
+    "textbox",
+    "searchbox",
+    "combobox",
+    "checkbox",
+    "radio",
+    "menuitem",
+    "tab",
+    "treeitem",
 }
 
 # 登录按钮文本关键词：覆盖中英文常见登录按钮文案
@@ -42,13 +51,13 @@ _LOGIN_BUTTON_KEYWORDS = ("登录", "login", "sign in", "signin", "log in")
 #   - text: "..."                          → 文本内容叶子
 # 顺序：可选 name（双引号包裹）→ 可选 [attrs] → 可选结尾冒号
 _ARIA_NODE_PATTERN = re.compile(
-    r'^-\s+(?P<role>[a-zA-Z][a-zA-Z0-9_-]*)'
+    r"^-\s+(?P<role>[a-zA-Z][a-zA-Z0-9_-]*)"
     r'(?:\s+"(?P<name>[^"]*)")?'
-    r'(?P<attrs>\s+\[[^\]]*\])?'
-    r'(?P<colon>:?)\s*$'
+    r"(?P<attrs>\s+\[[^\]]*\])?"
+    r"(?P<colon>:?)\s*$"
 )
 _ARIA_TEXT_PATTERN = re.compile(r'^-\s+text:\s+"(?P<text>[^"]*)"\s*$')
-_ARIA_ATTR_PATTERN = re.compile(r'(\w+)=([^\s\]]+)')
+_ARIA_ATTR_PATTERN = re.compile(r"(\w+)=([^\s\]]+)")
 
 
 def _parse_aria_attrs(attr_text: str | None) -> dict[str, str]:
@@ -111,11 +120,13 @@ def _parse_aria_yaml(text: str | None) -> dict[str, Any] | None:
 
         text_match = _ARIA_TEXT_PATTERN.match(stripped)
         if text_match:
-            parent_children.append({
-                "role": "text",
-                "name": text_match.group("text"),
-                "children": [],
-            })
+            parent_children.append(
+                {
+                    "role": "text",
+                    "name": text_match.group("text"),
+                    "children": [],
+                }
+            )
             continue
 
         node_match = _ARIA_NODE_PATTERN.match(stripped)
@@ -159,15 +170,14 @@ class SnapshotMixin:
         except Exception as e:
             logger.warning(f"采集页面基础信息失败: {e}")
 
-        elements = await self._safe_collect_async(
-            page, "无障碍树", self._collect_interactive_elements
-        )
+        elements = await self._safe_collect_async(page, "无障碍树", self._collect_interactive_elements)
         forms = await self._safe_collect_async(page, "表单结构", self._collect_forms)
         navigation = await self._safe_collect_async(page, "导航链接", self._collect_navigation)
         is_login_page = await self._safe_collect_async(page, "登录页判定", self._detect_login_page, default=False)
         screenshot_path = await self._save_screenshot(page, url)
 
         from app.services.url_driven.site_explorer import PageSnapshot
+
         return PageSnapshot(
             url=url,
             title=title,
@@ -217,12 +227,14 @@ class SnapshotMixin:
             role = node.get("role") or ""
             name = node.get("name") or ""
             if role in INTERACTIVE_ROLES:
-                elements.append({
-                    "role": role,
-                    "name": name,
-                    "locator": self._build_locator(role, name),
-                    "css_selector": "",
-                })
+                elements.append(
+                    {
+                        "role": role,
+                        "name": name,
+                        "locator": self._build_locator(role, name),
+                        "css_selector": "",
+                    }
+                )
             children = node.get("children") or []
             for child in reversed(children):
                 if isinstance(child, dict):
@@ -246,7 +258,9 @@ class SnapshotMixin:
         用 JS 遍历 form 元素，提取 action/method 及其内 input/button 的
         type/name/placeholder，供用例生成识别表单提交测试点。
         """
-        return await page.eval_on_selector_all("form", """forms => forms.map(form => {
+        return await page.eval_on_selector_all(
+            "form",
+            """forms => forms.map(form => {
             const fields = Array.from(form.querySelectorAll('input, select, textarea, button')).map(el => ({
                 tag: el.tagName.toLowerCase(),
                 type: el.getAttribute('type') || el.tagName.toLowerCase(),
@@ -259,14 +273,18 @@ class SnapshotMixin:
                 method: (form.getAttribute('method') || 'get').toLowerCase(),
                 fields: fields,
             };
-        })""")
+        })""",
+        )
 
     async def _collect_navigation(self, page: Any) -> list[dict[str, str]]:
         """采集所有带 href 的导航链接 {text, href}，供 _discover_links BFS 使用。"""
-        links = await page.eval_on_selector_all("a[href]", """els => els.map(e => ({
+        links = await page.eval_on_selector_all(
+            "a[href]",
+            """els => els.map(e => ({
             text: (e.textContent || '').trim().substring(0, 80),
             href: e.href || '',
-        }))""")
+        }))""",
+        )
         return [link for link in links if link.get("href")]
 
     async def _detect_login_page(self, page: Any) -> bool:

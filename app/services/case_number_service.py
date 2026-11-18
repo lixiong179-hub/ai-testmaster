@@ -51,12 +51,7 @@ class CaseNumberService:
         Returns:
             格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
         """
-        seqRow = (
-            db.query(CaseNumberSeq)
-            .filter(CaseNumberSeq.project_id == project_id)
-            .with_for_update()
-            .first()
-        )
+        seqRow = db.query(CaseNumberSeq).filter(CaseNumberSeq.project_id == project_id).with_for_update().first()
         if seqRow is None:
             seqRow = CaseNumberSeq(project_id=project_id, current_seq=0)
             db.add(seqRow)
@@ -87,12 +82,7 @@ class CaseNumberService:
         if count <= 0:
             return []
 
-        seqRow = (
-            db.query(CaseNumberSeq)
-            .filter(CaseNumberSeq.project_id == project_id)
-            .with_for_update()
-            .first()
-        )
+        seqRow = db.query(CaseNumberSeq).filter(CaseNumberSeq.project_id == project_id).with_for_update().first()
         if seqRow is None:
             seqRow = CaseNumberSeq(project_id=project_id, current_seq=0)
             db.add(seqRow)
@@ -120,11 +110,7 @@ class CaseNumberService:
         Returns:
             格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
         """
-        stmt = (
-            select(CaseNumberSeq)
-            .where(CaseNumberSeq.project_id == project_id)
-            .with_for_update()
-        )
+        stmt = select(CaseNumberSeq).where(CaseNumberSeq.project_id == project_id).with_for_update()
         seqRow = (await db.execute(stmt)).scalar_one_or_none()
         if seqRow is None:
             seqRow = CaseNumberSeq(project_id=project_id, current_seq=0)
@@ -140,9 +126,7 @@ class CaseNumberService:
         return caseNo
 
     @staticmethod
-    async def generate_batch_async(
-        project_id: int, count: int, db: AsyncSession
-    ) -> list[str]:
+    async def generate_batch_async(project_id: int, count: int, db: AsyncSession) -> list[str]:
         """异步批量生成用例编号。
 
         一次加锁分配连续序号，减少锁持有时间和 flush 次数。
@@ -158,11 +142,7 @@ class CaseNumberService:
         if count <= 0:
             return []
 
-        stmt = (
-            select(CaseNumberSeq)
-            .where(CaseNumberSeq.project_id == project_id)
-            .with_for_update()
-        )
+        stmt = select(CaseNumberSeq).where(CaseNumberSeq.project_id == project_id).with_for_update()
         seqRow = (await db.execute(stmt)).scalar_one_or_none()
         if seqRow is None:
             seqRow = CaseNumberSeq(project_id=project_id, current_seq=0)

@@ -11,6 +11,7 @@
 本文件保持向后兼容，原有 `from app.services.test_case_generation.helpers import xxx`
 路径无需修改。continuous_scorer.py 因被外部模块直接引用保留独立文件。
 """
+
 from app.services.test_case_generation._helpers_constants import (
     DEFAULT_ADJACENT_UI_SCREEN_LIMIT,
     DEFAULT_CONTEXT_TOKEN_BUDGET,

@@ -8,6 +8,7 @@
     - GET /mcp/tools: 仅需登录
     - POST /mcp/sse:  查询类工具仅需登录；写类工具（generate_test_case）需 mcp:write 权限
 """
+
 import json
 from typing import Any
 
@@ -37,9 +38,7 @@ class MCPCallRequest(BaseModel):
     """MCP 工具调用请求体。"""
 
     tool_name: str = Field(..., description="MCP 工具名称")
-    arguments: dict[str, Any] = Field(
-        default_factory=dict, description="工具入参 JSON"
-    )
+    arguments: dict[str, Any] = Field(default_factory=dict, description="工具入参 JSON")
 
 
 def _sse(event: str, payload: dict[str, Any]) -> dict[str, str]:
@@ -58,10 +57,7 @@ def _has_permission_code(user: User, code: str) -> bool:
     """
     if getattr(user, "is_superuser", False):
         return True
-    return any(
-        role.permissions and code in role.permissions
-        for role in getattr(user, "roles", []) or []
-    )
+    return any(role.permissions and code in role.permissions for role in getattr(user, "roles", []) or [])
 
 
 @router.get(
@@ -85,7 +81,7 @@ async def list_mcp_tools(
     "/sse",
     summary="SSE 流式调用 MCP 工具",
     description=f"查询类工具仅需登录；写类工具需 `{MCP_SCOPE_WRITE}` 权限。"
-                "依次推送 start / progress / result 事件，错误时推送 error 事件。",
+    "依次推送 start / progress / result 事件，错误时推送 error 事件。",
 )
 async def call_mcp_tool_sse(
     request: MCPCallRequest,
@@ -106,13 +102,15 @@ async def call_mcp_tool_sse(
     server = get_mcp_server()
     tool = server.get_tool(request.tool_name)
     if tool is None:
+
         async def _not_found():
             yield _sse("error", {"error": f"工具不存在: {request.tool_name}"})
 
         return EventSourceResponse(_not_found())
 
     if request.tool_name in _WRITE_TOOL_NAMES and not _has_permission_code(
-        current_user, PermissionCode.MCP_WRITE,
+        current_user,
+        PermissionCode.MCP_WRITE,
     ):
         raise HTTPException(
             status_code=http_status.HTTP_403_FORBIDDEN,
@@ -124,7 +122,10 @@ async def call_mcp_tool_sse(
         yield _sse("progress", {"message": "执行中..."})
         try:
             result = await server.call_tool(
-                request.tool_name, request.arguments, db, current_user,
+                request.tool_name,
+                request.arguments,
+                db,
+                current_user,
             )
             # 持久化 handler 内的写操作（如 AgentSession / TestTask），
             # 失败仅记录日志，不影响已生成的结果回传客户端

@@ -16,6 +16,7 @@
     - 文件大小限制：≤10MB
     - 支持格式：.xmind 标准格式（ZIP + XML）
 """
+
 import asyncio
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
@@ -83,9 +84,7 @@ async def import_xmind(
         预览模式返回 TestPointXmindPreviewResponse，
         导入模式返回 TestPointXmindImportResponse。
     """
-    await asyncio.to_thread(
-        check_project_permission, db, project_id, current_user.id
-    )
+    await asyncio.to_thread(check_project_permission, db, project_id, current_user.id)
 
     validate_file(file)
 
@@ -175,6 +174,7 @@ async def import_xmind(
         parsed_cases = case_parser.parse(tmp_path)
 
         if should_treat_as_case_tree(parsed_cases):
+
             def _case_import(sync_db: Session):
                 return handle_case_style_import(
                     db=sync_db,
@@ -225,10 +225,7 @@ async def import_xmind(
             test_points_data=valid_points,
             created_by=current_user.username,
         )
-        logger.info(
-            f"XMind 导入完成: project_id={project_id}, "
-            f"saved={len(saved)}, skipped={skipped_count}"
-        )
+        logger.info(f"XMind 导入完成: project_id={project_id}, saved={len(saved)}, skipped={skipped_count}")
         return TestPointXmindImportResponse(
             saved_count=len(saved),
             saved_case_count=0,

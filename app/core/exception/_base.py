@@ -59,11 +59,7 @@ class BaseAPIException(Exception):
         super().__init__(msg)
 
 
-def create_response(
-    data: Any = None,
-    msg: str = "success",
-    code: int = 200
-) -> dict[str, Any]:
+def create_response(data: Any = None, msg: str = "success", code: int = 200) -> dict[str, Any]:
     """
     构建统一成功响应格式
 
@@ -90,20 +86,10 @@ def create_response(
         - data为None时自动转为空字典，避免前端收到null
         - timestamp为秒级Unix时间戳，由datetime.now().timestamp()生成
     """
-    return {
-        "code": code,
-        "msg": msg,
-        "message": msg,
-        "data": data or {},
-        "timestamp": int(datetime.now().timestamp())
-    }
+    return {"code": code, "msg": msg, "message": msg, "data": data or {}, "timestamp": int(datetime.now().timestamp())}
 
 
-def create_error_response(
-    msg: str,
-    code: int = 500,
-    data: Any = None
-) -> dict[str, Any]:
+def create_error_response(msg: str, code: int = 500, data: Any = None) -> dict[str, Any]:
     """
     构建统一错误响应格式
 
@@ -131,10 +117,4 @@ def create_error_response(
           code默认500而非200，更符合错误场景的语义
         - message字段是msg的兼容性别名，两者值始终相同
     """
-    return {
-        "code": code,
-        "msg": msg,
-        "message": msg,
-        "data": data or {},
-        "timestamp": int(datetime.now().timestamp())
-    }
+    return {"code": code, "msg": msg, "message": msg, "data": data or {}, "timestamp": int(datetime.now().timestamp())}

@@ -1,4 +1,5 @@
 """移动端AI元素识别Mixin - AI视觉识别与缓存管理。"""
+
 from typing import Any
 from loguru import logger
 
@@ -27,39 +28,46 @@ class MobileRecognitionMixin:
                 logger.warning(f"AI识别置信度 {confidence} < {self.MIN_CONFIDENCE_THRESHOLD}")
                 return None
             return {
-                "x": center_x, "y": center_y,
-                "width": element.width, "height": element.height,
-                "confidence": confidence, "type": element.type, "text": element.text,
+                "x": center_x,
+                "y": center_y,
+                "width": element.width,
+                "height": element.height,
+                "confidence": confidence,
+                "type": element.type,
+                "text": element.text,
             }
         except Exception as e:
             logger.error(f"AI视觉识别失败: {e}")
             return None
 
-    async def _try_cached_click(
-        self, cached: dict[str, Any], description: str
-    ) -> Any | None:
+    async def _try_cached_click(self, cached: dict[str, Any], description: str) -> Any | None:
         from app.services.mobile_ai_executor.types import MobileActionResult, MobileActionType
+
         try:
             accessibility_id = cached.get("accessibility_id")
             resource_id = cached.get("resource_id")
             text = cached.get("text")
             element = await self.uiautomator.find_element(
-                accessibility_id=accessibility_id, resource_id=resource_id, text=text,
+                accessibility_id=accessibility_id,
+                resource_id=resource_id,
+                text=text,
             )
             if element and element.center:
                 await self.adb.click(element.center["x"], element.center["y"])
                 return MobileActionResult(
-                    success=True, action_type=MobileActionType.CLICK, description=description,
-                    coordinates=element.center, cached_locator=cached, used_cache=True,
+                    success=True,
+                    action_type=MobileActionType.CLICK,
+                    description=description,
+                    coordinates=element.center,
+                    cached_locator=cached,
+                    used_cache=True,
                 )
         except (UIAutomatorError, AdbError) as e:
             logger.warning(f"缓存定位执行失败: {e}")
         return None
 
     def _get_cached_locator(self, step_id: int) -> dict[str, Any] | None:
-        locator = self.db.query(ElementLocator).filter(
-            ElementLocator.step_id == step_id
-        ).first()
+        locator = self.db.query(ElementLocator).filter(ElementLocator.step_id == step_id).first()
         if not locator or locator.source != "ai_mobile":
             return None
         cached = {}
@@ -87,9 +95,7 @@ class MobileRecognitionMixin:
                 resource_id = locator_data.get("resource_id")
                 accessibility_id = locator_data.get("accessibility_id")
                 element_text = locator_data.get("text")
-            existing = self.db.query(ElementLocator).filter(
-                ElementLocator.step_id == step_id
-            ).first()
+            existing = self.db.query(ElementLocator).filter(ElementLocator.step_id == step_id).first()
             if existing:
                 if resource_id:
                     existing.element_id = resource_id

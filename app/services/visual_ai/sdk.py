@@ -22,6 +22,7 @@
     - 流程拆分：Diff 持久化/DOM 报告等流程化逻辑抽到 _sdk_helpers，主类聚焦编排；
       一站式校验流程抽到 _sdk_check_mixin，控制单文件行数
 """
+
 from __future__ import annotations
 
 from typing import Any

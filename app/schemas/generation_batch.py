@@ -30,16 +30,19 @@ class GenerationBatchCreate(BaseModel):
 
 
 class GenerationBatchUpdate(BaseModel):
-    status: Literal[
-        "created",
-        "context_ready",
-        "generating",
-        "preview_ready",
-        "saving",
-        "saved",
-        "partial_saved",
-        "failed",
-    ] | None = None
+    status: (
+        Literal[
+            "created",
+            "context_ready",
+            "generating",
+            "preview_ready",
+            "saving",
+            "saved",
+            "partial_saved",
+            "failed",
+        ]
+        | None
+    ) = None
     context_stats: dict[str, Any] | None = None
     warnings: list[dict[str, Any]] | None = None
     evidence_refs: dict[str, Any] | None = None
@@ -85,9 +88,13 @@ class PreviewCasePayload(BaseModel):
     quality_issues: list[dict[str, Any]] = Field(default_factory=list)
     selected_for_save: bool = True
     source_refs: dict[str, Any] = Field(default_factory=dict)
-    classification: str | None = Field(None, max_length=30, comment="历史更新分类: REUSE_CASE/UPDATE_CASE/NEW_CASE/DEPRECATED_CASE/CONFIRM_REQUIRED")
+    classification: str | None = Field(
+        None, max_length=30, comment="历史更新分类: REUSE_CASE/UPDATE_CASE/NEW_CASE/DEPRECATED_CASE/CONFIRM_REQUIRED"
+    )
     history_case_id: int | None = Field(None, comment="UPDATE_CASE 对应的系统用例ID")
-    update_action: Literal["create_new", "update_existing", "skip", "deprecate"] | None = Field(None, comment="保存动作")
+    update_action: Literal["create_new", "update_existing", "skip", "deprecate"] | None = Field(
+        None, comment="保存动作"
+    )
     diff_fields: dict[str, Any] | None = Field(None, comment="变更字段及前后值")
 
     @model_validator(mode="after")

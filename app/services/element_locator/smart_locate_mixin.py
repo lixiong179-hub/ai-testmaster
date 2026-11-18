@@ -1,5 +1,5 @@
-"""智能定位Mixin - AI+规则混合的智能元素定位策略。
-"""
+"""智能定位Mixin - AI+规则混合的智能元素定位策略。"""
+
 from typing import Any
 from loguru import logger
 
@@ -11,13 +11,12 @@ from app.core.constants import LOGIN_KEYWORDS
 
 
 class SmartLocateMixin:
-
     async def smart_locate_element(
         self,
         action_description: str,
         page_title: str | None = None,
         action_type: str | None = None,
-        input_value: str | None = None
+        input_value: str | None = None,
     ) -> dict[str, Any] | None:
         logger.info(f"智能定位元素: {action_description}")
 
@@ -27,15 +26,19 @@ class SmartLocateMixin:
         if css_selector:
             logger.info(f"使用预定义选择器: {css_selector}")
             try:
-                first_selector = css_selector.split(',')[0].strip()
-                element_exists = await self.browser.execute_javascript("""
+                first_selector = css_selector.split(",")[0].strip()
+                element_exists = await self.browser.execute_javascript(
+                    """
                     (function() {
                         return document.querySelector(arguments[0]) !== null;
                     })()
-                """, first_selector)
+                """,
+                    first_selector,
+                )
 
                 if element_exists:
-                    element_info = await self.browser.execute_javascript("""
+                    element_info = await self.browser.execute_javascript(
+                        """
                         (function() {
                             var el = document.querySelector(arguments[0]);
                             if (el) {
@@ -51,7 +54,10 @@ class SmartLocateMixin:
                             }
                             return null;
                         })()
-                    """, first_selector, css_selector)
+                    """,
+                        first_selector,
+                        css_selector,
+                    )
 
                     if element_info:
                         logger.info(f"预定义选择器定位成功: {element_info}")
@@ -70,7 +76,7 @@ class SmartLocateMixin:
                     return element_info
                 element_attrs = await self._get_element_attributes(element_info)
                 css_selector = self._generate_css_selector(element_attrs)
-                element_info['css_selector'] = css_selector
+                element_info["css_selector"] = css_selector
                 logger.info(f"AI视觉定位成功: {element_info}")
                 return element_info
             elif recognition_result.locator_type in ("role", "text", "css", "ref"):
@@ -78,7 +84,9 @@ class SmartLocateMixin:
                     "locator_type": recognition_result.locator_type,
                     "locator_value": recognition_result.locator_value,
                     "confidence": recognition_result.confidence,
-                    "css_selector": recognition_result.locator_value if recognition_result.locator_type == "css" else None
+                    "css_selector": recognition_result.locator_value
+                    if recognition_result.locator_type == "css"
+                    else None,
                 }
                 if recognition_result.element_info:
                     result_info.update(recognition_result.element_info)
@@ -93,14 +101,16 @@ class SmartLocateMixin:
         return None
 
     def _should_direct_execute(self, action_type: str) -> bool:
-        if not getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False):
+        if not getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False):
             return False
         if not isinstance(self.recognizer, MCPRecognizer):
             return False
-        allowed_types = getattr(settings, 'MCP_EXECUTION_OPERATION_TYPES', 'click,type,hover,select').split(',')
+        allowed_types = getattr(settings, "MCP_EXECUTION_OPERATION_TYPES", "click,type,hover,select").split(",")
         return action_type in allowed_types
 
-    async def direct_execute_action(self, recognition_result: RecognitionResult, action_type: str = "click", input_value: str | None = None) -> bool:
+    async def direct_execute_action(
+        self, recognition_result: RecognitionResult, action_type: str = "click", input_value: str | None = None
+    ) -> bool:
         if not isinstance(self.recognizer, MCPRecognizer):
             return False
         try:
@@ -109,10 +119,7 @@ class SmartLocateMixin:
             logger.warning(f"MCP直执失败: {e}")
             return False
 
-    async def _get_element_attributes(
-        self,
-        element_info: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _get_element_attributes(self, element_info: dict[str, Any]) -> dict[str, Any]:
         x = element_info.get("x", 0) + element_info.get("width", 0) // 2
         y = element_info.get("y", 0) + element_info.get("height", 0) // 2
 

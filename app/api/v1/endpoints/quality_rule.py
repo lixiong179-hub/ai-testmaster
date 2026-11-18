@@ -26,6 +26,7 @@ from app.schemas.quality_rule import (
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 
+
 # [B-08 校正 2026-11-12] 前端**已接线**：`src/api/qualityRule.ts` → 项目详情页 `QualityRuleTab.vue`。
 # 原 R4-6「命中 0」结论系双重误判：① 脚本按资源段匹配，前端旧 URL `/api/v1/quality-rule/project/{id}`
 # 与后端实际路径不符；② 该错误 URL 已在本轮修正为 `/api/v1/projects/{project_id}/quality-rules`。
@@ -51,22 +52,21 @@ async def get_quality_rules(
     # 安全收紧：联合校验项目归属，避免越权访问他人项目数据
     # 不区分 404/403，统一返回 403 避免泄露项目存在性
     project = (
-        await _execute(db,
+        await _execute(
+            db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
     ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=403, detail="无权限操作此项目")
     rules = (
-        await _execute(db,
-            select(QualityRuleConfig).where(
-                QualityRuleConfig.project_id == project_id
-            )
-        )
-    ).scalars().all()
+        (await _execute(db, select(QualityRuleConfig).where(QualityRuleConfig.project_id == project_id)))
+        .scalars()
+        .all()
+    )
     return rules
 
 
@@ -84,22 +84,24 @@ async def update_quality_rule(
     """更新指定项目的质量规则配置，不存在则创建。"""
     # 安全收紧：联合校验项目归属
     project = (
-        await _execute(db,
+        await _execute(
+            db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
     ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=403, detail="无权限操作此项目")
 
     existing = (
-        await _execute(db,
+        await _execute(
+            db,
             select(QualityRuleConfig).where(
                 QualityRuleConfig.project_id == project_id,
                 QualityRuleConfig.rule_key == body.rule_key,
-            )
+            ),
         )
     ).scalar_one_or_none()
 
@@ -110,9 +112,7 @@ async def update_quality_rule(
         # 此处显式 commit 确保持久化。
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, existing)
-        logger.info(
-            f"更新质量规则: project_id={project_id}, key={body.rule_key}"
-        )
+        logger.info(f"更新质量规则: project_id={project_id}, key={body.rule_key}")
         return existing
 
     new_rule = QualityRuleConfig(
@@ -125,7 +125,5 @@ async def update_quality_rule(
     # 刷新以获取 DB 服务器生成的字段（id / created_at / updated_at），
     # 否则 Pydantic 序列化 response 时访问未加载属性会触发 async lazy load 失败。
     await asyncio.to_thread(db.refresh, new_rule)
-    logger.info(
-        f"创建质量规则: project_id={project_id}, key={body.rule_key}"
-    )
+    logger.info(f"创建质量规则: project_id={project_id}, key={body.rule_key}")
     return new_rule

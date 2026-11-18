@@ -17,6 +17,7 @@ Phase 2 框架核心导出（Task 4）：
 
 设计参考：Mabl V2 共享基座 + Applitools Visual AI Agent 框架。
 """
+
 from app.services.agent.artifact_registry import ArtifactRegistry
 from app.services.agent.artifacts import (
     ApplicationStateArtifact,

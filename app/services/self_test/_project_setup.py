@@ -1,4 +1,5 @@
 """Self-test project setup helpers."""
+
 import json
 import os
 from pathlib import Path
@@ -41,12 +42,11 @@ async def _auto_import_requirement_doc(db: AsyncSession, project: Project) -> No
         project: 已创建的自测项目实例。
     """
     from app.services import self_test_service as _stm
+
     doc_path = _stm._get_project_root() / _REQUIREMENT_DOC_RELATIVE_PATH
 
     if not doc_path.exists():
-        logger.warning(
-            f"自测项目需求文档不存在，跳过自动导入: {doc_path}"
-        )
+        logger.warning(f"自测项目需求文档不存在，跳过自动导入: {doc_path}")
         return
 
     try:
@@ -72,16 +72,12 @@ async def _auto_import_requirement_doc(db: AsyncSession, project: Project) -> No
 
         # 直接写入提取内容（md 文件已读取到内存），避免异步调用
         from app.crud import file as file_crud
+
         await file_crud.update_file_content_async(db, project_file.id, content, "completed")
 
-        logger.info(
-            f"自测项目需求文档自动导入成功: project_id={project.id}, "
-            f"file_id={project_file.id}"
-        )
+        logger.info(f"自测项目需求文档自动导入成功: project_id={project.id}, file_id={project_file.id}")
     except Exception as exc:
-        logger.warning(
-            f"自测项目需求文档自动导入失败，不影响项目创建: {exc}"
-        )
+        logger.warning(f"自测项目需求文档自动导入失败，不影响项目创建: {exc}")
 
 
 def _get_self_test_env_configs() -> dict[str, dict[str, Any]]:
@@ -100,12 +96,10 @@ def _get_self_test_env_configs() -> dict[str, dict[str, Any]]:
 
 async def get_self_test_project(db: AsyncSession) -> Project | None:
     return (
-        await db.execute(
-            select(Project)
-            .where(Project.is_self_test.is_(True))
-            .order_by(Project.id.asc())
-        )
-    ).scalars().first()
+        (await db.execute(select(Project).where(Project.is_self_test.is_(True)).order_by(Project.id.asc())))
+        .scalars()
+        .first()
+    )
 
 
 async def create_self_test_project(db: AsyncSession, user_id: int) -> Project:

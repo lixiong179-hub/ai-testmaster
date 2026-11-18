@@ -9,6 +9,7 @@
     - _find_similar_cases 支持项目级嵌入向量缓存（case_text_map），
       避免循环内逐条查询数据库，将 O(N²) 查询降至 O(1)。
 """
+
 from typing import Any
 
 from loguru import logger
@@ -22,7 +23,6 @@ from app.services.case_quality.tfidf_utils import (
 
 
 class RedundancyMixin:
-
     def _analyze_redundancy(
         self,
         test_case: TestCase,
@@ -49,7 +49,9 @@ class RedundancyMixin:
         similarityThreshold = computeDynamicThreshold(totalCases)
 
         similarCases = self._find_similar_cases(
-            test_case, steps, all_cases,
+            test_case,
+            steps,
+            all_cases,
             similarity_threshold=similarityThreshold,
             case_text_map=case_text_map,
         )
@@ -140,9 +142,7 @@ class RedundancyMixin:
             if case_text_map and case.id in case_text_map:
                 caseText = case_text_map[case.id]
             else:
-                caseSteps = self.db.query(TestStep).filter(
-                    TestStep.test_case_id == case.id
-                ).all()
+                caseSteps = self.db.query(TestStep).filter(TestStep.test_case_id == case.id).all()
                 caseActions = [step.action.strip().lower() for step in caseSteps]
                 caseText = " ".join(caseActions)
 
@@ -172,11 +172,13 @@ class RedundancyMixin:
         for idx, simValue in enumerate(similarities):
             simFloat = float(simValue)
             if simFloat >= similarity_threshold:
-                similar.append({
-                    "case_id": candidateCases[idx].id,
-                    "case_name": candidateCases[idx].title,
-                    "similarity": round(simFloat, 4),
-                })
+                similar.append(
+                    {
+                        "case_id": candidateCases[idx].id,
+                        "case_name": candidateCases[idx].title,
+                        "similarity": round(simFloat, 4),
+                    }
+                )
 
         similar.sort(key=lambda x: x["similarity"], reverse=True)
         return similar[:5]

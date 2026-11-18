@@ -92,8 +92,7 @@ class _PromptRegistrySyncMixin:
             )
             if latest and latest.prompt_hash == prompt_hash:
                 raise ValueError(
-                    f"Prompt key='{key}' 最新版本 v{latest.prompt_version} "
-                    f"内容与本次注册完全相同，拒绝重复注册"
+                    f"Prompt key='{key}' 最新版本 v{latest.prompt_version} 内容与本次注册完全相同，拒绝重复注册"
                 )
 
         # 判断是否需要设为默认（该 key 无默认版本时）

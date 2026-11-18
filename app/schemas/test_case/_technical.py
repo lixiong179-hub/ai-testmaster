@@ -65,9 +65,7 @@ def _rebuild_technical_view() -> None:
     """
     from app.schemas.test_case._precondition import PreconditionStepResponse
 
-    TechnicalTestCaseView.model_rebuild(
-        _types_namespace={"PreconditionStepResponse": PreconditionStepResponse}
-    )
+    TechnicalTestCaseView.model_rebuild(_types_namespace={"PreconditionStepResponse": PreconditionStepResponse})
 
 
 _rebuild_technical_view()

@@ -1,5 +1,5 @@
-"""路径工具Mixin - 视频文件路径管理工具。
-"""
+"""路径工具Mixin - 视频文件路径管理工具。"""
+
 from pathlib import Path
 from app.models.video_record import VideoRecord
 

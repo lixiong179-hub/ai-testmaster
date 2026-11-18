@@ -3,6 +3,7 @@
 提供模块级纯函数：JSON 文本化、搜索词提取与打分、文本归一化、
 整数/字符串去重保序、需求质量等级评估、流程意图检测、UI 元素覆盖检查。
 """
+
 import json
 import re
 from typing import Any
@@ -34,7 +35,7 @@ def _extract_function_from_ai_prompt(ai_prompt: str | None) -> str:
     try:
         data = json.loads(ai_prompt)
         if isinstance(data, dict):
-            return str(data.get('function', '') or '')
+            return str(data.get("function", "") or "")
     except (json.JSONDecodeError, TypeError, ValueError):
         pass
     return ""
@@ -50,7 +51,7 @@ def _extract_terms(*parts: Any) -> set[str]:
             continue
         terms.add(token)
         if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
-            terms.update(token[i:i + 2] for i in range(len(token) - 1))
+            terms.update(token[i : i + 2] for i in range(len(token) - 1))
     return {term for term in terms if len(term) >= 2}
 
 
@@ -140,20 +141,10 @@ def _find_missing_required_ui_terms(search_text: str, ui_specs: list[dict[str, A
     """检查 UI 元素是否覆盖测试点所需关键词，返回缺失词列表。"""
     if not search_text or not ui_specs:
         return []
-    required_terms = [
-        term for term in REQUIRED_UI_ELEMENT_HINTS
-        if term.lower() in search_text.lower()
-    ]
+    required_terms = [term for term in REQUIRED_UI_ELEMENT_HINTS if term.lower() in search_text.lower()]
     if not required_terms:
         return []
 
-    ui_text = _normalize_match_text([
-        item.get("ui_spec")
-        for item in ui_specs
-        if isinstance(item, dict)
-    ])
-    missing = [
-        term for term in required_terms
-        if _normalize_match_text(term) not in ui_text
-    ]
+    ui_text = _normalize_match_text([item.get("ui_spec") for item in ui_specs if isinstance(item, dict)])
+    missing = [term for term in required_terms if _normalize_match_text(term) not in ui_text]
     return _dedupe_strings(missing)

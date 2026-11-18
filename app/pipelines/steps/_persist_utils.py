@@ -3,6 +3,7 @@
 提供 JSON 序列化、日期解析、评分映射构建与用例步骤持久化能力，
 供 Persist Step 主流程复用。
 """
+
 import json
 from datetime import datetime
 from typing import Any
@@ -53,7 +54,8 @@ def _parse_datetime_field(value: Any) -> datetime | None:
             logger.warning("last_verified_at 非法 ISO 字符串: {}，已置为 None", value)
             return None
     logger.warning(
-        "last_verified_at 非法类型: {}，已置为 None", type(value).__name__,
+        "last_verified_at 非法类型: {}，已置为 None",
+        type(value).__name__,
     )
     return None
 
@@ -93,31 +95,23 @@ def _persist_case_steps(
 
     steps_to_add = []
     for index, step_data in enumerate(steps_json, start=1):
-        action = (
-            step_data.get("action")
-            or step_data.get("step")
-            or step_data.get("description")
-            or ""
-        )
-        expected = (
-            step_data.get("expected")
-            or step_data.get("expected_result")
-            or step_data.get("expect")
-            or ""
-        )
+        action = step_data.get("action") or step_data.get("step") or step_data.get("description") or ""
+        expected = step_data.get("expected") or step_data.get("expected_result") or step_data.get("expect") or ""
         has_locator = int(step_data.get("has_locator", 0)) if has_ui else 0
         locator_status = step_data.get("locator_status") if has_ui else "pending"
-        steps_to_add.append(TestStep(
-            test_case_id=case_id,
-            step_number=index,
-            action=str(action),
-            expected_result=str(expected),
-            has_locator=has_locator,
-            locator_status=locator_status or "pending",
-            action_type=step_data.get("action_type"),
-            input_value=step_data.get("input_value"),
-            target_element=step_data.get("target_element"),
-        ))
+        steps_to_add.append(
+            TestStep(
+                test_case_id=case_id,
+                step_number=index,
+                action=str(action),
+                expected_result=str(expected),
+                has_locator=has_locator,
+                locator_status=locator_status or "pending",
+                action_type=step_data.get("action_type"),
+                input_value=step_data.get("input_value"),
+                target_element=step_data.get("target_element"),
+            )
+        )
 
     if steps_to_add:
         ctx.db.add_all(steps_to_add)

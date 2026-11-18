@@ -2,6 +2,7 @@
 文件内容提取服务 - 从上传的文件中提取文本内容
 支持 PDF、Word (docx)、Excel、文本文件、图片和压缩包
 """
+
 import os
 from typing import Any
 from sqlalchemy.orm import Session
@@ -11,14 +12,18 @@ from app.models.project import ProjectFile
 from app.crud import file as file_crud
 from app.utils.file_utils import ARCHIVE_EXTENSIONS
 from app.services.file_extractor.extractors import (
-    extract_text_file, extract_docx, extract_pdf, extract_excel, clean_text
+    extract_text_file,
+    extract_docx,
+    extract_pdf,
+    extract_excel,
+    clean_text,
 )
 
-TEXT_EXTENSIONS = {'txt', 'md', 'json', 'yaml', 'yml', 'csv', 'log'}
-DOCX_EXTENSIONS = {'docx'}
-PDF_EXTENSIONS = {'pdf'}
-EXCEL_EXTENSIONS = {'xlsx', 'xls'}
-IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+TEXT_EXTENSIONS = {"txt", "md", "json", "yaml", "yml", "csv", "log"}
+DOCX_EXTENSIONS = {"docx"}
+PDF_EXTENSIONS = {"pdf"}
+EXCEL_EXTENSIONS = {"xlsx", "xls"}
+IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 
 class FileContentExtractor:
@@ -29,29 +34,23 @@ class FileContentExtractor:
 
     async def extract_file_content(self, file: ProjectFile, force_refresh: bool = False) -> dict[str, Any]:
         """提取单个文件的内容"""
-        if file.content and file.extract_status == 'completed' and not force_refresh:
+        if file.content and file.extract_status == "completed" and not force_refresh:
             return {"success": True, "content": file.content, "from_cache": True}
 
-        file_crud.update_file_content(self.db, file.id, None, 'processing')
+        file_crud.update_file_content(self.db, file.id, None, "processing")
 
         try:
             content = await self._extract_by_type(file)
             if content:
-                file_crud.update_file_content(self.db, file.id, content, 'completed')
+                file_crud.update_file_content(self.db, file.id, content, "completed")
                 return {"success": True, "content": content, "from_cache": False}
             else:
-                file_crud.update_file_content(
-                    self.db, file.id, None, 'failed',
-                    extract_error="未能提取到有效内容"
-                )
+                file_crud.update_file_content(self.db, file.id, None, "failed", extract_error="未能提取到有效内容")
                 return {"success": False, "error": "未能提取到有效内容"}
         except Exception as e:
             error_msg = f"提取失败: {str(e)}"
             logger.error(f"提取文件内容失败: {file.id} - {error_msg}")
-            file_crud.update_file_content(
-                self.db, file.id, None, 'failed',
-                extract_error=error_msg
-            )
+            file_crud.update_file_content(self.db, file.id, None, "failed", extract_error=error_msg)
             return {"success": False, "error": error_msg}
 
     async def _extract_by_type(self, file: ProjectFile) -> str | None:
@@ -84,26 +83,27 @@ class FileContentExtractor:
 
         try:
             import zipfile
+
             file_list = []
 
-            if file.file_type.lower() == 'zip':
-                with zipfile.ZipFile(file.file_url, 'r') as zf:
+            if file.file_type.lower() == "zip":
+                with zipfile.ZipFile(file.file_url, "r") as zf:
                     for info in zf.infolist():
                         if not info.is_dir():
                             file_list.append(info.filename)
-            elif file.file_type.lower() == 'rar':
+            elif file.file_type.lower() == "rar":
                 try:
                     import rarfile
                 except ImportError:
                     return f"【压缩包文件】{file.file_name} - 请安装 rarfile 库以解析 RAR 文件"
-                with rarfile.RarFile(file.file_url, 'r') as rf:
+                with rarfile.RarFile(file.file_url, "r") as rf:
                     for info in rf.infolist():
                         if not info.is_dir():
                             file_list.append(info.filename)
 
             if file_list:
                 content = f"【压缩包文件】{file.file_name} - 包含 {len(file_list)} 个文件:\n"
-                content += '\n'.join(f"  - {f}" for f in file_list[:100])
+                content += "\n".join(f"  - {f}" for f in file_list[:100])
                 if len(file_list) > 100:
                     content += f"\n  ... 还有 {len(file_list) - 100} 个文件未显示"
                 return clean_text(content)
@@ -138,7 +138,7 @@ async def batch_extract_files(file_ids: list[int], db: Session, force_refresh: b
             results["details"].append({"file_id": file_id, "status": "not_found"})
             continue
 
-        if file.content and file.extract_status == 'completed' and not force_refresh:
+        if file.content and file.extract_status == "completed" and not force_refresh:
             results["skipped"] += 1
             results["details"].append({"file_id": file_id, "status": "skipped", "reason": "already_extracted"})
             continue
@@ -156,11 +156,11 @@ async def batch_extract_files(file_ids: list[int], db: Session, force_refresh: b
 
 def get_file_content(file: ProjectFile) -> str | None:
     """获取文件已提取的内容（如果存在）"""
-    if file.content and file.extract_status == 'completed':
+    if file.content and file.extract_status == "completed":
         return file.content
     return None
 
 
 def has_extracted_content(file: ProjectFile) -> bool:
     """检查文件是否有已提取的内容"""
-    return bool(file.content and file.extract_status == 'completed')
+    return bool(file.content and file.extract_status == "completed")

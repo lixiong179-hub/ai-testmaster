@@ -49,12 +49,14 @@ from app.api.v1.endpoints.file_upload import (
     _file_to_dict,
     _MAGIC_AVAILABLE,
 )
+
 try:
     import magic as _magic_module
 except ImportError:
     _magic_module = None
 from app.api.v1.endpoints.file_export import _extract_images_from_zip
 from loguru import logger
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -83,10 +85,8 @@ async def batch_upload_files(
                 detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
             )
 
-        project_result = await _execute(db,
-            select(Project).where(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
+        project_result = await _execute(
+            db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
         )
         project = project_result.scalars().first()
         if not project:
@@ -112,9 +112,7 @@ async def batch_upload_files(
         for file in files:
             try:
                 if not file.filename:
-                    failed_files.append(
-                        {"file_name": "未知文件", "reason": "文件名不能为空"}
-                    )
+                    failed_files.append({"file_name": "未知文件", "reason": "文件名不能为空"})
                     continue
 
                 file_ext = validate_file_format(file.filename)
@@ -127,9 +125,7 @@ async def batch_upload_files(
                     )
                     continue
 
-                if allowed_extensions and file_ext.lower() not in [
-                    e.lower().lstrip(".") for e in allowed_extensions
-                ]:
+                if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
                     failed_files.append(
                         {
                             "file_name": file.filename,
@@ -152,9 +148,7 @@ async def batch_upload_files(
                 if _MAGIC_AVAILABLE and _magic_module is not None:
                     try:
                         detected_mime = _magic_module.from_buffer(contents, mime=True)
-                        mime_error = validate_file_mime(
-                            file_ext, detected_mime
-                        )
+                        mime_error = validate_file_mime(file_ext, detected_mime)
                         if mime_error:
                             if "危险" in mime_error:
                                 failed_files.append(
@@ -165,8 +159,7 @@ async def batch_upload_files(
                                 )
                                 continue
                             if "压缩包" in mime_error and not (
-                                file_ext in ARCHIVE_EXTENSIONS
-                                and resource_type == "ui_mockup"
+                                file_ext in ARCHIVE_EXTENSIONS and resource_type == "ui_mockup"
                             ):
                                 failed_files.append(
                                     {
@@ -181,18 +174,11 @@ async def batch_upload_files(
 
                 file_resource_type = resource_type
                 if resource_type == "other":
-                    file_resource_type = _auto_detect_resource_type(
-                        file.filename, file_ext
-                    )
+                    file_resource_type = _auto_detect_resource_type(file.filename, file_ext)
 
-                if (
-                    file_ext in ARCHIVE_EXTENSIONS
-                    and resource_type == "ui_mockup"
-                ):
+                if file_ext in ARCHIVE_EXTENSIONS and resource_type == "ui_mockup":
                     unique_filename = f"{uuid.uuid4()}.{file_ext}"
-                    zip_path = os.path.join(
-                        project_upload_dir, unique_filename
-                    )
+                    zip_path = os.path.join(project_upload_dir, unique_filename)
 
                     with open(zip_path, "wb") as f:
                         f.write(contents)
@@ -261,17 +247,10 @@ async def batch_upload_files(
                 uploaded_files.append(_file_to_dict(new_file))
                 file_index += 1
             except Exception as e:
-                logger.error(
-                    f"批量上传-单文件处理失败: {file.filename}, 错误: {str(e)}"
-                )
-                failed_files.append(
-                    {"file_name": file.filename, "reason": str(e)}
-                )
+                logger.error(f"批量上传-单文件处理失败: {file.filename}, 错误: {str(e)}")
+                failed_files.append({"file_name": file.filename, "reason": str(e)})
 
-        logger.info(
-            f"批量上传完成: 用户={current_user.username}, "
-            f"成功={len(uploaded_files)}, 失败={len(failed_files)}"
-        )
+        logger.info(f"批量上传完成: 用户={current_user.username}, 成功={len(uploaded_files)}, 失败={len(failed_files)}")
 
         return {
             "code": 200,

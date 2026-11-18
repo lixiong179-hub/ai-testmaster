@@ -9,6 +9,7 @@ AI 调用错误码枚举模块
     - 可扩展：新增错误码只需追加枚举成员
     - 与 AIServiceError 体系解耦：业务异常体系独立演进
 """
+
 from enum import StrEnum
 
 

@@ -5,6 +5,7 @@ Capability 生命周期状态流转规则
 状态流转方向：active → deprecated → archived（终态不可逆）。
 允许 active → archived（直接归档）。
 """
+
 from app.models.enums import CapabilityStatus
 
 

@@ -25,6 +25,7 @@
 
 所有端点均需要Bearer令牌认证。
 """
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.test_case_ai_generate import router as generate_router

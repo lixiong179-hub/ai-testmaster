@@ -23,17 +23,16 @@ def _collect_d_grade_cases(
         d_cases = [c for c in case_data_list if c.get("prior_quality_grade") == "D"]
         if d_cases:
             d_score_idxs = [c.get("_d_score_idx") for c in d_cases if c.get("_d_score_idx") is not None]
-            good_titles = [
-                c.get("title", "") for c in case_data_list
-                if c.get("prior_quality_grade") != "D"
-            ]
-            d_entries.append({
-                "test_point": tp,
-                "d_cases": d_cases,
-                "d_score_idxs": d_score_idxs,
-                "good_titles": good_titles,
-                "parent_entry": entry,
-            })
+            good_titles = [c.get("title", "") for c in case_data_list if c.get("prior_quality_grade") != "D"]
+            d_entries.append(
+                {
+                    "test_point": tp,
+                    "d_cases": d_cases,
+                    "d_score_idxs": d_score_idxs,
+                    "good_titles": good_titles,
+                    "parent_entry": entry,
+                }
+            )
     return d_entries
 
 
@@ -47,7 +46,9 @@ def _regenerate_d_cases(
     analyzer: Any = None,
 ) -> None:
     from app.pipelines.steps.case_generation import (
-        _parse_case_response, _enrich_case_data, _check_type_coverage,
+        _parse_case_response,
+        _enrich_case_data,
+        _check_type_coverage,
     )
 
     for d_entry in d_entries:
@@ -81,9 +82,11 @@ def _regenerate_d_cases(
         regen_parts.append("2. 分支流程需标注触发条件，作为独立场景生成用例")
         regen_parts.append("3. 异常流程需标注异常场景和预期错误提示")
         regen_parts.append("4. 标题格式：「场景/条件」+「操作」+「验证重点」，15-40字，禁用模糊词")
-        regen_parts.append("5. 前置条件必须含\"账号已登录\"和网络环境，禁止依赖特定业务数据")
+        regen_parts.append('5. 前置条件必须含"账号已登录"和网络环境，禁止依赖特定业务数据')
         regen_parts.append("6. 步骤原子化可执行，每步必须有 action 和 expected_result")
-        regen_parts.append("7. 预期结果可量化判定，禁止\"页面正常\"\"功能正常\"等模糊描述，必须含量化标记（具体文案、状态变化、数值）")
+        regen_parts.append(
+            '7. 预期结果可量化判定，禁止"页面正常""功能正常"等模糊描述，必须含量化标记（具体文案、状态变化、数值）'
+        )
         regen_parts.append("")
         regen_parts.append("## 输出格式要求：")
         regen_parts.append("严格按以下JSON数组格式输出，不要添加任何其他文字：")
@@ -95,14 +98,14 @@ def _regenerate_d_cases(
         regen_parts.append('    "precondition": "前置条件（含登录状态、网络环境）",')
         regen_parts.append('    "steps": [')
         regen_parts.append('      {"action": "具体操作步骤", "expected_result": "每步预期结果"}')
-        regen_parts.append('    ],')
+        regen_parts.append("    ],")
         regen_parts.append('    "expected_result": "整体预期结果",')
         regen_parts.append('    "case_type": "用例类型（功能测试/边界测试/异常测试）",')
         regen_parts.append('    "priority": 数字1-5,')
         regen_parts.append('    "case_category": "正向/边界/异常",')
         regen_parts.append('    "test_data": {}')
-        regen_parts.append('  }')
-        regen_parts.append(']')
+        regen_parts.append("  }")
+        regen_parts.append("]")
 
         regen_prompt = "\n".join(regen_parts)
 
@@ -147,11 +150,23 @@ def _regenerate_d_cases(
                         score, grade, breakdown = _compute_analyzer_score(analyzer, regen_case)
                     except Exception:
                         score, grade, breakdown = _compute_prior_score(
-                            regen_case, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                            regen_case,
+                            tp,
+                            signals,
+                            inferred,
+                            aligned,
+                            ctx.iteration_id,
+                            ctx.db,
                         )
                 else:
                     score, grade, breakdown = _compute_prior_score(
-                        regen_case, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                        regen_case,
+                        tp,
+                        signals,
+                        inferred,
+                        aligned,
+                        ctx.iteration_id,
+                        ctx.db,
                     )
 
                 if per_regen_case_adj != 0.0:
@@ -168,21 +183,20 @@ def _regenerate_d_cases(
                 else:
                     logger.info("R5: 重生成成功，{}级: {}", grade, regen_case.get("title", "")[:30])
 
-                scores.append({
-                    "test_point_id": tp.get("id"),
-                    "case_title": regen_case.get("title", ""),
-                    "score": score,
-                    "grade": grade,
-                    "breakdown": breakdown,
-                    "lifecycle_status": regen_case.get("lifecycle_status", "draft"),
-                    "regenerated": True,
-                })
+                scores.append(
+                    {
+                        "test_point_id": tp.get("id"),
+                        "case_title": regen_case.get("title", ""),
+                        "score": score,
+                        "grade": grade,
+                        "breakdown": breakdown,
+                        "lifecycle_status": regen_case.get("lifecycle_status", "draft"),
+                        "regenerated": True,
+                    }
+                )
 
             if d_score_idxs:
-                scores[:] = [
-                    s for s in scores
-                    if s.get("_score_idx") not in d_score_idxs
-                ]
+                scores[:] = [s for s in scores if s.get("_score_idx") not in d_score_idxs]
 
         except Exception as e:
             logger.warning("R5: D级用例重生成异常，tp_id={}: {}", tp.get("id"), e)

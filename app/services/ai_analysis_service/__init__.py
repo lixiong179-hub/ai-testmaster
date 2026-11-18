@@ -13,11 +13,14 @@ from app.ai.openai_client import AsyncOpenAIClient
 
 _extract_instance = AIAnalysisService(ai_client=AsyncOpenAIClient())
 
+
 async def extract_test_points_from_content(*args, **kwargs):
     return await _ExtractMixin.extract_test_points_from_content(_extract_instance, *args, **kwargs)
 
+
 async def extract_test_points_from_ui_specs(*args, **kwargs):
     return await _ExtractMixin.extract_test_points_from_ui_specs(_extract_instance, *args, **kwargs)
+
 
 __all__ = [
     "AIAnalysisService",

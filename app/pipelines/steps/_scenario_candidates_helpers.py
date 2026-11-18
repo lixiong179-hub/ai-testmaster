@@ -7,6 +7,7 @@
     - UI 控件数量估算
     - 置信度计算
 """
+
 import json
 import re
 from typing import Any
@@ -121,7 +122,7 @@ def _parse_candidates(content: str) -> list[dict[str, Any]] | None:
 
 
 def _try_extract_json_array(text: str) -> list[dict[str, Any]] | None:
-    match = re.search(r'\[[\s\S]*\]', text)
+    match = re.search(r"\[[\s\S]*\]", text)
     if match:
         try:
             return json.loads(match.group())

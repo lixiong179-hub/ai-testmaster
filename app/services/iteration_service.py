@@ -22,6 +22,7 @@
     - app.models.enums : IterationPipelineStatus, IterationInputKind
     - app.models.project : ProjectFile
 """
+
 from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
@@ -77,10 +78,14 @@ def create_iteration(
         BaseIterationValidationError: base_iteration_id 校验失败。
     """
     # 同名校验
-    existing = db.query(Iteration).filter(
-        Iteration.project_id == project_id,
-        Iteration.name == name,
-    ).first()
+    existing = (
+        db.query(Iteration)
+        .filter(
+            Iteration.project_id == project_id,
+            Iteration.name == name,
+        )
+        .first()
+    )
     if existing:
         raise ValueError(f"项目下已存在同名迭代: {name}")
 
@@ -90,13 +95,10 @@ def create_iteration(
         if base_iter is None:
             raise BaseIterationValidationError(f"基线迭代 id={base_iteration_id} 不存在")
         if base_iter.project_id != project_id:
-            raise BaseIterationValidationError(
-                f"基线迭代 id={base_iteration_id} 不属于项目 id={project_id}"
-            )
+            raise BaseIterationValidationError(f"基线迭代 id={base_iteration_id} 不属于项目 id={project_id}")
         if base_iter.status != IterationPipelineStatus.FINALIZED.value:
             raise BaseIterationValidationError(
-                f"基线迭代 id={base_iteration_id} 状态为 {base_iter.status}，"
-                f"必须为 finalized 才能作为基线"
+                f"基线迭代 id={base_iteration_id} 状态为 {base_iter.status}，必须为 finalized 才能作为基线"
             )
 
     iteration = Iteration(
@@ -149,9 +151,7 @@ def add_input(
 
     # kind 枚举校验
     if kind not in VALID_INPUT_KINDS:
-        raise IterationInputValidationError(
-            f"kind='{kind}' 不合法，允许值: {sorted(VALID_INPUT_KINDS)}"
-        )
+        raise IterationInputValidationError(f"kind='{kind}' 不合法，允许值: {sorted(VALID_INPUT_KINDS)}")
 
     iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
     if iteration is None:
@@ -161,15 +161,17 @@ def add_input(
     if file_id is not None:
         pf = db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
         if pf is None:
-            raise IterationInputValidationError(
-                f"file_id={file_id} 不存在于 project_files 表"
-            )
+            raise IterationInputValidationError(f"file_id={file_id} 不存在于 project_files 表")
 
     # 幂等校验
-    existing = db.query(IterationInput).filter(
-        IterationInput.iteration_id == iteration_id,
-        IterationInput.content_hash == hash_value,
-    ).first()
+    existing = (
+        db.query(IterationInput)
+        .filter(
+            IterationInput.iteration_id == iteration_id,
+            IterationInput.content_hash == hash_value,
+        )
+        .first()
+    )
     if existing:
         raise DuplicateInputHashError(hash_value)
 
@@ -224,12 +226,7 @@ def get_iteration(db: Session, iteration_id: int) -> Iteration | None:
     Returns:
         Iteration 实例或 None。
     """
-    return (
-        db.query(Iteration)
-        .options(joinedload(Iteration.inputs))
-        .filter(Iteration.id == iteration_id)
-        .first()
-    )
+    return db.query(Iteration).options(joinedload(Iteration.inputs)).filter(Iteration.id == iteration_id).first()
 
 
 def finalize_iteration(db: Session, iteration_id: int) -> Iteration:
@@ -248,9 +245,7 @@ def finalize_iteration(db: Session, iteration_id: int) -> Iteration:
         ValueError: 迭代不存在。
         IterationStatusTransitionError: 状态不允许定稿。
     """
-    return transition_iteration_status(
-        db, iteration_id, IterationPipelineStatus.FINALIZED.value
-    )
+    return transition_iteration_status(db, iteration_id, IterationPipelineStatus.FINALIZED.value)
 
 
 def transition_iteration_status(
@@ -279,7 +274,8 @@ def transition_iteration_status(
     from_status = iteration.status
     if (from_status, to_status) not in ITERATION_STATUS_TRANSITIONS:
         raise IterationStatusTransitionError(
-            from_status, to_status,
+            from_status,
+            to_status,
             detail=f"只有特定路径允许迁移，当前 {from_status} → {to_status} 不在允许列表中",
         )
 

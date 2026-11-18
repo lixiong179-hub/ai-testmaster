@@ -9,6 +9,7 @@
     - DEPRECATED: 用例已过时
     - UNCERTAIN: 需人工评审
 """
+
 import json
 from enum import StrEnum
 from typing import Any
@@ -152,8 +153,7 @@ def validate_backward_output(
         verdict = item.verdict
         if item.confidence < 0.7 and verdict != BackwardVerdict.UNCERTAIN:
             auto_corrected.append(
-                f"case_id={item.case_id}: confidence={item.confidence:.2f} < 0.7, "
-                f"verdict {verdict.value} → UNCERTAIN"
+                f"case_id={item.case_id}: confidence={item.confidence:.2f} < 0.7, verdict {verdict.value} → UNCERTAIN"
             )
             verdict = BackwardVerdict.UNCERTAIN
 

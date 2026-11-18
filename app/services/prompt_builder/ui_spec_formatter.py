@@ -4,6 +4,7 @@
     - format_ui_spec_for_prompt: 单个 UI 规格格式化
     - format_ui_specs_list: UI 规格列表批量格式化
 """
+
 from typing import Any
 
 
@@ -27,10 +28,10 @@ def format_ui_spec_for_prompt(screen_name: str, ui_spec: dict[str, Any]) -> str:
     """
     parts = [f"【页面：{screen_name}】"]
 
-    if ui_spec.get('purpose'):
+    if ui_spec.get("purpose"):
         parts.append(f"页面功能：{ui_spec['purpose']}")
 
-    regions = ui_spec.get('regions', {})
+    regions = ui_spec.get("regions", {})
     if regions:
         parts.append("页面区域：")
         if isinstance(regions, dict):
@@ -40,40 +41,40 @@ def format_ui_spec_for_prompt(screen_name: str, ui_spec: dict[str, Any]) -> str:
         elif isinstance(regions, list):
             for region in regions:
                 if isinstance(region, dict):
-                    name = region.get('name', '')
-                    desc = region.get('desc', region.get('description', ''))
+                    name = region.get("name", "")
+                    desc = region.get("desc", region.get("description", ""))
                     if name or desc:
                         parts.append(f"  - {name}: {desc}")
 
-    elements = ui_spec.get('elements', [])
+    elements = ui_spec.get("elements", [])
     if elements:
         parts.append(f"页面元素（共{len(elements)}个）：")
         for elem in elements[:30]:
-            elem_type = elem.get('type', '未知')
-            label = elem.get('label', '') or elem.get('semantic', '') or elem.get('name', '')
-            state = elem.get('state', 'normal')
-            interactive = elem.get('interactive', False)
-            desc = elem.get('description', '')
+            elem_type = elem.get("type", "未知")
+            label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
+            state = elem.get("state", "normal")
+            interactive = elem.get("interactive", False)
+            desc = elem.get("description", "")
             parts.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
 
-    navigation = ui_spec.get('navigation', {})
+    navigation = ui_spec.get("navigation", {})
     if navigation:
         parts.append("导航结构：")
         for nav_key, nav_val in navigation.items():
             if nav_val:
                 parts.append(f"  - {nav_key}: {nav_val}")
 
-    layout_checks = ui_spec.get('layout_constraints', [])
+    layout_checks = ui_spec.get("layout_constraints", [])
     if layout_checks:
         parts.append(f"布局约束（共{len(layout_checks)}项）：")
         for check in layout_checks[:10]:
-            desc = check.get('description', '')
+            desc = check.get("description", "")
             if desc:
                 parts.append(f"  - {desc}")
 
-    flows = ui_spec.get('flows', {})
+    flows = ui_spec.get("flows", {})
     if flows:
-        next_screens = flows.get('expected_next_screens', [])
+        next_screens = flows.get("expected_next_screens", [])
         if next_screens:
             parts.append(f"预期跳转页面：{', '.join(next_screens)}")
 

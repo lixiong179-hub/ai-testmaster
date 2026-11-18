@@ -3,6 +3,7 @@
 所有实现已迁移到 precondition/ 子包，统一从 app.services.precondition 导入。
 本文件保留以兼容现有引用，将在后续版本中移除。
 """
+
 from app.services.precondition import (
     PreconditionService,
     create_precondition_service,

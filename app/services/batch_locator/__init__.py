@@ -13,6 +13,7 @@ Mixin组合:
     batch_record_locators -> BatchExecutorMixin.batch_record_locators
     -> 遍历步骤 -> ElementLocatorService.smart_locate -> 记录定位结果
 """
+
 from app.services.batch_locator.models import (
     BatchRecordStatus,
     BatchLocatorConfig,
@@ -40,12 +41,7 @@ class BatchLocatorService(BatchExecutorMixin):
         - use_mcp: 是否使用MCP识别器
     """
 
-    def __init__(
-        self,
-        progress_callback=None,
-        config=None,
-        use_mcp=None
-    ):
+    def __init__(self, progress_callback=None, config=None, use_mcp=None):
         """初始化批量定位服务。
 
         Args:
@@ -59,11 +55,11 @@ class BatchLocatorService(BatchExecutorMixin):
 
 
 __all__ = [
-    'BatchLocatorService',
-    'BatchRecordStatus',
-    'BatchLocatorConfig',
-    'StepRecordResult',
-    'BatchRecordReport',
-    'BatchExecutorMixin',
-    'BatchTaskManager',
+    "BatchLocatorService",
+    "BatchRecordStatus",
+    "BatchLocatorConfig",
+    "StepRecordResult",
+    "BatchRecordReport",
+    "BatchExecutorMixin",
+    "BatchTaskManager",
 ]

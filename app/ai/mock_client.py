@@ -13,6 +13,7 @@ Mock AI Client 实现
 依赖关系：
     - app.ai.client : AIResponse, TokenUsage, AIClient
 """
+
 import json
 import time
 from typing import Any
@@ -88,15 +89,17 @@ class MockAIClient:
         latency_ms = max(1, int((time.monotonic() - start) * 1000))
 
         # 记录调用历史
-        self.call_history.append({
-            "prompt": prompt,
-            "system": system,
-            "schema": schema,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "metadata": metadata,
-            "response_content": content,
-        })
+        self.call_history.append(
+            {
+                "prompt": prompt,
+                "system": system,
+                "schema": schema,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "metadata": metadata,
+                "response_content": content,
+            }
+        )
 
         return AIResponse(
             content=content,

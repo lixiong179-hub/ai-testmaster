@@ -14,6 +14,7 @@
         - verify_project_access[_async] → 项目 ID 来自 body/query 时内联调用
         - require_task_access           → 路径参数为 task_id 时用依赖注入
 """
+
 from pydantic import BaseModel, Field
 
 
@@ -27,5 +28,6 @@ class CreateTaskRequest(BaseModel):
 
 class TaskStartConfig(BaseModel):
     """任务启动配置模型"""
+
     execution_mode: str | None = Field("smart", description="执行模式")
     mobile_device_id: str | None = Field(None, description="移动设备ID")

@@ -28,6 +28,7 @@
     - app.core.config.settings: 读取REDIS_URL配置
     - redis（可选）: 生产环境限流后端，未安装时自动降级
 """
+
 import time
 from collections import defaultdict, deque
 from fastapi import Request, HTTPException
@@ -104,7 +105,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         try:
             import redis
 
-            redis_url = getattr(settings, 'REDIS_URL', None)
+            redis_url = getattr(settings, "REDIS_URL", None)
             if redis_url:
                 self._redis_client = redis.from_url(
                     redis_url,
@@ -204,10 +205,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # 注意：当前请求已在步骤3中添加，所以count包含了本次请求
             # 因此用 >= 而非 >，当count等于max_requests时说明已达上限
             if count >= self.max_requests:
-                raise HTTPException(
-                    status_code=429,
-                    detail="请求过于频繁，请稍后再试"
-                )
+                raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
 
         except HTTPException:
             # 限流异常需要向上抛出，不能被通用异常处理吞掉
@@ -252,10 +250,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # 检查当前窗口内的请求数是否已达上限
         if len(self.requests[client_ip]) >= self.max_requests:
-            raise HTTPException(
-                status_code=429,
-                detail="请求过于频繁，请稍后再试"
-            )
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
 
         # 记录本次请求的时间戳，deque自动维护maxlen上限
         self.requests[client_ip].append(current_time)

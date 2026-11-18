@@ -43,9 +43,9 @@ def generate_test_case_enhanced(
     context: dict[str, Any],
     metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    graph_prompt = context.get('graph_prompt')
+    graph_prompt = context.get("graph_prompt")
     min_case_count = 3
-    test_points = context.get('test_points', [])
+    test_points = context.get("test_points", [])
     if test_points and len(test_points) < 2:
         min_case_count = 1
     if graph_prompt:
@@ -56,12 +56,13 @@ def generate_test_case_enhanced(
     # Task 15/16: 注入质量反馈与质量信号（重生成轮次）。
     # graph 与线性模式统一在此注入，避免散落到各 Prompt 构建分支。
     # 禁止盲重试：quality_signals 携带具体问题与低分维度（历史避坑要点 4）。
-    quality_feedback = context.get('quality_feedback')
+    quality_feedback = context.get("quality_feedback")
     if quality_feedback:
         prompt += f"\n\n## 质量反馈\n{quality_feedback}\n"
-    quality_signals = context.get('quality_signals')
+    quality_signals = context.get("quality_signals")
     if quality_signals:
         from app.services.case_quality.quality_signals import format_quality_signals
+
         signals_text = format_quality_signals(quality_signals)
         if signals_text:
             prompt += f"\n\n{signals_text}\n"
@@ -78,10 +79,7 @@ def generate_test_case_enhanced(
             started_at = time.monotonic()
             logger.debug(f"增强版AI生成测试用例 - 尝试 {attempt + 1}/{max_retries}")
             response = client.chat.completions.create(
-                model=client.model_name,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=max_tokens
+                model=client.model_name, messages=messages, temperature=0.3, max_tokens=max_tokens
             )
             latency_ms = int((time.monotonic() - started_at) * 1000)
             finish_reason = response.choices[0].finish_reason if response.choices else None
@@ -105,20 +103,20 @@ def generate_test_case_enhanced(
             if not resp_content:
                 raise AIResponseParseError("AI返回内容为空")
             resp_content = resp_content.strip()
-            code_block_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)\n?\s*```', resp_content)
+            code_block_match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?\s*```", resp_content)
             if code_block_match:
                 resp_content = code_block_match.group(1).strip()
             elif resp_content.startswith("```"):
-                resp_content = re.sub(r'^```(?:json)?\s*\n?', '', resp_content)
-                resp_content = re.sub(r'\n?```\s*$', '', resp_content)
+                resp_content = re.sub(r"^```(?:json)?\s*\n?", "", resp_content)
+                resp_content = re.sub(r"\n?```\s*$", "", resp_content)
                 resp_content = resp_content.strip()
             generated_case = None
             try:
                 generated_case = json.loads(resp_content)
             except json.JSONDecodeError:
-                json_match = re.search(r'\[[\s\S]*\]\s*$', resp_content)
+                json_match = re.search(r"\[[\s\S]*\]\s*$", resp_content)
                 if not json_match:
-                    json_match = re.search(r'\{[\s\S]*\}', resp_content)
+                    json_match = re.search(r"\{[\s\S]*\}", resp_content)
                 if json_match:
                     matched_str = json_match.group(0)
                     try:
@@ -143,12 +141,14 @@ def generate_test_case_enhanced(
                 if isinstance(generated_case, list):
                     for case_item in generated_case:
                         if isinstance(case_item, dict):
-                            if 'expected_results' in case_item and isinstance(case_item.get('expected_results'), list):
+                            if "expected_results" in case_item and isinstance(case_item.get("expected_results"), list):
                                 normalized_cases.append(normalize_new_format(case_item))
                             else:
                                 normalized_cases.append(normalize_old_format(case_item))
                 elif isinstance(generated_case, dict):
-                    if 'expected_results' in generated_case and isinstance(generated_case.get('expected_results'), list):
+                    if "expected_results" in generated_case and isinstance(
+                        generated_case.get("expected_results"), list
+                    ):
                         normalized_cases.append(normalize_new_format(generated_case))
                     else:
                         normalized_cases.append(normalize_old_format(generated_case))
@@ -161,20 +161,14 @@ def generate_test_case_enhanced(
                 passed, issues = validate_cases_quality(normalized_cases, min_count=min_case_count)
                 quality_score = compute_quality_score(normalized_cases)
                 if passed:
-                    logger.info(
-                        f"增强版AI生成测试用例成功，共{len(normalized_cases)}条，质量分{quality_score:.0f}"
-                    )
+                    logger.info(f"增强版AI生成测试用例成功，共{len(normalized_cases)}条，质量分{quality_score:.0f}")
                     return normalized_cases
                 if quality_score >= QUALITY_MIN_SCORE:
-                    logger.warning(
-                        f"用例质量分{quality_score:.0f}≥阈值{QUALITY_MIN_SCORE}，"
-                        f"存在次要问题: {issues}"
-                    )
+                    logger.warning(f"用例质量分{quality_score:.0f}≥阈值{QUALITY_MIN_SCORE}，存在次要问题: {issues}")
                     return normalized_cases
                 if attempt < max_retries - 1:
-                    feedback = (
-                        "上一次生成的用例存在以下质量问题，请逐一修正后重新生成：\n"
-                        + "\n".join(f"- {issue}" for issue in issues)
+                    feedback = "上一次生成的用例存在以下质量问题，请逐一修正后重新生成：\n" + "\n".join(
+                        f"- {issue}" for issue in issues
                     )
                     messages.append({"role": "assistant", "content": resp_content[:3000]})
                     messages.append({"role": "user", "content": feedback})

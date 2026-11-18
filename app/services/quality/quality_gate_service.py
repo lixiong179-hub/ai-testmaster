@@ -47,9 +47,14 @@ class QualityGateService:
             return {}
         try:
             from app.models.quality_rule_config import QualityRuleConfig
-            rows = self.db.query(QualityRuleConfig).filter(
-                QualityRuleConfig.project_id == project_id,
-            ).all()
+
+            rows = (
+                self.db.query(QualityRuleConfig)
+                .filter(
+                    QualityRuleConfig.project_id == project_id,
+                )
+                .all()
+            )
             return {row.rule_key: row.rule_value for row in rows}
         except Exception as e:
             logger.warning(f"加载项目 {project_id} 质量规则失败: {e}")
@@ -96,10 +101,12 @@ class QualityGateService:
                 results.append(result)
             except Exception as e:
                 logger.warning(f"校验器 {validator.__class__.__name__} 执行异常: {e}")
-                results.append(ValidationResult(
-                    status="warning",
-                    issues=[],
-                ))
+                results.append(
+                    ValidationResult(
+                        status="warning",
+                        issues=[],
+                    )
+                )
 
         merged = ValidationResult.merge(results)
         return merged

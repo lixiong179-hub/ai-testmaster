@@ -19,7 +19,6 @@ BATCH_SIZE = 50
 
 
 class BackwardScan(PipelineStep):
-
     name: ClassVar[str] = "backward_scan"
     version: ClassVar[str] = "1.0"
     requires: ClassVar[list[str]] = ["history_fingerprints", "raw_signals"]
@@ -43,9 +42,9 @@ class BackwardScan(PipelineStep):
             ).hexdigest()[:16]
         sig_hash = ""
         if raw_signals:
-            sig_hash = hashlib.sha256(
-                json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()
-            ).hexdigest()[:16]
+            sig_hash = hashlib.sha256(json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[
+                :16
+            ]
         raw = f"{self.name}:{self.version}:fp={fp_count}:{fp_hash}:sig={sig_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 

@@ -1,5 +1,5 @@
-"""批量执行Mixin - 批量遍历步骤执行元素定位。
-"""
+"""批量执行Mixin - 批量遍历步骤执行元素定位。"""
+
 import asyncio
 from typing import Any
 from loguru import logger
@@ -11,12 +11,8 @@ from app.utils.browser_controller_v2 import BrowserControllerV2
 
 
 class BatchExecutorMixin:
-
     async def _execute_prior_steps_cached(
-        self,
-        prior_steps: list[TestStep],
-        browser: BrowserControllerV2,
-        locator_cache: dict[int, ElementLocator | None]
+        self, prior_steps: list[TestStep], browser: BrowserControllerV2, locator_cache: dict[int, ElementLocator | None]
     ) -> None:
         for prior_step in prior_steps:
             if prior_step.locator_status != LocatorStatus.RECORDED.value:
@@ -27,9 +23,11 @@ class BatchExecutorMixin:
             try:
                 locator = locator_cache.get(prior_step.id)
                 await self._execute_step_action(
-                    browser, prior_step.action_type, locator,
+                    browser,
+                    prior_step.action_type,
+                    locator,
                     input_value=prior_step.input_value,
-                    target_element=prior_step.target_element
+                    target_element=prior_step.target_element,
                 )
             except Exception as e:
                 logger.warning(f"执行前序步骤 {prior_step.id} 失败: {e}")
@@ -40,7 +38,7 @@ class BatchExecutorMixin:
         action_type: str | None,
         locator: ElementLocator | None,
         input_value: str | None = None,
-        target_element: str | None = None
+        target_element: str | None = None,
     ) -> None:
         if not action_type:
             return
@@ -82,7 +80,8 @@ class BatchExecutorMixin:
                     await browser.click(x, y)
                     await asyncio.sleep(0.3)
                     if value:
-                        await browser.execute_javascript("""
+                        await browser.execute_javascript(
+                            """
                             (function() {
                                 var el = document.activeElement;
                                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
@@ -94,7 +93,9 @@ class BatchExecutorMixin:
                                     el.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
                             })()
-                        """, value)
+                        """,
+                            value,
+                        )
                         await asyncio.sleep(0.3)
         elif action_type == "hover":
             if locator:
@@ -126,7 +127,8 @@ class BatchExecutorMixin:
                         await asyncio.sleep(0.5)
                         if input_value:
                             safe_css = locator.css_selector.replace("\\", "\\\\").replace("'", "\\'")
-                            await browser.execute_javascript(f"""
+                            await browser.execute_javascript(
+                                f"""
                                 var select = document.querySelector('{safe_css}');
                                 if (select && select.tagName === 'SELECT') {{
                                     var options = select.options;
@@ -138,7 +140,9 @@ class BatchExecutorMixin:
                                         }}
                                     }}
                                 }}
-                            """, input_value)
+                            """,
+                                input_value,
+                            )
                         return
                     except Exception:
                         logger.debug("CSS选择器select操作失败，降级为坐标点击", exc_info=True)
@@ -156,10 +160,7 @@ class BatchExecutorMixin:
 
     def _is_high_quality_locator(self, locator: ElementLocator) -> bool:
         has_css = bool(locator.css_selector and locator.css_selector.strip())
-        has_confident_ai = bool(
-            locator.ai_confidence
-            and locator.ai_confidence >= self.config.low_quality_threshold
-        )
+        has_confident_ai = bool(locator.ai_confidence and locator.ai_confidence >= self.config.low_quality_threshold)
         return has_css or has_confident_ai
 
     def _notify_progress(self, data: dict[str, Any]) -> None:

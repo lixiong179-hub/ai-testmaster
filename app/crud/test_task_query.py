@@ -17,6 +17,7 @@
     - 列表查询使用 order_by+offset+limit 实现分页，依赖 create_time 索引
     - count 查询仅返回整型，不加载完整对象，开销低
 """
+
 from sqlalchemy.orm import Session
 from app.models.test_task import TestTask
 
@@ -35,18 +36,11 @@ def get_test_task_by_id(db: Session, task_id: int, project_id: int) -> TestTask 
     Returns:
         Optional[TestTask]: 测试任务对象，不存在则返回None
     """
-    return db.query(TestTask).filter(
-        TestTask.id == task_id,
-        TestTask.project_id == project_id
-    ).first()
+    return db.query(TestTask).filter(TestTask.id == task_id, TestTask.project_id == project_id).first()
 
 
 def get_test_tasks_by_project(
-    db: Session,
-    project_id: int,
-    status: int | None = None,
-    skip: int = 0,
-    limit: int = 100
+    db: Session, project_id: int, status: int | None = None, skip: int = 0, limit: int = 100
 ) -> list[TestTask]:
     """
     获取项目的测试任务列表（支持状态过滤+分页+时间倒序）

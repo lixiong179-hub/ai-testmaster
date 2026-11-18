@@ -4,6 +4,7 @@
 设计为异步接口以匹配 FastAPI 异步端点；底层同步 IO 通过 asyncio.to_thread 包装，
 避免阻塞事件循环。
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -15,6 +16,7 @@ class StorageObject:
     业务用途：保存/读取文件后返回，包含访问路径与可选的公共 URL。
     边界场景：local 模式下 url 可能为 None；s3 模式下 url 可能为 presigned URL。
     """
+
     key: str
     size: int
     content_type: str | None = None

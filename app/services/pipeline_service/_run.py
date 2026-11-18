@@ -36,16 +36,22 @@ def create_run(
         raise PipelineRunValidationError(f"iteration_id={iteration_id} 不存在")
 
     if reuse_existing:
-        existing = db.query(PipelineRun).filter(
-            PipelineRun.iteration_id == iteration_id,
-            PipelineRun.input_hash == input_hash,
-            PipelineRun.pipeline_version == pipeline_version,
-            PipelineRun.status.in_([
-                PipelineRunStatus.COMPLETED.value,
-                PipelineRunStatus.RUNNING.value,
-                PipelineRunStatus.WAITING_FOR_USER.value,
-            ]),
-        ).first()
+        existing = (
+            db.query(PipelineRun)
+            .filter(
+                PipelineRun.iteration_id == iteration_id,
+                PipelineRun.input_hash == input_hash,
+                PipelineRun.pipeline_version == pipeline_version,
+                PipelineRun.status.in_(
+                    [
+                        PipelineRunStatus.COMPLETED.value,
+                        PipelineRunStatus.RUNNING.value,
+                        PipelineRunStatus.WAITING_FOR_USER.value,
+                    ]
+                ),
+            )
+            .first()
+        )
         if existing:
             return existing
 
@@ -104,7 +110,9 @@ def update_run_status(
     from_status = run.status
     if (from_status, status) not in PIPELINE_RUN_TRANSITIONS:
         raise PipelineStatusTransitionError(
-            "PipelineRun", from_status, status,
+            "PipelineRun",
+            from_status,
+            status,
             detail=f"允许的迁移路径: {from_status} → {status} 不在允许列表中",
         )
 
@@ -117,8 +125,7 @@ def update_run_status(
         run.started_at = now
     if status == PipelineRunStatus.WAITING_FOR_USER.value and run.paused_at is None:
         run.paused_at = now
-    if status in (PipelineRunStatus.COMPLETED.value, PipelineRunStatus.FAILED.value,
-                  PipelineRunStatus.CANCELLED.value):
+    if status in (PipelineRunStatus.COMPLETED.value, PipelineRunStatus.FAILED.value, PipelineRunStatus.CANCELLED.value):
         run.finished_at = now
 
     db.flush()

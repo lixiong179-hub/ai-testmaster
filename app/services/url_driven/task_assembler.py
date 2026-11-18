@@ -21,6 +21,7 @@
     - 后台执行（_run_executor_safely）与终态推送（_push_final_status）拆至
       _task_assembler_async；本模块 re-export 保持导入兼容
 """
+
 import asyncio
 from datetime import datetime
 from collections.abc import Callable
@@ -86,9 +87,7 @@ class TaskAssembler:
         ts = datetime.now().strftime(_TASK_NAME_TS_FORMAT)
         return f"{project.name}_快速测试_{ts}"
 
-    def create_skeleton_task(
-        self, project_id: int, user_id: int, session: Session
-    ) -> TestTask:
+    def create_skeleton_task(self, project_id: int, user_id: int, session: Session) -> TestTask:
         """预创建占位任务（case_ids 空），供 QuickLauncher 拿 task_id 用于 WebSocket 通道。
 
         不创建 TestResult，不启动执行；assemble 阶段会补齐 case_ids 与 TestResult 并启动。
@@ -161,9 +160,7 @@ class TaskAssembler:
         await self._start_task(task, session)
         return task
 
-    def _create_task(
-        self, project_id: int, case_ids: list[int], user_id: int, session: Session
-    ) -> TestTask:
+    def _create_task(self, project_id: int, case_ids: list[int], user_id: int, session: Session) -> TestTask:
         """创建新 TestTask + TestResult（复刻 test_task.py 端点 create_test_task 逻辑）。"""
         project = self._get_project(project_id, session)
         task_name = self.derive_task_name(project)
@@ -193,15 +190,10 @@ class TaskAssembler:
             session.rollback()
             logger.error(f"任务创建 commit 失败: task_id={task.id} err={exc}")
             raise
-        logger.info(
-            f"任务创建成功: task_id={task.id} project_id={project_id} "
-            f"case_count={len(case_ids)}"
-        )
+        logger.info(f"任务创建成功: task_id={task.id} project_id={project_id} case_count={len(case_ids)}")
         return task
 
-    def _update_existing_task(
-        self, task_id: int, case_ids: list[int], session: Session
-    ) -> TestTask:
+    def _update_existing_task(self, task_id: int, case_ids: list[int], session: Session) -> TestTask:
         """更新占位任务的 case_ids 与 total_count，补齐 TestResult。"""
         task = session.query(TestTask).filter(TestTask.id == task_id).first()
         if task is None:
@@ -225,9 +217,7 @@ class TaskAssembler:
         logger.info(f"任务更新成功: task_id={task_id} case_count={len(case_ids)}")
         return task
 
-    def _build_test_results(
-        self, task: TestTask, case_ids: list[int], session: Session
-    ) -> None:
+    def _build_test_results(self, task: TestTask, case_ids: list[int], session: Session) -> None:
         """批量创建 TestResult（每条用例一条，NOT_EXECUTED），避免 N+1。
 
         复刻 test_task.py 端点：批量查询 TestCase 拿 case_no，bulk_insert_mappings
@@ -251,13 +241,15 @@ class TaskAssembler:
             if case is None:
                 logger.warning(f"用例不存在或已删除，跳过创建 TestResult: case_id={case_id}")
                 continue
-            mappings.append({
-                "task_id": task.id,
-                "project_id": task.project_id,
-                "case_id": case_id,
-                "case_no": case.case_no,
-                "exec_status": int(ExecStatus.NOT_EXECUTED),
-            })
+            mappings.append(
+                {
+                    "task_id": task.id,
+                    "project_id": task.project_id,
+                    "case_id": case_id,
+                    "case_no": case.case_no,
+                    "exec_status": int(ExecStatus.NOT_EXECUTED),
+                }
+            )
         if mappings:
             session.bulk_insert_mappings(TestResult, mappings)
 

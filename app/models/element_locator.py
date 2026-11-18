@@ -19,6 +19,7 @@
 定位策略优先级：
     CSS选择器 > XPath > 元素ID > 元素Name > AI坐标识别
 """
+
 from app.utils.db_time import utcnow
 from typing import Any
 
@@ -50,41 +51,57 @@ class ElementLocator(Base):
         - 执行时按优先级选择最佳定位策略
         - 统计定位成功率，辅助定位策略优化
     """
+
     __tablename__ = "element_locators"
 
-    id = Column(Integer, primary_key=True, index=True)                                                # 定位器主键ID
-    step_id = Column(Integer, ForeignKey("test_steps.id", ondelete="CASCADE"), nullable=True, index=True, unique=True, comment="关联的测试步骤ID（前置条件步骤时为NULL")  # 测试步骤ID，唯一约束，级联删除
-    precondition_step_id = Column(Integer, ForeignKey("test_case_precondition_steps.id", ondelete="CASCADE"), nullable=True, index=True, comment="关联前置条件步骤ID")  # 前置条件步骤ID，级联删除
+    id = Column(Integer, primary_key=True, index=True)  # 定位器主键ID
+    step_id = Column(
+        Integer,
+        ForeignKey("test_steps.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        unique=True,
+        comment="关联的测试步骤ID（前置条件步骤时为NULL",
+    )  # 测试步骤ID，唯一约束，级联删除
+    precondition_step_id = Column(
+        Integer,
+        ForeignKey("test_case_precondition_steps.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="关联前置条件步骤ID",
+    )  # 前置条件步骤ID，级联删除
 
-    test_step = relationship("TestStep", back_populates="element_locator")                            # 关联的测试步骤
-    precondition_step = relationship("TestCasePreconditionStep", back_populates="element_locator")    # 关联的前置条件步骤
+    test_step = relationship("TestStep", back_populates="element_locator")  # 关联的测试步骤
+    precondition_step = relationship("TestCasePreconditionStep", back_populates="element_locator")  # 关联的前置条件步骤
 
-    element_description = Column(String(255), nullable=True, comment="元素描述（如'登录按钮'）")        # 元素的自然语言描述
-    element_type = Column(String(50), nullable=True, comment="元素类型（button/input/link等）")        # HTML元素类型
+    element_description = Column(String(255), nullable=True, comment="元素描述（如'登录按钮'）")  # 元素的自然语言描述
+    element_type = Column(String(50), nullable=True, comment="元素类型（button/input/link等）")  # HTML元素类型
 
     # 定位策略字段（按优先级排列）
-    css_selector = Column(String(500), nullable=True, comment="CSS选择器（优先级最高）")                # CSS选择器，优先级1
-    xpath = Column(String(500), nullable=True, comment="XPath（次优先级）")                            # XPath表达式，优先级2
-    element_id = Column(String(100), nullable=True, comment="元素ID")                                 # HTML id属性，优先级3
-    element_name = Column(String(100), nullable=True, comment="元素name属性")                         # HTML name属性，优先级4
-    element_class = Column(String(255), nullable=True, comment="元素class")                           # HTML class属性
-    element_text = Column(String(500), nullable=True, comment="元素文本内容")                          # 元素的可见文本
+    css_selector = Column(String(500), nullable=True, comment="CSS选择器（优先级最高）")  # CSS选择器，优先级1
+    xpath = Column(String(500), nullable=True, comment="XPath（次优先级）")  # XPath表达式，优先级2
+    element_id = Column(String(100), nullable=True, comment="元素ID")  # HTML id属性，优先级3
+    element_name = Column(String(100), nullable=True, comment="元素name属性")  # HTML name属性，优先级4
+    element_class = Column(String(255), nullable=True, comment="元素class")  # HTML class属性
+    element_text = Column(String(500), nullable=True, comment="元素文本内容")  # 元素的可见文本
 
     # AI识别相关
-    ai_coordinate = Column(JSON, nullable=True, comment="AI识别坐标{x,y,width,height}")                # AI视觉识别的坐标区域，优先级5
-    ai_confidence = Column(Float, default=0.0, comment="AI识别置信度")                                 # AI识别的置信度，0.0-1.0
+    ai_coordinate = Column(JSON, nullable=True, comment="AI识别坐标{x,y,width,height}")  # AI视觉识别的坐标区域，优先级5
+    ai_confidence = Column(Float, default=0.0, comment="AI识别置信度")  # AI识别的置信度，0.0-1.0
 
     # 统计信息
-    success_count = Column(Integer, default=0, comment="成功次数")                                     # 定位成功次数
-    fail_count = Column(Integer, default=0, comment="失败次数")                                        # 定位失败次数
-    last_used_at = Column(DateTime, nullable=True, comment="最后使用时间")                             # 最近一次使用该定位器的时间
+    success_count = Column(Integer, default=0, comment="成功次数")  # 定位成功次数
+    fail_count = Column(Integer, default=0, comment="失败次数")  # 定位失败次数
+    last_used_at = Column(DateTime, nullable=True, comment="最后使用时间")  # 最近一次使用该定位器的时间
 
     # 来源和版本
-    source = Column(String(20), default="ai", comment="定位来源：ai(AI识别)/manual(人工录入)/auto(自动生成)")  # 定位信息的来源方式
-    version = Column(Integer, default=0, comment="乐观锁版本号")                                       # 乐观锁版本号，用于并发控制
+    source = Column(
+        String(20), default="ai", comment="定位来源：ai(AI识别)/manual(人工录入)/auto(自动生成)"
+    )  # 定位信息的来源方式
+    version = Column(Integer, default=0, comment="乐观锁版本号")  # 乐观锁版本号，用于并发控制
 
-    created_at = Column(DateTime, default=utcnow, comment="创建时间")                                  # 创建时间，UTC时区
-    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, comment="更新时间")                  # 更新时间
+    created_at = Column(DateTime, default=utcnow, comment="创建时间")  # 创建时间，UTC时区
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, comment="更新时间")  # 更新时间
 
     def __repr__(self) -> str:
         """返回定位器的字符串表示，便于调试和日志输出。"""
@@ -164,11 +181,14 @@ class ElementLocator(Base):
         Returns:
             bool: 更新是否成功，True表示版本号匹配且已更新
         """
-        result = db.execute(text(
-            "UPDATE element_locators SET success_count = success_count + 1, "
-            "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
-            "WHERE id = :id AND version = :version"
-        ), {"id": locator_id, "version": current_version})
+        result = db.execute(
+            text(
+                "UPDATE element_locators SET success_count = success_count + 1, "
+                "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
+                "WHERE id = :id AND version = :version"
+            ),
+            {"id": locator_id, "version": current_version},
+        )
         db.flush()
         return result.rowcount > 0
 
@@ -190,11 +210,14 @@ class ElementLocator(Base):
         Returns:
             bool: 更新是否成功，True表示版本号匹配且已更新
         """
-        result = db.execute(text(
-            "UPDATE element_locators SET fail_count = fail_count + 1, "
-            "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
-            "WHERE id = :id AND version = :version"
-        ), {"id": locator_id, "version": current_version})
+        result = db.execute(
+            text(
+                "UPDATE element_locators SET fail_count = fail_count + 1, "
+                "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
+                "WHERE id = :id AND version = :version"
+            ),
+            {"id": locator_id, "version": current_version},
+        )
         db.flush()
         return result.rowcount > 0
 

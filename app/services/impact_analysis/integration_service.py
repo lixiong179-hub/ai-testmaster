@@ -18,6 +18,7 @@
 - app.services.impact_analysis.coverage_collector.CoverageCollector
 - app.models.test_coverage_map.TestCoverageMap
 """
+
 import logging
 
 from sqlalchemy import select, text
@@ -75,11 +76,7 @@ class TIAIntegrationService:
         """
         try:
             rows = (
-                self._db.execute(
-                    select(TestCoverageMap).where(
-                        TestCoverageMap.project_id == project_id
-                    )
-                )
+                self._db.execute(select(TestCoverageMap).where(TestCoverageMap.project_id == project_id))
                 .scalars()
                 .all()
             )
@@ -94,14 +91,10 @@ class TIAIntegrationService:
                 )
                 if entry.is_valid():
                     entries.append(entry)
-            logger.info(
-                f"加载覆盖率映射: project_id={project_id}, entries={len(entries)}"
-            )
+            logger.info(f"加载覆盖率映射: project_id={project_id}, entries={len(entries)}")
             return entries
         except Exception as e:
-            logger.warning(
-                f"加载覆盖率映射失败 project_id={project_id}: {e}"
-            )
+            logger.warning(f"加载覆盖率映射失败 project_id={project_id}: {e}")
             return []
 
     # ── 覆盖率写入 ────────────────────────────────────────────────
@@ -131,9 +124,7 @@ class TIAIntegrationService:
 
         # 先删除该用例的所有旧映射（保证幂等：重跑覆盖率时不会残留过期行）
         self._db.execute(
-            text(
-                "DELETE FROM test_coverage_maps WHERE test_case_id = :case_id"
-            ),
+            text("DELETE FROM test_coverage_maps WHERE test_case_id = :case_id"),
             {"case_id": test_case_id},
         )
 
@@ -144,8 +135,7 @@ class TIAIntegrationService:
                 continue
             if entry.test_case_id != test_case_id:
                 logger.warning(
-                    f"覆盖率条目 test_case_id 不一致: expected={test_case_id}, "
-                    f"actual={entry.test_case_id}, skip"
+                    f"覆盖率条目 test_case_id 不一致: expected={test_case_id}, actual={entry.test_case_id}, skip"
                 )
                 continue
             rows_to_insert.append(
@@ -179,10 +169,7 @@ class TIAIntegrationService:
             rows_to_insert,
         )
         self._db.commit()
-        logger.info(
-            f"覆盖率映射写入: project_id={project_id}, case_id={test_case_id}, "
-            f"rows={len(rows_to_insert)}"
-        )
+        logger.info(f"覆盖率映射写入: project_id={project_id}, case_id={test_case_id}, rows={len(rows_to_insert)}")
         return len(rows_to_insert)
 
     def ingest_coverage_json(
@@ -203,9 +190,7 @@ class TIAIntegrationService:
             test_name=test_name,
         )
         if not entries:
-            logger.info(
-                f"覆盖率采集为空: project_id={project_id}, case_id={test_case_id}"
-            )
+            logger.info(f"覆盖率采集为空: project_id={project_id}, case_id={test_case_id}")
             return 0
         return self.upsert_coverage_entries(
             project_id=project_id,
@@ -262,10 +247,7 @@ class TIAIntegrationService:
             )
             return plan
         except Exception as e:
-            logger.warning(
-                f"TIA 调度计划生成失败，降级全量执行: project_id={project_id}, "
-                f"error={e}"
-            )
+            logger.warning(f"TIA 调度计划生成失败，降级全量执行: project_id={project_id}, error={e}")
             return ImpactSchedulePlan(
                 is_full_run=True,
                 fallback_reason=f"TIA 调度失败: {e}",
@@ -310,10 +292,7 @@ class TIAIntegrationService:
         all_set = set(all_case_ids)
         filtered = [tid for tid in plan.test_case_ids if tid in all_set]
         if not filtered:
-            logger.warning(
-                f"TIA 调度结果与待执行用例无交集，回退全量执行: "
-                f"project_id={project_id}"
-            )
+            logger.warning(f"TIA 调度结果与待执行用例无交集，回退全量执行: project_id={project_id}")
             return all_case_ids, ImpactSchedulePlan(
                 is_full_run=True,
                 fallback_reason="TIA 调度结果与待执行用例无交集",

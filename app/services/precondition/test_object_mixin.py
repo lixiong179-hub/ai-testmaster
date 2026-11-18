@@ -1,5 +1,5 @@
-
 """前置条件数据对象Mixin - 管理被测对象信息的读取和解析。"""
+
 import json
 from typing import Any
 
@@ -21,11 +21,7 @@ class TestObjectInfoMixin:
     _test_object_info: TestObjectInfo | None = None
 
     @handle_precondition_errors
-    async def read_test_object_info(
-        self,
-        project: Project,
-        env_config: dict[str, Any] | None = None
-    ) -> TestObjectInfo:
+    async def read_test_object_info(self, project: Project, env_config: dict[str, Any] | None = None) -> TestObjectInfo:
         """从Project模型读取被测对象信息。"""
         logger.info(f"读取项目 {project.name} 的被测对象信息")
 
@@ -53,11 +49,11 @@ class TestObjectInfoMixin:
                 return value.strip()
             return None
 
-        resolved_env_configs = _parse_web_env_configs(getattr(project, 'web_env_configs', None))
+        resolved_env_configs = _parse_web_env_configs(getattr(project, "web_env_configs", None))
 
         raw_obj_type = None
-        test_object_type = _get_non_empty_string(project, 'test_object_type')
-        project_type = _get_non_empty_string(project, 'project_type')
+        test_object_type = _get_non_empty_string(project, "test_object_type")
+        project_type = _get_non_empty_string(project, "project_type")
         if test_object_type:
             raw_obj_type = test_object_type
         elif resolved_env_configs:
@@ -85,9 +81,9 @@ class TestObjectInfoMixin:
         env_username = effective_env_config.get("username") if effective_env_config else None
         env_password = effective_env_config.get("password") if effective_env_config else None
 
-        target_url = env_url or getattr(project, 'test_object_url', None) or None
-        target_username = env_username or getattr(project, 'test_object_username', None) or None
-        raw_password = env_password or getattr(project, 'test_object_password', None) or None
+        target_url = env_url or getattr(project, "test_object_url", None) or None
+        target_username = env_username or getattr(project, "test_object_username", None) or None
+        raw_password = env_password or getattr(project, "test_object_password", None) or None
 
         decrypted_password = None
         if raw_password:
@@ -97,14 +93,9 @@ class TestObjectInfoMixin:
                 logger.warning(f"密码解密失败（可能需要重新配置加密密钥）: {e}")
                 decrypted_password = None
 
-        info = TestObjectInfo(
-            type=obj_type,
-            url=target_url,
-            username=target_username,
-            password=decrypted_password
-        )
+        info = TestObjectInfo(type=obj_type, url=target_url, username=target_username, password=decrypted_password)
 
-        device_info_raw = getattr(project, 'test_object_device_info', None)
+        device_info_raw = getattr(project, "test_object_device_info", None)
         if device_info_raw and isinstance(device_info_raw, str):
             try:
                 device_info = json.loads(device_info_raw)
@@ -112,8 +103,8 @@ class TestObjectInfoMixin:
             except json.JSONDecodeError as e:
                 logger.warning(f"设备信息JSON解析失败: {e}")
 
-        info.app_package = getattr(project, 'test_object_app_package', None)
-        info.app_activity = getattr(project, 'test_object_app_activity', None)
+        info.app_package = getattr(project, "test_object_app_package", None)
+        info.app_activity = getattr(project, "test_object_app_activity", None)
 
         if obj_type == TestObjectType.WEB:
             info.validate_web()

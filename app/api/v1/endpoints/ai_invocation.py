@@ -14,6 +14,7 @@ AI 调用审计查询端点模块（R2-1：同步 Session + 线程池执行）
     2. 仍需原生 SQL 表达式（`select(col).subquery()`、`in_(select(subq.c.id))`）；
     3. 端点保持 `async def`，测试仍可用 `httpx.AsyncClient` 或直调。
 """
+
 import asyncio
 from datetime import date, datetime, time, timedelta
 
@@ -31,6 +32,7 @@ from app.schemas.ai_invocation import (
     AIInvocationListItem,
     AIInvocationStatsResponse,
 )
+
 
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
@@ -74,11 +76,7 @@ async def get_ai_invocation_stats(
     end_dt = datetime.combine(end_date, time.max)
 
     # 子查询：获取项目下的所有 generation_batch_id
-    batch_ids_subq = (
-        select(GenerationBatch.id)
-        .where(GenerationBatch.project_id == project_id)
-        .subquery()
-    )
+    batch_ids_subq = select(GenerationBatch.id).where(GenerationBatch.project_id == project_id).subquery()
 
     # 按维度聚合
     if group_by == "model":
@@ -89,25 +87,23 @@ async def get_ai_invocation_stats(
         group_col = func.date(AICallLog.created_at)
 
     rows = (
-        (
-            await _execute(db,
-                select(
-                    group_col.label("group_key"),
-                    func.count(AICallLog.id).label("total_calls"),
-                    func.coalesce(func.sum(AICallLog.prompt_tokens), 0).label("total_prompt_tokens"),
-                    func.coalesce(func.sum(AICallLog.completion_tokens), 0).label("total_completion_tokens"),
-                    func.coalesce(func.sum(AICallLog.cost_usd), 0).label("total_cost_usd"),
-                )
-                .where(
-                    AICallLog.generation_batch_id.in_(select(batch_ids_subq.c.id)),
-                    AICallLog.created_at >= start_dt,
-                    AICallLog.created_at <= end_dt,
-                )
-                .group_by(group_col)
+        await _execute(
+            db,
+            select(
+                group_col.label("group_key"),
+                func.count(AICallLog.id).label("total_calls"),
+                func.coalesce(func.sum(AICallLog.prompt_tokens), 0).label("total_prompt_tokens"),
+                func.coalesce(func.sum(AICallLog.completion_tokens), 0).label("total_completion_tokens"),
+                func.coalesce(func.sum(AICallLog.cost_usd), 0).label("total_cost_usd"),
             )
+            .where(
+                AICallLog.generation_batch_id.in_(select(batch_ids_subq.c.id)),
+                AICallLog.created_at >= start_dt,
+                AICallLog.created_at <= end_dt,
+            )
+            .group_by(group_col),
         )
-        .all()
-    )
+    ).all()
 
     results = [
         AIInvocationStatsResponse(
@@ -160,32 +156,19 @@ async def get_ai_invocation_list(
     if batch_id is not None:
         filters.append(AICallLog.generation_batch_id == batch_id)
     elif project_id is not None:
-        batch_ids_subq = (
-            select(GenerationBatch.id)
-            .where(GenerationBatch.project_id == project_id)
-            .subquery()
-        )
+        batch_ids_subq = select(GenerationBatch.id).where(GenerationBatch.project_id == project_id).subquery()
         filters.append(AICallLog.generation_batch_id.in_(select(batch_ids_subq.c.id)))
 
     # 统计总数
-    total = (
-        await _execute(db,
-            select(func.count())
-            .select_from(AICallLog)
-            .where(*filters)
-        )
-    ).scalar_one()
+    total = (await _execute(db, select(func.count()).select_from(AICallLog).where(*filters))).scalar_one()
 
     # 分页查询
     offset = (page - 1) * page_size
     rows = (
         (
-            await _execute(db,
-                select(AICallLog)
-                .where(*filters)
-                .order_by(AICallLog.created_at.desc())
-                .offset(offset)
-                .limit(page_size)
+            await _execute(
+                db,
+                select(AICallLog).where(*filters).order_by(AICallLog.created_at.desc()).offset(offset).limit(page_size),
             )
         )
         .scalars()
@@ -215,9 +198,11 @@ async def get_ai_invocation_list(
         )
         for r in rows
     ]
-    return create_response(data={
-        "items": [item.model_dump() for item in items],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-    })
+    return create_response(
+        data={
+            "items": [item.model_dump() for item in items],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    )

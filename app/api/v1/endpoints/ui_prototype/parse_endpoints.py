@@ -18,6 +18,7 @@ UI原型解析端点模块
     - 批量解析按页面顺序依次处理
     - 测试流程基于页面间跳转关系自动生成
 """
+
 import asyncio
 import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -40,6 +41,7 @@ from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
 from app.api.v1.endpoints.ui_prototype.helpers import UPLOAD_DIR
 from app.core.exception import create_response
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -54,9 +56,7 @@ async def parse_ui_screens(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    logger.info(
-        f"[parse_ui_screens] user_id={current_user.id} screen_ids={parse_request.screen_ids}"
-    )
+    logger.info(f"[parse_ui_screens] user_id={current_user.id} screen_ids={parse_request.screen_ids}")
     try:
         if not parse_request.screen_ids:
             raise HTTPException(
@@ -65,10 +65,8 @@ async def parse_ui_screens(
             )
 
         # 一次性批量查询所有屏幕，防止N+1及越权风险
-        screens_result = await _execute(db,
-            select(UIPrototypeScreen).where(
-                UIPrototypeScreen.id.in_(parse_request.screen_ids)
-            )
+        screens_result = await _execute(
+            db, select(UIPrototypeScreen).where(UIPrototypeScreen.id.in_(parse_request.screen_ids))
         )
         screens = screens_result.scalars().all()
         # 校验所有 screen_id 均存在
@@ -83,26 +81,23 @@ async def parse_ui_screens(
         # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
         screen_project_ids = {s.project_id for s in screens}
         if len(screen_project_ids) > 1:
-            logger.warning(
-                f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
-            )
+            logger.warning(f"screen_ids 跨多个项目: project_ids={screen_project_ids}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="screen_ids 必须属于同一项目",
             )
         # 一次性校验所有屏幕均属于当前用户拥有的项目
-        authorized_result = await _execute(db,
+        authorized_result = await _execute(
+            db,
             select(Project.id).where(
                 Project.id.in_(screen_project_ids),
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         authorized_project_ids = {pid for (pid,) in authorized_result.all()}
         unauthorized_project_ids = screen_project_ids - authorized_project_ids
         if unauthorized_project_ids:
-            logger.warning(
-                f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
-            )
+            logger.warning(f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权限操作此项目",
@@ -116,15 +111,12 @@ async def parse_ui_screens(
             try:
                 with get_db_context() as bg_db:
                     pipeline = UISpecParsePipeline(
-                        bg_db, target_project_id, current_user.id, UPLOAD_DIR,
-                        parse_mode=parse_request.parse_mode
+                        bg_db, target_project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
                     )
                     result = await pipeline.batch_parse_screens(parse_request.screen_ids)
 
                     if parse_request.prototype_project_id:
-                        ui_prototype_crud.update_prototype_project_stats(
-                            bg_db, parse_request.prototype_project_id
-                        )
+                        ui_prototype_crud.update_prototype_project_stats(bg_db, parse_request.prototype_project_id)
 
                 logger.info(
                     f"[后台解析完成] project_id={target_project_id} "
@@ -136,13 +128,9 @@ async def parse_ui_screens(
                 try:
                     with get_db_context() as bg_db:
                         for screen_id in parse_request.screen_ids:
-                            screen = ui_prototype_crud.get_ui_screen_by_id(
-                                bg_db, screen_id, target_project_id
-                            )
+                            screen = ui_prototype_crud.get_ui_screen_by_id(bg_db, screen_id, target_project_id)
                             if screen and screen.parse_status in ("running", "pending"):
-                                ui_prototype_crud.update_ui_screen_parse_status(
-                                    bg_db, screen_id, "failed", str(e)
-                                )
+                                ui_prototype_crud.update_ui_screen_parse_status(bg_db, screen_id, "failed", str(e))
                 except Exception as mark_err:
                     logger.error(f"[后台解析] 标记失败状态异常: {mark_err}")
 
@@ -155,16 +143,13 @@ async def parse_ui_screens(
                 "screen_ids": parse_request.screen_ids,
                 "parse_mode": parse_request.parse_mode,
             },
-            msg=f"解析任务已启动，共{len(parse_request.screen_ids)}个屏幕"
+            msg=f"解析任务已启动，共{len(parse_request.screen_ids)}个屏幕",
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"解析UI屏幕失败: {e}\n{traceback.format_exc()}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="解析UI屏幕失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="解析UI屏幕失败，请稍后重试")
 
 
 @router.post("/parse/project/{prototype_project_id}", response_model=ApiResponse)
@@ -175,23 +160,20 @@ async def parse_prototype_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        proto_result = await _execute(db,
-            select(UIPrototypeProject).where(
-                UIPrototypeProject.id == prototype_project_id
-            )
+        proto_result = await _execute(
+            db, select(UIPrototypeProject).where(UIPrototypeProject.id == prototype_project_id)
         )
         prototype_project = proto_result.scalars().first()
 
         if not prototype_project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在")
 
-        db_project_result = await _execute(db,
+        db_project_result = await _execute(
+            db,
             select(Project).where(
                 Project.id == prototype_project.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         db_project = db_project_result.scalars().first()
 
@@ -209,8 +191,7 @@ async def parse_prototype_project(
             try:
                 with get_db_context() as bg_db:
                     pipeline = UISpecParsePipeline(
-                        bg_db, project_id, current_user.id, UPLOAD_DIR,
-                        parse_mode=parse_mode
+                        bg_db, project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_mode
                     )
                     result = await pipeline.parse_prototype_project(prototype_project_id)
 
@@ -229,12 +210,10 @@ async def parse_prototype_project(
                                 project_id=project_id,
                                 user_id=current_user.id,
                                 prototype_project_id=prototype_project_id,
-                                parse_status=status_to_mark
+                                parse_status=status_to_mark,
                             )
                             for s in stuck_screens:
-                                ui_prototype_crud.update_ui_screen_parse_status(
-                                    bg_db, s.id, "failed", str(e)
-                                )
+                                ui_prototype_crud.update_ui_screen_parse_status(bg_db, s.id, "failed", str(e))
                 except Exception as mark_err:
                     logger.error(f"[后台项目解析] 标记失败状态异常: {mark_err}")
 
@@ -247,16 +226,13 @@ async def parse_prototype_project(
                 "prototype_project_id": prototype_project_id,
                 "parse_mode": parse_mode,
             },
-            msg="解析任务已启动"
+            msg="解析任务已启动",
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"解析原型项目失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="解析原型项目失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="解析原型项目失败，请稍后重试")
 
 
 @router.post("/flow/generate", response_model=ApiResponse)
@@ -275,15 +251,11 @@ async def generate_page_flow(
 
         def _validate_and_create(sync_db: Session):
             prototype_project = (
-                sync_db.query(UIPrototypeProject)
-                .filter(UIPrototypeProject.id == prototype_project_id)
-                .first()
+                sync_db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
             )
 
             if not prototype_project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
-                )
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在")
 
             db_project = (
                 sync_db.query(Project)
@@ -300,27 +272,17 @@ async def generate_page_flow(
                     detail="无权限操作此项目或项目不存在",
                 )
 
-            return UISpecParsePipeline(
-                sync_db, db_project.id, current_user.id, UPLOAD_DIR
-            )
+            return UISpecParsePipeline(sync_db, db_project.id, current_user.id, UPLOAD_DIR)
 
         pipeline = await db.run_sync(_validate_and_create)
-        success, message = await pipeline.generate_flow(
-            prototype_project_id
-        )
+        success, message = await pipeline.generate_flow(prototype_project_id)
 
-        return create_response(
-            data={"success": success},
-            msg=message
-        )
+        return create_response(data={"success": success}, msg=message)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"生成页面流程失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="生成页面流程失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="生成页面流程失败，请稍后重试")
 
 
 @router.get("/specs/{project_id}", response_model=ApiResponse)
@@ -331,33 +293,22 @@ async def get_ui_specs_for_case_generation(
     current_user: User = Depends(get_current_user),
 ):
     try:
+
         def _get_specs(sync_db: Session):
             project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id, Project.user_id == current_user.id)
-                .first()
+                sync_db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
             )
 
             if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
             pipeline = UISpecParsePipeline(sync_db, project_id, current_user.id, UPLOAD_DIR)
-            return pipeline.get_parsed_ui_spec_for_case_generation(
-                prototype_project_id
-            )
+            return pipeline.get_parsed_ui_spec_for_case_generation(prototype_project_id)
 
         specs = await db.run_sync(_get_specs)
-        return create_response(
-            data={"items": specs, "total": len(specs)},
-            msg=f"获取成功，共{len(specs)}个屏幕"
-        )
+        return create_response(data={"items": specs, "total": len(specs)}, msg=f"获取成功，共{len(specs)}个屏幕")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"获取UI规格失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取UI规格失败，请稍后重试"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取UI规格失败，请稍后重试")

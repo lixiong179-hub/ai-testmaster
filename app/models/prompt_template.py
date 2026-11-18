@@ -4,6 +4,7 @@
 通过 prompt_key + prompt_version 复合唯一索引保证版本唯一性，
 prompt_hash 用于内容变更检测，避免重复注册相同内容。
 """
+
 from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, UniqueConstraint
 from sqlalchemy.sql import func
 
@@ -12,10 +13,9 @@ from app.db.database import Base
 
 class PromptTemplate(Base):
     """Prompt 模板版本记录，同一 prompt_key 可存在多个版本，仅一个为默认"""
+
     __tablename__ = "prompt_templates"
-    __table_args__ = (
-        UniqueConstraint("prompt_key", "prompt_version", name="uq_prompt_key_version"),
-    )
+    __table_args__ = (UniqueConstraint("prompt_key", "prompt_version", name="uq_prompt_key_version"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment="主键ID")
     prompt_key = Column(String(80), nullable=False, index=True, comment="Prompt唯一标识键")

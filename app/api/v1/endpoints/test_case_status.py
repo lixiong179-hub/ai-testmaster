@@ -1,4 +1,3 @@
-
 """
 测试用例状态端点模块
 
@@ -20,6 +19,7 @@
     - 工作流状态: draft -> review -> approved/rejected -> deprecated
     - 纠正状态: None -> failed_correction -> correcting -> verifying -> verified
 """
+
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
@@ -33,6 +33,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from loguru import logger
 
+
 async def _execute(db: Session, stmt):
     """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
     return await asyncio.to_thread(db.execute, stmt)
@@ -41,63 +42,60 @@ async def _execute(db: Session, stmt):
 router = APIRouter()
 
 WORKFLOW_TRANSITIONS = {
-    'draft': ['pending_review', 'deprecated'],
-    'pending_review': ['active', 'needs_modify', 'deprecated'],
-    'active': ['needs_modify', 'locator_broken', 'deprecated'],
-    'needs_modify': ['pending_review'],
-    'locator_broken': ['active', 'deprecated'],
-    'deprecated': ['archived'],
-    'archived': [],
+    "draft": ["pending_review", "deprecated"],
+    "pending_review": ["active", "needs_modify", "deprecated"],
+    "active": ["needs_modify", "locator_broken", "deprecated"],
+    "needs_modify": ["pending_review"],
+    "locator_broken": ["active", "deprecated"],
+    "deprecated": ["archived"],
+    "archived": [],
 }
 
 STATUS_LABELS = {
-    'draft': '草稿',
-    'pending_review': '评审中',
-    'active': '已激活',
-    'needs_modify': '需修改',
-    'locator_broken': '定位器失效',
-    'deprecated': '已废弃',
-    'archived': '已归档',
+    "draft": "草稿",
+    "pending_review": "评审中",
+    "active": "已激活",
+    "needs_modify": "需修改",
+    "locator_broken": "定位器失效",
+    "deprecated": "已废弃",
+    "archived": "已归档",
 }
 
 
 class WorkflowTransitionRequest(BaseModel):
     """工作流状态转换请求模型"""
+
     target_status: str
     comment: str | None = None
 
-    @field_validator('target_status')
+    @field_validator("target_status")
     @classmethod
     def validate_target_status(cls, v: str) -> str:
         valid_statuses = [e.value for e in TestCaseLifecycleStatus]
         if v not in valid_statuses:
-            raise ValueError(f'无效的目标状态: {v}，有效值为: {valid_statuses}')
+            raise ValueError(f"无效的目标状态: {v}，有效值为: {valid_statuses}")
         return v
 
 
 async def _get_test_case(test_case_id: int, db: Session) -> TestCase:
     """按 ID 查询未删除的测试用例，不存在则抛 404（查询经 `_execute` 转线程池）"""
     test_case = (
-        await _execute(db,
+        await _execute(
+            db,
             select(TestCase).where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
-            )
+            ),
         )
     ).scalar_one_or_none()
     if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
     return test_case
 
 
 @router.get("/{test_case_id}/workflow")
 async def get_test_case_workflow(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     获取测试用例工作流状态
@@ -115,19 +113,18 @@ async def get_test_case_workflow(
     """
     test_case = await _get_test_case(test_case_id, db)
 
-    current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
+    current_status = getattr(test_case, "lifecycle_status", "draft") or "draft"
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
 
-    return create_response(data={
-        "test_case_id": test_case_id,
-        "current_status": current_status,
-        "current_status_label": STATUS_LABELS.get(current_status, current_status),
-        "allowed_transitions": [
-            {"status": s, "label": STATUS_LABELS.get(s, s)}
-            for s in allowed_transitions
-        ],
-        "workflow_history": []
-    })
+    return create_response(
+        data={
+            "test_case_id": test_case_id,
+            "current_status": current_status,
+            "current_status_label": STATUS_LABELS.get(current_status, current_status),
+            "allowed_transitions": [{"status": s, "label": STATUS_LABELS.get(s, s)} for s in allowed_transitions],
+            "workflow_history": [],
+        }
+    )
 
 
 @router.post("/{test_case_id}/workflow/transition")
@@ -135,7 +132,7 @@ async def transition_test_case_workflow(
     test_case_id: int,
     request: WorkflowTransitionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     工作流状态转换
@@ -158,13 +155,13 @@ async def transition_test_case_workflow(
     """
     test_case = await _get_test_case(test_case_id, db)
 
-    current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
+    current_status = getattr(test_case, "lifecycle_status", "draft") or "draft"
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
 
     if request.target_status not in allowed_transitions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不允许从 '{STATUS_LABELS.get(current_status, current_status)}' 转换到 '{STATUS_LABELS.get(request.target_status, request.target_status)}'，允许的转换: {[STATUS_LABELS.get(s, s) for s in allowed_transitions]}"
+            detail=f"不允许从 '{STATUS_LABELS.get(current_status, current_status)}' 转换到 '{STATUS_LABELS.get(request.target_status, request.target_status)}'，允许的转换: {[STATUS_LABELS.get(s, s) for s in allowed_transitions]}",
         )
 
     try:
@@ -183,53 +180,47 @@ async def transition_test_case_workflow(
 
         new_allowed = WORKFLOW_TRANSITIONS.get(request.target_status, [])
 
-        return create_response(data={
-            "test_case_id": test_case_id,
-            "previous_status": old_status,
-            "previous_status_label": STATUS_LABELS.get(old_status, old_status),
-            "current_status": request.target_status,
-            "current_status_label": STATUS_LABELS.get(request.target_status, request.target_status),
-            "allowed_transitions": [
-                {"status": s, "label": STATUS_LABELS.get(s, s)}
-                for s in new_allowed
-            ],
-            "comment": request.comment,
-            "message": f"状态已从 '{STATUS_LABELS.get(old_status, old_status)}' 转换为 '{STATUS_LABELS.get(request.target_status, request.target_status)}'"
-        })
+        return create_response(
+            data={
+                "test_case_id": test_case_id,
+                "previous_status": old_status,
+                "previous_status_label": STATUS_LABELS.get(old_status, old_status),
+                "current_status": request.target_status,
+                "current_status_label": STATUS_LABELS.get(request.target_status, request.target_status),
+                "allowed_transitions": [{"status": s, "label": STATUS_LABELS.get(s, s)} for s in new_allowed],
+                "comment": request.comment,
+                "message": f"状态已从 '{STATUS_LABELS.get(old_status, old_status)}' 转换为 '{STATUS_LABELS.get(request.target_status, request.target_status)}'",
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"工作流状态转换失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="工作流状态转换失败"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="工作流状态转换失败")
 
 
 CORRECTION_STATUS_TRANSITIONS = {
     # 纠正状态转换规则：定义纠正流程中各状态允许的转换
-    None: ['failed_correction'],
-    'failed_correction': ['correcting'],
-    'correcting': ['verifying', 'failed_correction'],
-    'verifying': ['verified', 'failed_correction', 'correcting'],
-    'verified': ['failed_correction']
+    None: ["failed_correction"],
+    "failed_correction": ["correcting"],
+    "correcting": ["verifying", "failed_correction"],
+    "verifying": ["verified", "failed_correction", "correcting"],
+    "verified": ["failed_correction"],
 }
 
 CORRECTION_STATUS_LABELS = {
     # 纠正状态中文标签映射
-    'failed_correction': '执行失败',
-    'correcting': '纠正中',
-    'verifying': '验证中',
-    'verified': '验证通过'
+    "failed_correction": "执行失败",
+    "correcting": "纠正中",
+    "verifying": "验证中",
+    "verified": "验证通过",
 }
 
 
 @router.get("/{test_case_id}/correction-status")
 async def get_correction_status(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     获取纠正状态
@@ -246,25 +237,22 @@ async def get_correction_status(
     """
     test_case = await _get_test_case(test_case_id, db)
 
-    current_status = getattr(test_case, 'correction_status', None)
+    current_status = getattr(test_case, "correction_status", None)
     allowed = CORRECTION_STATUS_TRANSITIONS.get(current_status, [])
 
-    return create_response(data={
-        "test_case_id": test_case_id,
-        "correction_status": current_status,
-        "correction_status_label": CORRECTION_STATUS_LABELS.get(current_status, '无'),
-        "allowed_transitions": [
-            {"status": s, "label": CORRECTION_STATUS_LABELS.get(s, s)}
-            for s in allowed
-        ]
-    })
+    return create_response(
+        data={
+            "test_case_id": test_case_id,
+            "correction_status": current_status,
+            "correction_status_label": CORRECTION_STATUS_LABELS.get(current_status, "无"),
+            "allowed_transitions": [{"status": s, "label": CORRECTION_STATUS_LABELS.get(s, s)} for s in allowed],
+        }
+    )
 
 
 @router.post("/{test_case_id}/start-correction")
 async def start_correction(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     开始纠正
@@ -283,25 +271,27 @@ async def start_correction(
     """
     test_case = await _get_test_case(test_case_id, db)
 
-    current_status = getattr(test_case, 'correction_status', None)
-    if current_status not in [None, 'failed_correction', 'correcting']:
-        if current_status == 'verified':
+    current_status = getattr(test_case, "correction_status", None)
+    if current_status not in [None, "failed_correction", "correcting"]:
+        if current_status == "verified":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用例已验证通过，无需纠正")
-        if current_status == 'verifying':
+        if current_status == "verifying":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用例正在验证中，请等待验证结果")
 
     try:
-        test_case.correction_status = 'correcting'
+        test_case.correction_status = "correcting"
         await asyncio.to_thread(db.commit)
 
         logger.info(f"[纠正开始] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
-        return create_response(data={
-            "test_case_id": test_case_id,
-            "correction_status": "correcting",
-            "correction_status_label": CORRECTION_STATUS_LABELS['correcting'],
-            "message": "已进入纠正模式"
-        })
+        return create_response(
+            data={
+                "test_case_id": test_case_id,
+                "correction_status": "correcting",
+                "correction_status_label": CORRECTION_STATUS_LABELS["correcting"],
+                "message": "已进入纠正模式",
+            }
+        )
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"开始纠正失败: {e}")
@@ -310,9 +300,7 @@ async def start_correction(
 
 @router.post("/{test_case_id}/submit-verification")
 async def submit_verification(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    test_case_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     提交验证
@@ -330,25 +318,27 @@ async def submit_verification(
     """
     test_case = await _get_test_case(test_case_id, db)
 
-    current_status = getattr(test_case, 'correction_status', None)
-    if current_status != 'correcting':
+    current_status = getattr(test_case, "correction_status", None)
+    if current_status != "correcting":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"当前状态为'{CORRECTION_STATUS_LABELS.get(current_status, '无')}'，只有'纠正中'状态才能提交验证"
+            detail=f"当前状态为'{CORRECTION_STATUS_LABELS.get(current_status, '无')}'，只有'纠正中'状态才能提交验证",
         )
 
     try:
-        test_case.correction_status = 'verifying'
+        test_case.correction_status = "verifying"
         await asyncio.to_thread(db.commit)
 
         logger.info(f"[提交验证] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
-        return create_response(data={
-            "test_case_id": test_case_id,
-            "correction_status": "verifying",
-            "correction_status_label": CORRECTION_STATUS_LABELS['verifying'],
-            "message": "已提交验证"
-        })
+        return create_response(
+            data={
+                "test_case_id": test_case_id,
+                "correction_status": "verifying",
+                "correction_status_label": CORRECTION_STATUS_LABELS["verifying"],
+                "message": "已提交验证",
+            }
+        )
     except Exception as e:
         await asyncio.to_thread(db.rollback)
         logger.error(f"提交验证失败: {e}")

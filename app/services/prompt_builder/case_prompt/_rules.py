@@ -1,4 +1,3 @@
-
 from app.services.prompt_builder.comparison_examples import (
     get_comparison_examples,
     get_title_spec_rules,
@@ -16,7 +15,9 @@ def _append_generation_rules(
     parts.append("## 生成要求")
     parts.append("")
     parts.append("### 零、上下文优先级与冲突规则")
-    parts.append("0.1 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要")
+    parts.append(
+        "0.1 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要"
+    )
     parts.append("0.2 UI元素存在性仅依据当前UI解析结果(ui_spec)，不得使用未出现的按钮、输入框、链接或页面元素")
     parts.append("0.3 需求与UI不一致时，以需求为准，但涉及UI交互的步骤必须标记【待确认UI】")
     parts.append("0.4 ui_spec缺失或解析失败时，不得臆造元素；需要交互时必须标记【待确认UI】")
@@ -25,9 +26,13 @@ def _append_generation_rules(
     parts.append("")
     parts.append("### 一、用例结构规范")
     parts.append("1. 每个场景必须生成独立的测试用例，禁止将不同场景的步骤混合在同一条用例中")
-    parts.append("2. 主干正向用例只覆盖主干流程步骤，旁路弹窗在对应步骤中增加\"关闭弹窗\"操作即可，不单独生成旁路用例")
-    parts.append("3. 分支流程用例：depends_on 必须填写场景1（主干正向用例）的标题，anchor_step 必须填写分支触发点的主干步骤号；前置条件只需写数据准备（如Mock接口返回值）和页面状态（如\"已处于确认订单页\"），执行引擎会自动执行主干用例到 anchor_step 后继续；步骤从触发分支开始，预期结果聚焦分支本身的表现")
-    parts.append("4. 异常流程用例：depends_on 必须填写场景1（主干正向用例）的标题，anchor_step 必须填写异常触发点的主干步骤号；前置条件只需写数据准备（如Mock支付接口返回失败）和页面状态（如\"已处于支付页面\"），执行引擎会自动执行主干用例到 anchor_step 后继续；步骤从触发异常开始，预期结果聚焦异常提示和系统容错表现")
+    parts.append('2. 主干正向用例只覆盖主干流程步骤，旁路弹窗在对应步骤中增加"关闭弹窗"操作即可，不单独生成旁路用例')
+    parts.append(
+        '3. 分支流程用例：depends_on 必须填写场景1（主干正向用例）的标题，anchor_step 必须填写分支触发点的主干步骤号；前置条件只需写数据准备（如Mock接口返回值）和页面状态（如"已处于确认订单页"），执行引擎会自动执行主干用例到 anchor_step 后继续；步骤从触发分支开始，预期结果聚焦分支本身的表现'
+    )
+    parts.append(
+        '4. 异常流程用例：depends_on 必须填写场景1（主干正向用例）的标题，anchor_step 必须填写异常触发点的主干步骤号；前置条件只需写数据准备（如Mock支付接口返回失败）和页面状态（如"已处于支付页面"），执行引擎会自动执行主干用例到 anchor_step 后继续；步骤从触发异常开始，预期结果聚焦异常提示和系统容错表现'
+    )
     parts.append(
         "5. 若提供了需求文档，结合业务规则验证每个步骤的验收标准；"
         "若未提供，根据UI原型图推断业务逻辑，"
@@ -43,20 +48,18 @@ def _append_generation_rules(
     parts.append(f"9. {get_precondition_spec_rules(compact=True)}")
     parts.append("")
     parts.append("### 二、步骤与预期结果规范（核心质量要求）")
-    parts.append(
-        "10. 操作步骤必须严谨可复现，禁止口语化如\"连续拍摄多张照片\""
-    )
+    parts.append('10. 操作步骤必须严谨可复现，禁止口语化如"连续拍摄多张照片"')
     parts.append(
         "11. 预期结果必须按三段式格式书写："
-        "\"【元素状态】+【具体文案/数值】+【交互结果】\"；"
+        '"【元素状态】+【具体文案/数值】+【交互结果】"；'
         "此规则同时适用于步骤级expected_result和用例级expected_result字段；"
         "三段中至少包含以下一类可客观判定的校验点："
-        "元素可见性（如\"弹窗可见\"）、文案内容（如\"提示文案为'网络连接失败'\"）、"
-        "状态变化（如\"按钮由置灰变为可点击\"）、数值（如\"正确率显示66.7%\"）、"
-        "跳转路径（如\"页面跳转至错词学习页\"）；"
-        "禁止\"正常显示\"\"功能正常\"\"交互跳转正确\"\"无崩溃白屏\"\"UI元素完整\"等无法断言的描述"
+        '元素可见性（如"弹窗可见"）、文案内容（如"提示文案为\'网络连接失败\'"）、'
+        '状态变化（如"按钮由置灰变为可点击"）、数值（如"正确率显示66.7%"）、'
+        '跳转路径（如"页面跳转至错词学习页"）；'
+        '禁止"正常显示""功能正常""交互跳转正确""无崩溃白屏""UI元素完整"等无法断言的描述'
     )
-    parts.append("12. 未区分场景变体时需拆分，如\"无相机权限\"应区分临时拒绝/永久拒绝")
+    parts.append('12. 未区分场景变体时需拆分，如"无相机权限"应区分临时拒绝/永久拒绝')
     parts.append(f"13. {get_automation_friendly_rules(compact=True)}")
     parts.append("")
     parts.append("### 三、原子性与确定性规范")
@@ -64,31 +67,25 @@ def _append_generation_rules(
         "14. 原子性原则：一条用例只验证一个测试场景，"
         "分支/异常用例的步骤从触发点开始，不需要重复主流程到达触发点之前的步骤"
         "（通过前置条件声明如何到达触发点即可）；"
-        "如需验证\"正确率100%触发话术旁路\"，必须单独生成一条boundary用例，"
+        '如需验证"正确率100%触发话术旁路"，必须单独生成一条boundary用例，'
         "不得与主流程正向用例合并"
     )
     parts.append(
         "15. 步骤确定性原则：每个步骤的操作必须唯一确定，"
-        "禁止使用\"或\"\"或者\"等不确定措辞（如\"点击关闭按钮或弹窗外区域\""
-        "\"导航到X页面的URL（或通过接口模拟）\"）；"
+        '禁止使用"或""或者"等不确定措辞（如"点击关闭按钮或弹窗外区域"'
+        '"导航到X页面的URL（或通过接口模拟）"）；'
         "如存在多种操作路径，应拆分为多条用例分别覆盖"
     )
     parts.append(
         "16. 自动化可执行原则：case_type为ui_automation时，"
-        "禁止步骤中出现\"手动判断\"\"人工确认\"\"目测\"等需要人工介入的描述；"
+        '禁止步骤中出现"手动判断""人工确认""目测"等需要人工介入的描述；'
         "所有验证点必须可通过UI元素状态、文案、属性等客观标准判定"
     )
     if has_history:
-        parts.append(
-            "17. 历史用例仅供避重参考，不要改写或废弃已有用例；"
-            "所有生成用例的 change_type 必须为 added"
-        )
+        parts.append("17. 历史用例仅供避重参考，不要改写或废弃已有用例；所有生成用例的 change_type 必须为 added")
     parts.append("")
     parts.append("### 四、分类与覆盖规范")
-    parts.append(
-        "18. 所有生成用例的 change_type 必须为 added，"
-        "不允许生成 modified 或 deprecated 类型的用例"
-    )
+    parts.append("18. 所有生成用例的 change_type 必须为 added，不允许生成 modified 或 deprecated 类型的用例")
     parts.append(
         "19. 每条用例必须标注 case_category 字段，"
         "取值范围：positive（正向/主流程）、boundary（边界值）、exception（异常场景），"
@@ -100,33 +97,18 @@ def _append_generation_rules(
         "每个异常场景至少1条(case_category=exception)。禁止只生成1条"
     )
     if case_type:
-        parts.append(
-            f"20. 所有用例的 case_type 字段必须统一为 \"{case_type}\"，"
-            "不允许生成其他类型的用例"
-        )
+        parts.append(f'20. 所有用例的 case_type 字段必须统一为 "{case_type}"，不允许生成其他类型的用例')
         type_guidance = {
             "ui_automation": (
                 "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，"
                 "预期结果可自动化验证；"
-                "前置条件须声明Mock/桩数据准备方式（如\"通过cy.intercept拦截接口返回指定结果\"），"
+                '前置条件须声明Mock/桩数据准备方式（如"通过cy.intercept拦截接口返回指定结果"），'
                 "确保自动化脚本可稳定复现预期行为"
             ),
-            "manual": (
-                "允许包含需要人工判断的步骤，预期结果允许主观描述，"
-                "不要求完全可自动化"
-            ),
-            "api_automation": (
-                "用例聚焦接口层面验证，步骤以API请求/响应断言为主，"
-                "无需UI元素引用"
-            ),
-            "performance": (
-                "关注响应时间、并发数、吞吐量等性能指标，"
-                "预期结果包含数值阈值"
-            ),
-            "security": (
-                "关注XSS注入、SQL注入、权限绕过、"
-                "敏感数据泄露等安全验证点"
-            ),
+            "manual": ("允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化"),
+            "api_automation": ("用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用"),
+            "performance": ("关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值"),
+            "security": ("关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点"),
         }
         extra = type_guidance.get(case_type, "")
         if extra:

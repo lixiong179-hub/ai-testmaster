@@ -10,6 +10,7 @@
 
 依赖：app.tasks.celery_app、app.services.pipeline_timeout_service
 """
+
 import logging
 
 from app.tasks.base import BaseTask

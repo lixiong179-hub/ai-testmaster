@@ -12,6 +12,7 @@ UI原型辅助工具模块
 常量:
     - UPLOAD_DIR: 原型文件上传目录路径，从配置中读取
 """
+
 import os
 import re
 from typing import Any
@@ -26,7 +27,7 @@ MIN_IMAGE_SIZE = 1024
 
 # 文件名组成部分安全字符白名单：字母、数字、中文、连字符、下划线、点
 # 其余字符（含路径分隔符 / \ .. 等）统一替换为下划线，杜绝路径遍历
-_FILENAME_SAFE_PATTERN = re.compile(r'[^\w\u4e00-\u9fa5\-\.]')
+_FILENAME_SAFE_PATTERN = re.compile(r"[^\w\u4e00-\u9fa5\-\.]")
 
 
 def _ensure_upload_dir() -> None:
@@ -48,12 +49,12 @@ def _sanitize_filename_component(component: str) -> str:
     """
     if not component:
         return "unnamed"
-    sanitized = _FILENAME_SAFE_PATTERN.sub('_', component)
+    sanitized = _FILENAME_SAFE_PATTERN.sub("_", component)
     # 剥离可能的残留路径分隔符（防御性兜底）
-    sanitized = sanitized.replace('/', '_').replace('\\', '_')
+    sanitized = sanitized.replace("/", "_").replace("\\", "_")
     # 防止 ".." 序列残留
-    while '..' in sanitized:
-        sanitized = sanitized.replace('..', '_')
+    while ".." in sanitized:
+        sanitized = sanitized.replace("..", "_")
     return sanitized or "unnamed"
 
 

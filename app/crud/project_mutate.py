@@ -25,6 +25,7 @@
     - delete_project 为硬删除，物理移除数据库记录
     - 关联数据需在调用方处理级联清理，否则可能产生孤立数据
 """
+
 from sqlalchemy.orm import Session
 from app.models.project import Project
 from app.schemas.project import ProjectCreate, ProjectUpdate
@@ -54,7 +55,7 @@ def create_project(db: Session, project: ProjectCreate, user_id: int) -> Project
         description=project.description,
         user_id=user_id,
         status=1,  # 默认状态为启用：1=启用, 0=禁用
-        project_type=project.project_type
+        project_type=project.project_type,
     )
     db.add(db_project)
     db.commit()  # 自动提交事务

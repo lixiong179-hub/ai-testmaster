@@ -15,6 +15,7 @@ quality_validator.py + _quality_field_validators.py + _quality_step_validators.p
 测试通过 patch("...validator.settings") 进行替换，需保证全局查找
 落在本模块命名空间。
 """
+
 import inspect
 from typing import Any
 
@@ -67,12 +68,17 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
             return False
         # R3 修复：with_for_update() 在 InnoDB REPEATABLE READ 下对 (project_id, title)
         # 索引加 gap lock，使 check-then-insert 原子化，消除并发竞态导致的重复 title。
-        existing = self.db.query(TestCase.id).filter(
-            TestCase.project_id == project_id,
-            TestCase.is_deleted == False,  # noqa: E712
-            TestCase.generate_status == 1,
-            TestCase.title == title,
-        ).with_for_update().first()
+        existing = (
+            self.db.query(TestCase.id)
+            .filter(
+                TestCase.project_id == project_id,
+                TestCase.is_deleted == False,  # noqa: E712
+                TestCase.generate_status == 1,
+                TestCase.title == title,
+            )
+            .with_for_update()
+            .first()
+        )
         return existing is not None
 
     async def _save_test_case(
@@ -80,7 +86,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
         project_id: int,
         generated_case: dict[str, Any],
         test_point: dict[str, Any],
-        requirement_file_id: int | None = None
+        requirement_file_id: int | None = None,
     ) -> TestCase:
         """保存测试用例到数据库。
 
@@ -100,9 +106,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
         steps_json = []
         for i, step in enumerate(steps):
             raw_action_type = step.get("action_type", "")
-            corrected_action_type = self._correct_action_type(
-                step.get("action", ""), raw_action_type
-            )
+            corrected_action_type = self._correct_action_type(step.get("action", ""), raw_action_type)
             step_entry = {
                 "step": step.get("step", str(i + 1)),
                 "description": step.get("description", ""),
@@ -127,23 +131,21 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
 
         raw_precondition = generated_case.get("precondition", "")
         cleaned_precondition = self._clean_precondition(raw_precondition)
-        title = (
-            generated_case.get("title")
-            or test_point.get("point")
-            or "(untitled)"
-        ).strip()
+        title = (generated_case.get("title") or test_point.get("point") or "(untitled)").strip()
 
         if self._case_title_exists(project_id, title):
             raise ValueError(f"duplicate generated case title: {title}")
 
         case_for_quality = dict(generated_case)
-        case_for_quality.update({
-            "title": title,
-            "precondition": cleaned_precondition,
-            "steps": steps_json,
-            "case_type": case_type,
-            "case_category": case_category,
-        })
+        case_for_quality.update(
+            {
+                "title": title,
+                "precondition": cleaned_precondition,
+                "steps": steps_json,
+                "case_type": case_type,
+                "case_category": case_category,
+            }
+        )
         quality_score = compute_quality_score([case_for_quality])
         quality_issues, gate_status = self._quality_gate_issues(
             case_for_quality,
@@ -156,9 +158,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
             issue_text = "; ".join(quality_issues[:3])
             raise AIGenerationError(f"generated case failed quality gate: {issue_text}")
         if gate_status == "warning":
-            logger.warning(
-                f"generated case passed gate with warning status (title={title})"
-            )
+            logger.warning(f"generated case passed gate with warning status (title={title})")
         pending_review = gate_status == "pending_review"
         priority = self._resolve_generated_priority(case_for_quality, test_point)
 
@@ -192,9 +192,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
         except IntegrityError as e:
             self.db.rollback()
             if "title" in str(e).lower() or "duplicate" in str(e).lower():
-                raise ValueError(
-                    f"concurrent duplicate generated case title: {title}"
-                ) from e
+                raise ValueError(f"concurrent duplicate generated case title: {title}") from e
             raise
 
         invalidate_project_cache(project_id)
@@ -202,8 +200,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
         for i, step in enumerate(steps):
             raw_action_type = step.get("action_type", "")
             corrected_action_type = self._correct_action_type(
-                step.get("action", step.get("description", step.get("step", "执行"))),
-                raw_action_type
+                step.get("action", step.get("description", step.get("step", "执行"))), raw_action_type
             )
             test_step = TestStep(
                 test_case_id=test_case.id,
@@ -214,7 +211,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
                 input_value=step.get("input_value", ""),
                 target_element=step.get("target_element", ""),
                 is_business_view=1,
-                is_technical_view=1
+                is_technical_view=1,
             )
             self.db.add(test_step)
 
@@ -226,9 +223,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
                 from app.utils.ai_client import parse_precondition_to_steps
                 from app.models.test_case import TestCasePreconditionStep
 
-                parsed_steps = parse_precondition_to_steps(
-                    precondition=test_case.precondition
-                )
+                parsed_steps = parse_precondition_to_steps(precondition=test_case.precondition)
                 if inspect.isawaitable(parsed_steps):
                     parsed_steps = await parsed_steps
 
@@ -243,7 +238,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
                             target_element=step_data.get("target_element", ""),
                             expected_result=step_data.get("expected_result", ""),
                             has_locator=0,
-                            locator_status="pending"
+                            locator_status="pending",
                         )
                         self.db.add(pc_step)
                     self.db.commit()

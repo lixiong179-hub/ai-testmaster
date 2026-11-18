@@ -6,6 +6,7 @@
     - FailureAnalysis: 失败分析结果
     - HealResult: 自愈执行结果
 """
+
 from app.services.self_healing.models import FailureAnalysis, FailureType, HealResult
 from app.services.self_healing.failure_analyzer import FailureAnalyzer
 

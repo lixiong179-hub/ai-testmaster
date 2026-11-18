@@ -18,6 +18,7 @@
     2. artifact 传递基于 artifact_type 去重，同类型后覆盖前
     3. 编排器不管理事务，各 Agent 内部自管会话持久化
 """
+
 from __future__ import annotations
 
 import time
@@ -164,10 +165,7 @@ class AgentOrchestrator:
             status=PipelineStatus.RUNNING,
         )
         start_time = time.monotonic()
-        logger.info(
-            f"Agent 编排管线启动: pipeline_id={pipeline_id}, "
-            f"steps={pipeline}"
-        )
+        logger.info(f"Agent 编排管线启动: pipeline_id={pipeline_id}, steps={pipeline}")
 
         # artifacts 在管线中逐步累积：初始 artifacts + 各 Agent 输出
         accumulated_artifacts = self._merge_artifacts([], initial_artifacts)
@@ -198,9 +196,7 @@ class AgentOrchestrator:
 
                 # 合并 Agent 输出 artifacts 到累积集
                 output_artifacts = self._extract_output_artifacts(session)
-                accumulated_artifacts = self._merge_artifacts(
-                    accumulated_artifacts, output_artifacts
-                )
+                accumulated_artifacts = self._merge_artifacts(accumulated_artifacts, output_artifacts)
 
                 logger.info(
                     f"管线步骤 {idx + 1}/{len(pipeline)} 完成: "
@@ -213,10 +209,7 @@ class AgentOrchestrator:
                 step_result.duration_seconds = time.monotonic() - step_start
                 step_result.error = str(exc)
                 has_failure = True
-                logger.warning(
-                    f"管线步骤 {idx + 1}/{len(pipeline)} 失败: "
-                    f"agent={agent_type}, error={exc}"
-                )
+                logger.warning(f"管线步骤 {idx + 1}/{len(pipeline)} 失败: agent={agent_type}, error={exc}")
 
             result.steps.append(step_result)
             result.total_token_cost += step_result.token_cost
@@ -225,17 +218,12 @@ class AgentOrchestrator:
                 result.status = PipelineStatus.FAILED
                 result.total_duration_seconds = time.monotonic() - start_time
                 result.final_artifacts = accumulated_artifacts
-                logger.warning(
-                    f"管线因步骤失败终止: pipeline_id={pipeline_id}, "
-                    f"failed_at={agent_type}"
-                )
+                logger.warning(f"管线因步骤失败终止: pipeline_id={pipeline_id}, failed_at={agent_type}")
                 return result
 
         result.total_duration_seconds = time.monotonic() - start_time
         result.final_artifacts = accumulated_artifacts
-        result.status = (
-            PipelineStatus.PARTIAL if has_failure else PipelineStatus.COMPLETED
-        )
+        result.status = PipelineStatus.PARTIAL if has_failure else PipelineStatus.COMPLETED
         logger.info(
             f"Agent 编排管线结束: pipeline_id={pipeline_id}, "
             f"status={result.status.value}, "
@@ -260,9 +248,7 @@ class AgentOrchestrator:
                 )
 
     @staticmethod
-    def _merge_artifacts(
-        base: list[Artifact], new: list[Artifact]
-    ) -> list[Artifact]:
+    def _merge_artifacts(base: list[Artifact], new: list[Artifact]) -> list[Artifact]:
         """合并两个 artifact 列表，同类型 new 覆盖 base。
 
         Args:

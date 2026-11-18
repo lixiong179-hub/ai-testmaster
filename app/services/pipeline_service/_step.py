@@ -32,6 +32,7 @@ def create_step(
     input_artifact_ids: list[int] | None = None,
 ) -> PipelineStep:
     from app.models.pipeline import PipelineRun
+
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
     if run is None:
         raise PipelineStepValidationError(f"run_id={run_id} 不存在")
@@ -77,7 +78,9 @@ def update_step_status(
     from_status = step.status
     if (from_status, status) not in PIPELINE_STEP_TRANSITIONS:
         raise PipelineStatusTransitionError(
-            "PipelineStep", from_status, status,
+            "PipelineStep",
+            from_status,
+            status,
             detail=f"允许的迁移路径: {from_status} → {status} 不在允许列表中",
         )
 
@@ -94,8 +97,12 @@ def update_step_status(
     now = utcnow()
     if status == PipelineStepStatus.RUNNING.value and step.started_at is None:
         step.started_at = now
-    if status in (PipelineStepStatus.DONE.value, PipelineStepStatus.FAILED.value,
-                  PipelineStepStatus.SKIPPED.value, PipelineStepStatus.DEGRADED.value):
+    if status in (
+        PipelineStepStatus.DONE.value,
+        PipelineStepStatus.FAILED.value,
+        PipelineStepStatus.SKIPPED.value,
+        PipelineStepStatus.DEGRADED.value,
+    ):
         step.finished_at = now
 
     db.flush()
@@ -110,7 +117,9 @@ def increment_step_retried_count(db: Session, step_id: int) -> None:
 
 
 def update_step_output_artifact_ids(
-    db: Session, step_id: int, artifact_ids: list[int],
+    db: Session,
+    step_id: int,
+    artifact_ids: list[int],
 ) -> None:
     step = db.query(PipelineStep).filter(PipelineStep.id == step_id).first()
     if step is not None:

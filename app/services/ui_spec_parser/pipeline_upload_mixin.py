@@ -18,6 +18,7 @@
     - app.crud.ui_prototype: UI原型CRUD操作
     - app.core.config: 配置管理
 """
+
 import zipfile
 import os
 from typing import Any
@@ -48,15 +49,10 @@ class PipelineUploadMixin:
         对外提供upload_and_create_screens接口。
     """
 
-    SUPPORTED_IMAGE_TYPES = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
+    SUPPORTED_IMAGE_TYPES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
     def __init__(
-        self,
-        db,
-        project_id: int,
-        user_id: int,
-        upload_dir: str | None = None,
-        parse_mode: str | None = None
+        self, db, project_id: int, user_id: int, upload_dir: str | None = None, parse_mode: str | None = None
     ) -> None:
         """初始化解析管道
 
@@ -71,7 +67,7 @@ class PipelineUploadMixin:
         self.project_id = project_id
         self.user_id = user_id
         self.upload_dir = upload_dir or settings.UI_PROTOTYPE_UPLOAD_DIR
-        self.parse_mode = parse_mode or getattr(settings, 'UI_PARSER_MODE', 'text')
+        self.parse_mode = parse_mode or getattr(settings, "UI_PARSER_MODE", "text")
 
     def _is_image_file(self, filename: str) -> bool:
         """检查是否为支持的图片文件"""
@@ -82,7 +78,7 @@ class PipelineUploadMixin:
         """解压ZIP文件，返回图片文件路径列表"""
         image_files = []
         try:
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(extract_to)
                 for root, dirs, files in os.walk(extract_to):
                     for file in files:
@@ -105,7 +101,7 @@ class PipelineUploadMixin:
         files: list[dict[str, Any]],
         prototype_name: str,
         prototype_project_id: int | None = None,
-        is_zip: bool = False
+        is_zip: bool = False,
     ) -> tuple[list[int], str]:
         """上传文件并创建屏幕记录
 
@@ -122,10 +118,9 @@ class PipelineUploadMixin:
 
         try:
             if is_zip and files:
-                zip_path = files[0]['path']
+                zip_path = files[0]["path"]
                 extract_dir = os.path.join(
-                    self.upload_dir,
-                    f"{self.project_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    self.upload_dir, f"{self.project_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 )
                 os.makedirs(extract_dir, exist_ok=True)
 
@@ -138,22 +133,24 @@ class PipelineUploadMixin:
 
                 screens_data = []
                 for i, img_path in enumerate(image_files):
-                    screens_data.append({
-                        'prototype_name': prototype_name,
-                        'screen_name': os.path.splitext(os.path.basename(img_path))[0],
-                        'file_path': img_path,
-                        'file_name': os.path.basename(img_path),
-                        'file_type': os.path.splitext(img_path)[1][1:],
-                        'file_size': self._get_file_size(img_path),
-                        'screen_order': i
-                    })
+                    screens_data.append(
+                        {
+                            "prototype_name": prototype_name,
+                            "screen_name": os.path.splitext(os.path.basename(img_path))[0],
+                            "file_path": img_path,
+                            "file_name": os.path.basename(img_path),
+                            "file_type": os.path.splitext(img_path)[1][1:],
+                            "file_size": self._get_file_size(img_path),
+                            "screen_order": i,
+                        }
+                    )
 
                 screens = ui_prototype_crud.batch_create_ui_screens(
                     db=self.db,
                     project_id=self.project_id,
                     screens_data=screens_data,
                     created_by=self.user_id,
-                    prototype_project_id=prototype_project_id
+                    prototype_project_id=prototype_project_id,
                 )
                 screen_ids = [s.id for s in screens]
 
@@ -163,14 +160,14 @@ class PipelineUploadMixin:
                         db=self.db,
                         project_id=self.project_id,
                         prototype_name=prototype_name,
-                        screen_name=file_info.get('name', f'屏幕{i+1}').rsplit('.', 1)[0],
-                        original_file_path=file_info['path'],
-                        original_file_name=file_info['name'],
-                        file_type=file_info.get('name', 'png').rsplit('.', 1)[-1],
-                        file_size=file_info.get('size', 0) // 1024,
+                        screen_name=file_info.get("name", f"屏幕{i + 1}").rsplit(".", 1)[0],
+                        original_file_path=file_info["path"],
+                        original_file_name=file_info["name"],
+                        file_type=file_info.get("name", "png").rsplit(".", 1)[-1],
+                        file_size=file_info.get("size", 0) // 1024,
                         screen_order=i,
                         created_by=self.user_id,
-                        prototype_project_id=prototype_project_id
+                        prototype_project_id=prototype_project_id,
                     )
                     screen_ids.append(screen.id)
 

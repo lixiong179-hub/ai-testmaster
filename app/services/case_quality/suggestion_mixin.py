@@ -3,20 +3,20 @@
 综合评分权重调整：
     复杂度 0.3 + 冗余度 0.3 + 覆盖度 0.4（覆盖度内部已按三维度加权）
 """
+
 from loguru import logger
 
 from app.services.case_quality.models import (
-    ComplexityScore, RedundancyScore, CoverageScore, QualityReport,
+    ComplexityScore,
+    RedundancyScore,
+    CoverageScore,
+    QualityReport,
 )
 
 
 class SuggestionMixin:
-
     def _generate_optimization_suggestions(
-        self,
-        complexity: ComplexityScore,
-        redundancy: RedundancyScore,
-        coverage: CoverageScore
+        self, complexity: ComplexityScore, redundancy: RedundancyScore, coverage: CoverageScore
     ) -> list[str]:
         """基于三维度覆盖率生成改进建议。
 
@@ -45,14 +45,10 @@ class SuggestionMixin:
 
         # --- 冗余度相关建议 ---
         if redundancy.similar_case_count > 0:
-            suggestions.append(
-                f"发现 {redundancy.similar_case_count} 个相似用例，建议合并或使用数据驱动方式"
-            )
+            suggestions.append(f"发现 {redundancy.similar_case_count} 个相似用例，建议合并或使用数据驱动方式")
 
         if redundancy.duplicate_step_count > 0:
-            suggestions.append(
-                f"发现 {redundancy.duplicate_step_count} 个重复步骤，建议提取为公共前置条件"
-            )
+            suggestions.append(f"发现 {redundancy.duplicate_step_count} 个重复步骤，建议提取为公共前置条件")
 
         if redundancy.level == "high":
             suggestions.append("用例冗余度较高，建议重构以减少重复")
@@ -62,13 +58,9 @@ class SuggestionMixin:
         reqDetails = coverage.requirement_details
         if reqDetails.get("project_total_test_points", 0) > 0:
             if not reqDetails.get("has_test_point_link", False):
-                suggestions.append(
-                    "用例未关联测试点，建议绑定需求测试点以提升需求覆盖率"
-                )
+                suggestions.append("用例未关联测试点，建议绑定需求测试点以提升需求覆盖率")
             elif reqRate < 1.0:
-                suggestions.append(
-                    f"需求覆盖率为 {reqRate:.0%}，建议补充关联测试点"
-                )
+                suggestions.append(f"需求覆盖率为 {reqRate:.0%}，建议补充关联测试点")
         else:
             suggestions.append("项目暂无测试点数据，建议先导入需求并提取测试点")
 
@@ -79,9 +71,7 @@ class SuggestionMixin:
             stepsWithTarget = uiDetails.get("steps_with_target", 0)
             matchedSteps = uiDetails.get("matched_steps", 0)
             if stepsWithTarget == 0:
-                suggestions.append(
-                    "步骤缺少目标元素描述(target_element)，建议补充以提升UI元素覆盖率"
-                )
+                suggestions.append("步骤缺少目标元素描述(target_element)，建议补充以提升UI元素覆盖率")
             elif uiRate < 0.5:
                 suggestions.append(
                     f"UI元素覆盖率仅 {uiRate:.0%}（{matchedSteps}/{stepsWithTarget} 步骤命中），"
@@ -94,8 +84,7 @@ class SuggestionMixin:
         locRate = coverage.locator_coverage_rate
         if coverage.uncovered_elements > 0 and locRate < 0.5:
             suggestions.append(
-                f"元素定位覆盖率仅 {locRate:.0%}，有 {coverage.uncovered_elements} 个步骤"
-                f"缺少定位信息，建议批量录制"
+                f"元素定位覆盖率仅 {locRate:.0%}，有 {coverage.uncovered_elements} 个步骤缺少定位信息，建议批量录制"
             )
 
         if coverage.level in ("low", "very_low") and locRate < 0.3:
@@ -103,10 +92,7 @@ class SuggestionMixin:
 
         return suggestions
 
-    async def _generate_ai_suggestions(
-        self,
-        quality_report: QualityReport
-    ) -> list[str]:
+    async def _generate_ai_suggestions(self, quality_report: QualityReport) -> list[str]:
         """基于AI模型生成优化建议。
 
         Args:
@@ -119,6 +105,7 @@ class SuggestionMixin:
 
         try:
             from app.utils.unified_vision_model import get_default_vision_model
+
             visionModel = get_default_vision_model()
 
             coverage = quality_report.coverage
@@ -133,18 +120,18 @@ class SuggestionMixin:
 
             prompt = f"""请分析以下测试用例质量报告，给出优化建议：
 
-复杂度: {quality_report.complexity.level if quality_report.complexity else 'unknown'} (得分: {quality_report.complexity.score if quality_report.complexity else 0})
-冗余度: {quality_report.redundancy.level if quality_report.redundancy else 'unknown'} (得分: {quality_report.redundancy.score if quality_report.redundancy else 0})
-覆盖率: {quality_report.coverage.level if quality_report.coverage else 'unknown'} (综合得分: {quality_report.coverage.score if quality_report.coverage else 0})
+复杂度: {quality_report.complexity.level if quality_report.complexity else "unknown"} (得分: {quality_report.complexity.score if quality_report.complexity else 0})
+冗余度: {quality_report.redundancy.level if quality_report.redundancy else "unknown"} (得分: {quality_report.redundancy.score if quality_report.redundancy else 0})
+覆盖率: {quality_report.coverage.level if quality_report.coverage else "unknown"} (综合得分: {quality_report.coverage.score if quality_report.coverage else 0})
 {coverageInfo}
 
 请给出3-5条具体的优化建议，每条建议一行。"""
 
             response = visionModel.analyze_text("", prompt)
             if response:
-                lines = [line.strip() for line in response.split('\n') if line.strip()]
+                lines = [line.strip() for line in response.split("\n") if line.strip()]
                 for line in lines:
-                    clean = line.lstrip('0123456789.-) ')
+                    clean = line.lstrip("0123456789.-) ")
                     if clean:
                         aiSuggestions.append(clean)
 
@@ -155,9 +142,7 @@ class SuggestionMixin:
 
     @staticmethod
     def _calculate_overall_score(
-        complexity: ComplexityScore,
-        redundancy: RedundancyScore,
-        coverage: CoverageScore
+        complexity: ComplexityScore, redundancy: RedundancyScore, coverage: CoverageScore
     ) -> float:
         """计算综合评分。
 

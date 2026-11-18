@@ -25,12 +25,8 @@ class QuickTestLaunchRequest(BaseModel):
     """
 
     url: HttpUrl = Field(..., description="被测站点网址，必须为 http/https")
-    description: str | None = Field(
-        None, description="自然语言描述，聚焦测试范围，如'重点测登录和搜索功能'"
-    )
-    credentials: dict[str, str] | None = Field(
-        None, description="登录凭据 {username, password}，仅登录页场景使用"
-    )
+    description: str | None = Field(None, description="自然语言描述，聚焦测试范围，如'重点测登录和搜索功能'")
+    credentials: dict[str, str] | None = Field(None, description="登录凭据 {username, password}，仅登录页场景使用")
 
 
 class QuickTestLaunchResponse(BaseModel):
@@ -43,12 +39,8 @@ class QuickTestLaunchResponse(BaseModel):
 
     task_id: int = Field(..., description="已创建的测试任务 ID")
     project_id: int = Field(..., description="自动创建的项目 ID")
-    estimated_duration_sec: int = Field(
-        ..., description="预估执行时长（秒），按用例数 * 30 估算"
-    )
-    websocket_channel: str = Field(
-        ..., description="WebSocket 订阅通道，形如 quick_test:{task_id}"
-    )
+    estimated_duration_sec: int = Field(..., description="预估执行时长（秒），按用例数 * 30 估算")
+    websocket_channel: str = Field(..., description="WebSocket 订阅通道，形如 quick_test:{task_id}")
 
 
 class QuickTestStatusResponse(BaseModel):
@@ -64,13 +56,10 @@ class QuickTestStatusResponse(BaseModel):
     status: str = Field(..., description="任务状态中文标签：等待执行/执行中/执行完成/执行失败/已停止")
     progress: int = Field(..., ge=0, le=100, description="执行进度百分比 0-100")
     current_stage: str = Field(
-        ..., description="当前编排阶段：pending/site_exploring/case_generating/"
-        "task_assembling/executing/completed/failed/stopped"
+        ...,
+        description="当前编排阶段：pending/site_exploring/case_generating/"
+        "task_assembling/executing/completed/failed/stopped",
     )
     case_count: int = Field(..., ge=0, description="任务关联用例数")
-    started_at: str | None = Field(
-        None, description="任务开始执行时间 ISO8601，未启动时为 None"
-    )
-    websocket_channel: str = Field(
-        ..., description="WebSocket 订阅通道，形如 quick_test:{task_id}"
-    )
+    started_at: str | None = Field(None, description="任务开始执行时间 ISO8601，未启动时为 None")
+    websocket_channel: str = Field(..., description="WebSocket 订阅通道，形如 quick_test:{task_id}")

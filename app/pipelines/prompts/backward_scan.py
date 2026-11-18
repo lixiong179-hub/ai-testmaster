@@ -11,6 +11,7 @@
 
 模板支持模块切片占位符 {module_label}。
 """
+
 import json
 from typing import Any
 

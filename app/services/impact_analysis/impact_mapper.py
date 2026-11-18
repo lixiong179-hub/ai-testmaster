@@ -8,6 +8,7 @@
 
 依赖：app.services.impact_analysis.models
 """
+
 import logging
 from collections.abc import Iterable
 
@@ -139,6 +140,4 @@ class ImpactMapper:
 
         业务用途：低置信度用例标记人工复核，高置信度用例自动执行。
         """
-        return sorted({
-            r.test_case_id for r in ranges if r.is_high_confidence(threshold)
-        })
+        return sorted({r.test_case_id for r in ranges if r.is_high_confidence(threshold)})

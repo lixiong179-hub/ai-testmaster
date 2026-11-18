@@ -7,6 +7,7 @@
 `generate_test_case` / `generate_test_case_enhanced` / `parse_precondition_to_steps`
 等符号在本模块命名空间可见，保持既有 patch 与 import 路径可用。
 """
+
 import asyncio
 import json
 from datetime import datetime
@@ -73,9 +74,7 @@ def _raise_ai_error(e: Exception) -> None:
     for exc_type, (http_code, detail) in _AI_ERROR_MAP.items():
         if isinstance(e, exc_type):
             raise HTTPException(status_code=http_code, detail=detail) from e
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI生成失败"
-    )
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI生成失败")
 
 
 @router.post("/ai-generate")
@@ -89,9 +88,7 @@ async def ai_generate_test_case(
 
     project_result = await asyncio.to_thread(
         db.execute,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
@@ -101,11 +98,15 @@ async def ai_generate_test_case(
         priority_value = normalize_priority(generated_case.get("priority", "medium"))
 
         new_test_case = TestCase(
-            project_id=project_id, title=generated_case.get("title") or "(无标题)",
+            project_id=project_id,
+            title=generated_case.get("title") or "(无标题)",
             precondition=generated_case.get("precondition", ""),
             expected_result=generated_case.get("expected_result", ""),
-            priority=priority_value, module="AI生成",
-            case_type=generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE,
+            priority=priority_value,
+            module="AI生成",
+            case_type=generated_case.get("case_type")
+            or generated_case.get("test_category")
+            or DEFAULT_AI_FALLBACK_CASE_TYPE,
             steps_json=generated_case.get("steps", []),
             case_no=f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
             generate_status=1,
@@ -115,16 +116,17 @@ async def ai_generate_test_case(
         await asyncio.to_thread(db.flush)
         for i, step in enumerate(generated_case.get("steps", [])):
             action = step.get("action") or step.get("step") or f"步骤{i + 1}"
-            expected_result = (
-                step.get("expected_result") or step.get("param") or "预期结果正常"
-            )
+            expected_result = step.get("expected_result") or step.get("param") or "预期结果正常"
             test_step = TestStep(
-                test_case_id=new_test_case.id, step_number=i + 1,
-                action=action, expected_result=expected_result,
+                test_case_id=new_test_case.id,
+                step_number=i + 1,
+                action=action,
+                expected_result=expected_result,
                 action_type=step.get("action_type", ""),
                 input_value=step.get("input_value", ""),
                 target_element=step.get("target_element", ""),
-                is_business_view=1, is_technical_view=1,
+                is_business_view=1,
+                is_technical_view=1,
             )
             db.add(test_step)
         await asyncio.to_thread(db.commit)
@@ -148,30 +150,20 @@ async def ai_enhanced_generate(
 
     project_result = await asyncio.to_thread(
         db.execute,
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     if not description or len(description.strip()) < 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="描述不能为空且至少需要5个字符"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="描述不能为空且至少需要5个字符")
     if request.mode == "graph" and not request.flow_sort_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Graph模式下flow_sort_data不能为空"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Graph模式下flow_sort_data不能为空")
     try:
         context = dict(request.context or {})
         if request.extra_requirements:
             context["extra_requirements"] = request.extra_requirements
-        logger.info(
-            f"AI生成增强模式 - 接收到的context: "
-            f"{json.dumps(context, ensure_ascii=False, default=str)[:500]}"
-        )
+        logger.info(f"AI生成增强模式 - 接收到的context: {json.dumps(context, ensure_ascii=False, default=str)[:500]}")
 
         has_requirement = bool(context.get("requirement_content", "").strip())
         has_ui = bool(context.get("ui_specs"))
@@ -180,21 +172,24 @@ async def ai_enhanced_generate(
         if not has_requirement and not has_ui_reference and not has_flow:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="生成上下文为空：请上传需求文档、UI原型图或配置流程节点，确保AI有足够的输入信息"
+                detail="生成上下文为空：请上传需求文档、UI原型图或配置流程节点，确保AI有足够的输入信息",
             )
 
         if request.mode == "graph":
             prompt_data = _build_graph_prompt_data(
                 flow_sort_data=request.flow_sort_data,
-                context=context, description=description,
+                context=context,
+                description=description,
                 priority=request.priority,
                 case_type=request.case_type or None,
             )
             generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)
         elif request.enhanced_mode:
             prompt_data = _build_linear_prompt_data(
-                context=context, description=description,
-                priority=request.priority, case_type=request.case_type or None,
+                context=context,
+                description=description,
+                priority=request.priority,
+                case_type=request.case_type or None,
                 exec_mode=request.exec_mode,
             )
             generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)
@@ -203,8 +198,10 @@ async def ai_enhanced_generate(
         cases_list = generated_case if isinstance(generated_case, list) else [generated_case]
         response_data = [
             _format_case_response(
-                generated_case=case_item, project_id=project_id,
-                description=description, priority=request.priority,
+                generated_case=case_item,
+                project_id=project_id,
+                description=description,
+                priority=request.priority,
                 case_type=request.case_type or DEFAULT_AI_FALLBACK_CASE_TYPE,
             )
             for case_item in cases_list
@@ -223,17 +220,14 @@ async def get_generation_context(
 ) -> dict[str, Any]:
     project_result = await asyncio.to_thread(
         db.execute,
-        select(Project).where(
-            Project.id == request.project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == request.project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
     from app.services.test_case_generation import TestCaseGenerationService
     from app.utils.async_sync_bridge import run_async_coro_in_thread
+
     # TestCaseGenerationService 内部使用 sync Session API，需独立 sync 会话
     # 性能优化：将整个 async service 调用放到独立线程，避免 sync_db.query() 阻塞主事件循环
     sync_db = PrimarySessionLocal()
@@ -241,7 +235,8 @@ async def get_generation_context(
         service = TestCaseGenerationService(sync_db)
         context = await run_async_coro_in_thread(
             service.get_context_for_generation(
-                project_id=request.project_id, user_id=current_user.id,
+                project_id=request.project_id,
+                user_id=current_user.id,
                 requirement_file_ids=request.requirement_file_ids,
                 ui_file_ids=request.ui_file_ids,
                 ui_screen_ids=request.ui_screen_ids,
@@ -274,23 +269,25 @@ async def get_generation_context(
             test_points_count = 0
             logger.info(f"项目 {request.project_id}: 历史用例查漏补缺模式，跳过测试点自动加载")
 
-        return create_response(data={
-            "requirement_content": context.get("requirement_content", ""),
-            "requirement_length": len(context.get("requirement_content", "")),
-            "ui_descriptions": context.get("ui_descriptions", []),
-            "ui_specs": context.get("ui_specs", []),
-            "ui_count": len(context.get("ui_descriptions", [])),
-            "test_points": context.get("test_points", []),
-            "test_point_count": test_points_count,
-            "files_used": context.get("files_used", []),
-            "warnings": context.get("warnings", []),
-            "pagination": context.get("pagination", None),
-            "project_config": project_config,
-            "history_cases": context.get("history_cases", []),
-            "context_stats": context.get("context_stats", {}),
-            "evidence_refs": context.get("evidence_refs", {}),
-            "message": f"获取成功：{test_points_count}个测试点",
-        })
+        return create_response(
+            data={
+                "requirement_content": context.get("requirement_content", ""),
+                "requirement_length": len(context.get("requirement_content", "")),
+                "ui_descriptions": context.get("ui_descriptions", []),
+                "ui_specs": context.get("ui_specs", []),
+                "ui_count": len(context.get("ui_descriptions", [])),
+                "test_points": context.get("test_points", []),
+                "test_point_count": test_points_count,
+                "files_used": context.get("files_used", []),
+                "warnings": context.get("warnings", []),
+                "pagination": context.get("pagination", None),
+                "project_config": project_config,
+                "history_cases": context.get("history_cases", []),
+                "context_stats": context.get("context_stats", {}),
+                "evidence_refs": context.get("evidence_refs", {}),
+                "message": f"获取成功：{test_points_count}个测试点",
+            }
+        )
     finally:
         sync_db.close()
 
@@ -303,24 +300,22 @@ async def generate_single_test_case(
 ) -> dict[str, Any]:
     project_result = await asyncio.to_thread(
         db.execute,
-        select(Project).where(
-            Project.id == request.project_id, Project.user_id == current_user.id
-        ),
+        select(Project).where(Project.id == request.project_id, Project.user_id == current_user.id),
     )
     project = project_result.scalars().first()
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
     from app.services.test_case_generation import TestCaseGenerationService
     from app.utils.async_sync_bridge import run_async_coro_in_thread
+
     sync_db = PrimarySessionLocal()
     try:
         service = TestCaseGenerationService(sync_db)
         # 性能优化：将 service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
         context = await run_async_coro_in_thread(
             service.get_context_for_generation(
-                project_id=request.project_id, user_id=current_user.id,
+                project_id=request.project_id,
+                user_id=current_user.id,
                 requirement_file_ids=request.requirement_file_ids,
                 ui_file_ids=request.ui_file_ids,
                 ui_screen_ids=request.ui_screen_ids,
@@ -337,18 +332,22 @@ async def generate_single_test_case(
         test_point = test_points[0]
         try:
             from app.utils.ai_concurrency import ai_generation_slot
+
             # AI 生成调用受模块级信号量保护，限制跨请求总并发（P-2 修复）
             async with ai_generation_slot():
                 generated_case = await run_async_coro_in_thread(
                     service.generate_test_case_for_point(
-                        context=context, test_point=test_point,
-                        project_id=request.project_id, case_type=request.case_type,
+                        context=context,
+                        test_point=test_point,
+                        project_id=request.project_id,
+                        case_type=request.case_type,
                     )
                 )
             saved_case = await run_async_coro_in_thread(
                 service._save_test_case(
                     project_id=request.project_id,
-                    generated_case=generated_case, test_point=test_point,
+                    generated_case=generated_case,
+                    test_point=test_point,
                 )
             )
             steps_data = [
@@ -359,26 +358,31 @@ async def generate_single_test_case(
                 }
                 for step in generated_case.get("steps", [])
             ]
-            return create_response(data={
-                "id": saved_case.id, "project_id": saved_case.project_id,
-                "case_no": saved_case.case_no, "module": saved_case.module,
-                "title": saved_case.title, "precondition": saved_case.precondition,
-                "test_data": generated_case.get("test_data", {}),
-                "steps": steps_data, "expected_result": saved_case.expected_result,
-                "priority": saved_case.priority, "case_type": saved_case.case_type,
-                "generate_status": saved_case.generate_status,
-                "test_point_id": test_point.get("id"),
-                "context_stats": context.get("context_stats", {}),
-                "evidence_refs": context.get("evidence_refs", {}),
-                "warnings": context.get("warnings", []),
-                "message": "测试用例生成成功",
-            })
+            return create_response(
+                data={
+                    "id": saved_case.id,
+                    "project_id": saved_case.project_id,
+                    "case_no": saved_case.case_no,
+                    "module": saved_case.module,
+                    "title": saved_case.title,
+                    "precondition": saved_case.precondition,
+                    "test_data": generated_case.get("test_data", {}),
+                    "steps": steps_data,
+                    "expected_result": saved_case.expected_result,
+                    "priority": saved_case.priority,
+                    "case_type": saved_case.case_type,
+                    "generate_status": saved_case.generate_status,
+                    "test_point_id": test_point.get("id"),
+                    "context_stats": context.get("context_stats", {}),
+                    "evidence_refs": context.get("evidence_refs", {}),
+                    "warnings": context.get("warnings", []),
+                    "message": "测试用例生成成功",
+                }
+            )
         except Exception as e:
             sync_db.rollback()
             logger.error(f"生成测试用例失败: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="生成失败"
-            )
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="生成失败")
     finally:
         sync_db.close()
 
@@ -403,20 +407,18 @@ async def get_precondition_steps(
 ):
     test_case_result = await asyncio.to_thread(
         db.execute,
-        select(TestCase).join(Project).where(
-            TestCase.id == case_id,
-            TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        ),
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
     steps_result = await asyncio.to_thread(
         db.execute,
-        select(TestCasePreconditionStep).where(
-            TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number),
+        select(TestCasePreconditionStep)
+        .where(TestCasePreconditionStep.test_case_id == case_id)
+        .order_by(TestCasePreconditionStep.step_number),
     )
     steps = steps_result.scalars().all()
     data = [PreconditionStepResponse.model_validate(s) for s in steps]
@@ -432,19 +434,16 @@ async def batch_save_precondition_steps(
 ):
     test_case_result = await asyncio.to_thread(
         db.execute,
-        select(TestCase).join(Project).where(
-            TestCase.id == case_id, TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        ),
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
     await asyncio.to_thread(
         db.execute,
-        delete(TestCasePreconditionStep).where(
-            TestCasePreconditionStep.test_case_id == case_id
-        ),
+        delete(TestCasePreconditionStep).where(TestCasePreconditionStep.test_case_id == case_id),
     )
     for i, step_data in enumerate(request.steps):
         step = TestCasePreconditionStep(
@@ -455,15 +454,16 @@ async def batch_save_precondition_steps(
             action_type=step_data.action_type,
             input_value=step_data.input_value,
             target_element=step_data.target_element,
-            has_locator=0, locator_status="pending",
+            has_locator=0,
+            locator_status="pending",
         )
         db.add(step)
     await asyncio.to_thread(db.commit)
     steps_result = await asyncio.to_thread(
         db.execute,
-        select(TestCasePreconditionStep).where(
-            TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number),
+        select(TestCasePreconditionStep)
+        .where(TestCasePreconditionStep.test_case_id == case_id)
+        .order_by(TestCasePreconditionStep.step_number),
     )
     steps = steps_result.scalars().all()
     data = [PreconditionStepResponse.model_validate(s) for s in steps]
@@ -478,10 +478,9 @@ async def parse_precondition(
 ):
     test_case_result = await asyncio.to_thread(
         db.execute,
-        select(TestCase).join(Project).where(
-            TestCase.id == case_id, TestCase.is_deleted.is_(False),
-            Project.user_id == current_user.id
-        ),
+        select(TestCase)
+        .join(Project)
+        .where(TestCase.id == case_id, TestCase.is_deleted.is_(False), Project.user_id == current_user.id),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
@@ -496,9 +495,7 @@ async def parse_precondition(
         if steps:
             await asyncio.to_thread(
                 db.execute,
-                delete(TestCasePreconditionStep).where(
-                    TestCasePreconditionStep.test_case_id == case_id
-                ),
+                delete(TestCasePreconditionStep).where(TestCasePreconditionStep.test_case_id == case_id),
             )
             for i, step_data in enumerate(steps):
                 pc_step = TestCasePreconditionStep(
@@ -509,15 +506,16 @@ async def parse_precondition(
                     action_type=step_data.get("action_type", ""),
                     input_value=step_data.get("input_value", ""),
                     target_element=step_data.get("target_element", ""),
-                    has_locator=0, locator_status="pending",
+                    has_locator=0,
+                    locator_status="pending",
                 )
                 db.add(pc_step)
             await asyncio.to_thread(db.commit)
             saved_result = await asyncio.to_thread(
                 db.execute,
-                select(TestCasePreconditionStep).where(
-                    TestCasePreconditionStep.test_case_id == case_id
-                ).order_by(TestCasePreconditionStep.step_number),
+                select(TestCasePreconditionStep)
+                .where(TestCasePreconditionStep.test_case_id == case_id)
+                .order_by(TestCasePreconditionStep.step_number),
             )
             saved_steps = saved_result.scalars().all()
             saved = [PreconditionStepResponse.model_validate(s) for s in saved_steps]

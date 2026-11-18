@@ -7,6 +7,7 @@
 
 供同步/异步 Mixin 与 thin wrapper 复用，避免循环依赖。
 """
+
 import hashlib
 import logging
 

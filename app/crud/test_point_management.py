@@ -6,6 +6,7 @@
 2. 关联测试用例数量聚合
 3. 测试点关联用例列表查询
 """
+
 from datetime import date, datetime, time
 
 from sqlalchemy import asc, desc, func, or_
@@ -60,13 +61,9 @@ def _build_test_point_filters(
             )
         )
     if created_from:
-        query = query.filter(
-            TestPoint.create_time >= datetime.combine(created_from, time.min)
-        )
+        query = query.filter(TestPoint.create_time >= datetime.combine(created_from, time.min))
     if created_to:
-        query = query.filter(
-            TestPoint.create_time <= datetime.combine(created_to, time.max)
-        )
+        query = query.filter(TestPoint.create_time <= datetime.combine(created_to, time.max))
     return query
 
 

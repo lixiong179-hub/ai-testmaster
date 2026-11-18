@@ -7,6 +7,7 @@
 Task 13: P2-2 重复查询消除 — 改为调用 case_quality.history_cache 共享缓存层，
 避免同项目多次调用重复查询 DB。
 """
+
 import json
 import logging
 from typing import Any
@@ -22,9 +23,7 @@ _DOMAIN_REQUIRED_CATEGORIES = ("positive", "exception", "boundary")
 _DOMAIN_CANDIDATE_LIMIT = 15
 
 
-def get_domain_examples(
-    db: Session | None, project_id: int | None
-) -> str | None:
+def get_domain_examples(db: Session | None, project_id: int | None) -> str | None:
     """从项目已有高质量用例中提取领域 Few-shot 示例文本。
 
     按 case_category 分类提取：positive/exception/boundary 各 1 条。
@@ -45,6 +44,7 @@ def get_domain_examples(
         from app.services.case_quality.history_cache import (
             get_history_cases_for_project,
         )
+
         candidates = get_history_cases_for_project(
             db,
             project_id,
@@ -69,10 +69,7 @@ def get_domain_examples(
 
     # spec L119 要求"不足3条时保留通用示例"，即三类不齐全时返回 None
     if len(selected) < len(_DOMAIN_REQUIRED_CATEGORIES):
-        logger.info(
-            f"项目 {project_id} 领域示例不齐全（{len(selected)}/3 类），"
-            f"保留通用示例"
-        )
+        logger.info(f"项目 {project_id} 领域示例不齐全（{len(selected)}/3 类），保留通用示例")
         return None
 
     sections: list[str] = ["## 同项目高质量用例参考（Few-shot 示例）："]
@@ -83,8 +80,7 @@ def get_domain_examples(
         # action 字段也可能为 None（dict 中键存在但值为 None），此时 .get('action', '')
         # 返回 None 而非默认空串，None[:30] 会抛 TypeError。统一用 str() 兜底。
         steps_summary = " → ".join(
-            (str(s.get("action") or "") if isinstance(s, dict) else str(s))[:30]
-            for s in steps[:4]
+            (str(s.get("action") or "") if isinstance(s, dict) else str(s))[:30] for s in steps[:4]
         )
         sections.append(
             f"- [{category}] 标题: {case.get('title', '')}\n"
@@ -94,9 +90,7 @@ def get_domain_examples(
             f"  分类: {case.get('case_category') or 'N/A'} | "
             f"质量分: {case.get('prior_quality_score')}"
         )
-    sections.append(
-        "请参考以上高质量用例的描述粒度和结构，但不要照搬内容。"
-    )
+    sections.append("请参考以上高质量用例的描述粒度和结构，但不要照搬内容。")
     return "\n".join(sections)
 
 

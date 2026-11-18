@@ -2,6 +2,7 @@
 
 纯计算 + 后台 Agent 编排，保持原函数名以兼容既有调用点与测试 patch 目标。
 """
+
 import asyncio
 
 from loguru import logger
@@ -36,6 +37,7 @@ def _spawn_failure_analysis_agent(
         last_error: 失败的错误信息（注入 ExecutionStateArtifact）。
         screenshot_url: 失败截图 URL（注入 ExecutionStateArtifact）。
     """
+
     async def _run() -> None:
         try:
             from app.db.database import AsyncPrimarySessionLocal
@@ -70,9 +72,7 @@ def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Sessi
     内部查询 TestStep 后委托给 _perform_failure_analysis_with_steps。
     保留供测试与 sync 调用方使用；async 端点请直接调用 _with_steps 版本。
     """
-    steps = db.query(TestStep).filter(
-        TestStep.test_case_id == test_case.id
-    ).order_by(TestStep.step_number).all()
+    steps = db.query(TestStep).filter(TestStep.test_case_id == test_case.id).order_by(TestStep.step_number).all()
     return _perform_failure_analysis_with_steps(result, test_case, steps)
 
 
@@ -93,20 +93,39 @@ def _perform_failure_analysis_with_steps(result: TestResult, test_case: TestCase
     ai_analysis = result.ai_analysis or ""
 
     locator_error_keywords = [
-        "元素未找到", "定位失败", "css selector", "no such element",
-        "element not found", "stale element", "element is not clickable",
-        "element not interactable", "等待超时", "waiting for element",
-        "无法定位", "找不到元素", "定位信息"
+        "元素未找到",
+        "定位失败",
+        "css selector",
+        "no such element",
+        "element not found",
+        "stale element",
+        "element is not clickable",
+        "element not interactable",
+        "等待超时",
+        "waiting for element",
+        "无法定位",
+        "找不到元素",
+        "定位信息",
     ]
     case_issue_keywords = [
-        "步骤描述错误", "预期结果错误", "操作类型错误",
-        "前置条件不完整", "用例问题", "需要修改用例",
-        "test case error", "incorrect step"
+        "步骤描述错误",
+        "预期结果错误",
+        "操作类型错误",
+        "前置条件不完整",
+        "用例问题",
+        "需要修改用例",
+        "test case error",
+        "incorrect step",
     ]
     bug_issue_keywords = [
-        "功能缺陷", "产品问题", "实际结果与预期不符",
-        "页面显示异常", "数据不一致", "功能异常",
-        "product bug", "功能未按预期工作"
+        "功能缺陷",
+        "产品问题",
+        "实际结果与预期不符",
+        "页面显示异常",
+        "数据不一致",
+        "功能异常",
+        "product bug",
+        "功能未按预期工作",
     ]
 
     combined_text = f"{error_msg} {exec_log}".lower()
@@ -128,9 +147,7 @@ def _perform_failure_analysis_with_steps(result: TestResult, test_case: TestCase
     for step in steps:
         if step.locator_status == LocatorStatus.FAILED.value:
             case_issue_indicators.append(f"步骤{step.step_number}定位状态为失败")
-        elif step.has_locator == 0 and step.action_type in [
-            "click", "input", "navigate", "hover", "select", "scroll"
-        ]:
+        elif step.has_locator == 0 and step.action_type in ["click", "input", "navigate", "hover", "select", "scroll"]:
             case_issue_indicators.append(f"步骤{step.step_number}需要元素定位但缺少定位信息")
 
     if ai_analysis:
@@ -161,14 +178,18 @@ def _perform_failure_analysis_with_steps(result: TestResult, test_case: TestCase
         reason = "无法自动判断失败类型，建议人工分析执行日志和截图"
 
     return {
-        "result_id": result.id, "case_id": test_case.id,
-        "case_title": test_case.title, "suggested_type": suggested_type,
-        "confidence": round(confidence, 2), "reason": reason,
+        "result_id": result.id,
+        "case_id": test_case.id,
+        "case_title": test_case.title,
+        "suggested_type": suggested_type,
+        "confidence": round(confidence, 2),
+        "reason": reason,
         "case_issue_indicators": case_issue_indicators,
         "bug_issue_indicators": bug_issue_indicators,
-        "error_msg": error_msg, "ai_analysis": ai_analysis,
+        "error_msg": error_msg,
+        "ai_analysis": ai_analysis,
         "screenshot_url": result.screenshot_url,
-        "analysis_time": utcnow().isoformat()
+        "analysis_time": utcnow().isoformat(),
     }
 
 

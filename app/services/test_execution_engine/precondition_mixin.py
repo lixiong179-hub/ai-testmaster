@@ -165,9 +165,9 @@ class PreconditionMixin:
 
             locator_record = None
             if self.locator_service and step.id:
-                locator_record = self.db.query(ElementLocator).filter(
-                    ElementLocator.precondition_step_id == step.id
-                ).first()
+                locator_record = (
+                    self.db.query(ElementLocator).filter(ElementLocator.precondition_step_id == step.id).first()
+                )
 
             if action_type == ActionType.NAVIGATE:
                 await self._execute_navigate(action_info)
@@ -229,9 +229,7 @@ class PreconditionMixin:
                 try:
                     result.screenshot = await self.browser.take_screenshot()
                 except Exception as screenshot_error:
-                    logger.debug(
-                        f"Failed to capture failed precondition step screenshot: {screenshot_error}"
-                    )
+                    logger.debug(f"Failed to capture failed precondition step screenshot: {screenshot_error}")
 
             logger.error(f"Precondition step {step.step_number} failed: {e}")
 
@@ -243,9 +241,7 @@ class PreconditionMixin:
         try:
             confidence = element_info.get("confidence", 0)
             if confidence < 0.8:
-                logger.info(
-                    f"Step {step.step_number}: realtime locator confidence {confidence} < 0.8; skip cache"
-                )
+                logger.info(f"Step {step.step_number}: realtime locator confidence {confidence} < 0.8; skip cache")
                 return None
             element_attrs = await self.locator_service._get_element_attributes(element_info)
             if not element_attrs:
@@ -290,7 +286,9 @@ class PreconditionMixin:
             logger.debug(f"Failed to get current page title: {e}")
         return None
 
-    async def _execute_mobile_step(self, step: TestStep, action_with_data: str, execution_mode: str, result: StepExecutionResult) -> None:
+    async def _execute_mobile_step(
+        self, step: TestStep, action_with_data: str, execution_mode: str, result: StepExecutionResult
+    ) -> None:
         mobile_executor = self._get_mobile_executor()
         if not mobile_executor:
             raise StepExecutionError("Mobile executor is not initialized; check ADB connection")

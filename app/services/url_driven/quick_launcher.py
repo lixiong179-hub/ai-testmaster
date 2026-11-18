@@ -19,6 +19,7 @@ AutoCaseGenerator.generate → TaskAssembler.assemble，每步异常捕获并降
 - 推送复用 PushService.push(channel, data)，通道不以 "task:" 开头，作为独立
   execution_id 广播，与执行引擎的 `task:{task_id}` 通道互不干扰。
 """
+
 import asyncio
 from collections.abc import Callable
 
@@ -77,9 +78,7 @@ class QuickLauncher:
         """
         self._project_builder = project_builder or AutoProjectBuilder()
         self._explorer_factory = explorer_factory or (lambda: SiteExplorer())
-        self._case_generator_factory = (
-            case_generator_factory or self._default_case_generator_factory
-        )
+        self._case_generator_factory = case_generator_factory or self._default_case_generator_factory
         self._push_service = push_service or get_push_service()
         self._assembler = assembler or TaskAssembler(push_service=self._push_service)
         self._ai_client = ai_client
@@ -125,14 +124,18 @@ class QuickLauncher:
         channel = f"quick_test:{task.id}"
         # ③ 推送 site_exploring running 后立即启动后台编排
         await self._push(channel, _STAGE_SITE_EXPLORING, "running", 10, {"url": url})
-        asyncio.create_task(self._run_pipeline_async(
-            task_id=task.id, project_id=project.id, url=url,
-            credentials=credentials, description=description,
-            user_id=user_id, channel=channel,
-        ))
-        logger.info(
-            f"快速测试编排已异步启动: task_id={task.id} project_id={project.id}"
+        asyncio.create_task(
+            self._run_pipeline_async(
+                task_id=task.id,
+                project_id=project.id,
+                url=url,
+                credentials=credentials,
+                description=description,
+                user_id=user_id,
+                channel=channel,
+            )
         )
+        logger.info(f"快速测试编排已异步启动: task_id={task.id} project_id={project.id}")
         # ④ 立即返回，前端拿到 task_id 后立即订阅 WebSocket 接收推送
         return QuickTestLaunchResponse(
             task_id=task.id,
@@ -165,26 +168,26 @@ class QuickLauncher:
             site_map = await self._explore_safely(url, credentials, channel)
             # ② 用例生成（失败降级为空用例）
             await self._push(channel, _STAGE_CASE_GENERATING, "running", 40, {})
-            cases = await self._generate_cases_safely(
-                site_map, project_id, description, user_id, session, channel
-            )
+            cases = await self._generate_cases_safely(site_map, project_id, description, user_id, session, channel)
             case_ids = [case.id for case in cases]
             # ③ 任务装配（失败仍返回已预创建 task_id）
-            await self._push(
-                channel, _STAGE_TASK_ASSEMBLING, "running", 70, {"case_count": len(case_ids)}
-            )
-            await self._assemble_safely(
-                project_id, case_ids, user_id, session, task_id, channel
-            )
+            await self._push(channel, _STAGE_TASK_ASSEMBLING, "running", 70, {"case_count": len(case_ids)})
+            await self._assemble_safely(project_id, case_ids, user_id, session, task_id, channel)
             # ④ 编排完成（执行引擎进度由 _run_executor_safely 推送）
             await self._push(
-                channel, _STAGE_COMPLETED, "done", 100,
+                channel,
+                _STAGE_COMPLETED,
+                "done",
+                100,
                 {"task_id": task_id, "project_id": project_id, "case_count": len(case_ids)},
             )
         except Exception as exc:
             logger.error(f"编排异常: task_id={task_id} err={exc}")
             await self._push(
-                channel, _STAGE_COMPLETED, "failed", 100,
+                channel,
+                _STAGE_COMPLETED,
+                "failed",
+                100,
                 {"error": str(exc), "task_id": task_id, "degraded": True},
             )
         finally:
@@ -201,33 +204,47 @@ class QuickLauncher:
         if self._pipeline_session_factory is not None:
             return self._pipeline_session_factory()
         from app.db.database import PrimarySessionLocal
+
         return PrimarySessionLocal()
 
-    async def _explore_safely(
-        self, url: str, credentials: dict[str, str] | None, channel: str
-    ) -> SiteMap:
+    async def _explore_safely(self, url: str, credentials: dict[str, str] | None, channel: str) -> SiteMap:
         """站点探索，异常降级为空 SiteMap 并推送 failed 状态。"""
         try:
             site_map = await self._explorer_factory().explore(url, credentials)
             await self._push(
-                channel, _STAGE_SITE_EXPLORING, "done", 30,
+                channel,
+                _STAGE_SITE_EXPLORING,
+                "done",
+                30,
                 {"pages": len(site_map.pages), "explored": site_map.explored_count},
             )
             return site_map
         except Exception as exc:
             logger.warning(f"站点探索失败，降级为空 SiteMap: url={url} err={exc}")
             await self._push(
-                channel, _STAGE_SITE_EXPLORING, "failed", 30,
+                channel,
+                _STAGE_SITE_EXPLORING,
+                "failed",
+                30,
                 {"error": str(exc), "degraded": True},
             )
             return SiteMap(
-                entry_url=url, pages=[], max_depth_reached=0,
-                explored_count=0, skipped_count=1, cache_key="",
+                entry_url=url,
+                pages=[],
+                max_depth_reached=0,
+                explored_count=0,
+                skipped_count=1,
+                cache_key="",
             )
 
     async def _generate_cases_safely(
-        self, site_map: SiteMap, project_id: int, description: str | None,
-        user_id: int, session: Session, channel: str,
+        self,
+        site_map: SiteMap,
+        project_id: int,
+        description: str | None,
+        user_id: int,
+        session: Session,
+        channel: str,
     ) -> list[TestCase]:
         """用例生成，异常降级为空用例并推送 failed 状态。
 
@@ -242,24 +259,39 @@ class QuickLauncher:
             async with ai_generation_slot():
                 cases = await asyncio.to_thread(
                     generator.generate,
-                    site_map, project_id, description, user_id, session,
+                    site_map,
+                    project_id,
+                    description,
+                    user_id,
+                    session,
                 )
             await self._push(
-                channel, _STAGE_CASE_GENERATING, "done", 60,
+                channel,
+                _STAGE_CASE_GENERATING,
+                "done",
+                60,
                 {"case_count": len(cases)},
             )
             return cases
         except Exception as exc:
             logger.warning(f"用例生成失败，降级为空用例: project_id={project_id} err={exc}")
             await self._push(
-                channel, _STAGE_CASE_GENERATING, "failed", 60,
+                channel,
+                _STAGE_CASE_GENERATING,
+                "failed",
+                60,
                 {"error": str(exc), "degraded": True},
             )
             return []
 
     async def _assemble_safely(
-        self, project_id: int, case_ids: list[int], user_id: int,
-        session: Session, task_id: int, channel: str,
+        self,
+        project_id: int,
+        case_ids: list[int],
+        user_id: int,
+        session: Session,
+        task_id: int,
+        channel: str,
     ) -> None:
         """任务装配，异常不阻断（仍返回已预创建 task_id）。
 
@@ -267,31 +299,34 @@ class QuickLauncher:
         内部已更新 DB 中的 task.case_ids/total_count 并启动执行引擎。
         """
         try:
-            await self._assembler.assemble(
-                project_id, case_ids, user_id, session, task_id=task_id
-            )
-            await self._push(
-                channel, _STAGE_TASK_ASSEMBLING, "done", 90, {"task_id": task_id}
-            )
+            await self._assembler.assemble(project_id, case_ids, user_id, session, task_id=task_id)
+            await self._push(channel, _STAGE_TASK_ASSEMBLING, "done", 90, {"task_id": task_id})
         except Exception as exc:
-            logger.error(
-                f"任务装配失败，仍返回已预创建 task_id: task_id={task_id} err={exc}"
-            )
+            logger.error(f"任务装配失败，仍返回已预创建 task_id: task_id={task_id} err={exc}")
             await self._push(
-                channel, _STAGE_TASK_ASSEMBLING, "failed", 90,
+                channel,
+                _STAGE_TASK_ASSEMBLING,
+                "failed",
+                90,
                 {"error": str(exc), "task_id": task_id},
             )
 
     async def _push(
-        self, channel: str, stage: str, status: str, progress: int, detail: dict,
+        self,
+        channel: str,
+        stage: str,
+        status: str,
+        progress: int,
+        detail: dict,
     ) -> None:
         """推送阶段进度到 WebSocket，失败仅记录不阻断业务。"""
         data = {
-            "stage": stage, "status": status, "progress": progress, "detail": detail,
+            "stage": stage,
+            "status": status,
+            "progress": progress,
+            "detail": detail,
         }
         try:
             await self._push_service.push(channel, data)
         except Exception as exc:
-            logger.warning(
-                f"WebSocket 推送失败: channel={channel} stage={stage} err={exc}"
-            )
+            logger.warning(f"WebSocket 推送失败: channel={channel} stage={stage} err={exc}")

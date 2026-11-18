@@ -14,6 +14,7 @@
     - 自动生成的密钥对写入 .secret_keys 缓存文件，权限 0o600
     - 生产环境强制要求显式配置 RSA 密钥对，不自动生成（避免弱密钥）
 """
+
 from __future__ import annotations
 
 import json
@@ -49,10 +50,14 @@ def _generate_rsa_keypair() -> tuple[str, str]:
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
     return private_pem, public_pem
 
 
@@ -108,8 +113,7 @@ def get_jwt_private_key() -> str:
 
     # 5. 生产环境未配置：记录 WARNING，调用方回退到 HS256
     _logger.warning(
-        "[KEY_AUDIT] key=JWT_PRIVATE_KEY source=missing "
-        "回退到 HS256 算法（迁移期兼容），生产环境必须配置 RSA 私钥"
+        "[KEY_AUDIT] key=JWT_PRIVATE_KEY source=missing 回退到 HS256 算法（迁移期兼容），生产环境必须配置 RSA 私钥"
     )
     _cached_private_key = ""
     return _cached_private_key
@@ -154,13 +158,15 @@ def get_jwt_public_key() -> str:
                 from cryptography.hazmat.primitives import serialization
                 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-                private_key_obj = load_pem_private_key(
-                    private_pem.encode("utf-8"), password=None
+                private_key_obj = load_pem_private_key(private_pem.encode("utf-8"), password=None)
+                public_pem = (
+                    private_key_obj.public_key()
+                    .public_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                    )
+                    .decode("utf-8")
                 )
-                public_pem = private_key_obj.public_key().public_bytes(
-                    encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
-                ).decode("utf-8")
                 save_cached_key("jwt_public_key", public_pem, _KEY_CACHE_FILE)
                 _log_key_source("JWT_PUBLIC_KEY", "auto-generated", auto_generated=True)
                 _cached_public_key = public_pem
@@ -190,8 +196,7 @@ def get_jwt_public_key() -> str:
 
     # 5. 生产环境未配置
     _logger.warning(
-        "[KEY_AUDIT] key=JWT_PUBLIC_KEY source=missing "
-        "回退到 HS256 算法（迁移期兼容），生产环境必须配置 RSA 公钥"
+        "[KEY_AUDIT] key=JWT_PUBLIC_KEY source=missing 回退到 HS256 算法（迁移期兼容），生产环境必须配置 RSA 公钥"
     )
     _cached_public_key = ""
     return _cached_public_key

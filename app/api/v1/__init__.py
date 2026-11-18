@@ -27,10 +27,28 @@ API V1版本路由模块
     - 所有模块均在自身APIRouter中定义了prefix
     - 所有端点均需要Bearer令牌认证（除认证模块的登录/注册/验证码端点外）
 """
+
 from app.api.v1.endpoints import (
-    auth, user, test_task, project, file, test_point, test_case,
-    requirement_link, ui_prototype, iteration, execution,
-    execution_visualization, batch_locator, test_data, case_quality,
-    report, visibility, audit_log, pipeline, review_inbox, test_capability,
-    websocket
+    auth,
+    user,
+    test_task,
+    project,
+    file,
+    test_point,
+    test_case,
+    requirement_link,
+    ui_prototype,
+    iteration,
+    execution,
+    execution_visualization,
+    batch_locator,
+    test_data,
+    case_quality,
+    report,
+    visibility,
+    audit_log,
+    pipeline,
+    review_inbox,
+    test_capability,
+    websocket,
 )

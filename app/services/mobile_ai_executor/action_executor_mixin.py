@@ -1,4 +1,5 @@
 """移动端AI动作执行Mixin - 各类移动端操作的执行逻辑。"""
+
 import asyncio
 import re
 import json
@@ -6,7 +7,10 @@ from loguru import logger
 
 from app.utils.adb_controller import AdbError
 from app.services.mobile_ai_executor.types import (
-    MobileActionType, MobileActionResult, MobileAIError, MobileDeviceError,
+    MobileActionType,
+    MobileActionResult,
+    MobileAIError,
+    MobileDeviceError,
     MobileRecognitionError,
 )
 
@@ -30,8 +34,10 @@ class MobileActionExecutorMixin:
             elif action_type == MobileActionType.INPUT:
                 return await self._execute_input(description, step_id, use_cache)
             elif action_type in (
-                MobileActionType.SCROLL_UP, MobileActionType.SCROLL_DOWN,
-                MobileActionType.SCROLL_LEFT, MobileActionType.SCROLL_RIGHT
+                MobileActionType.SCROLL_UP,
+                MobileActionType.SCROLL_DOWN,
+                MobileActionType.SCROLL_LEFT,
+                MobileActionType.SCROLL_RIGHT,
             ):
                 return await self._execute_scroll(action_type)
             elif action_type == MobileActionType.SWIPE:
@@ -53,8 +59,10 @@ class MobileActionExecutorMixin:
                 return await self._execute_verify(description)
             else:
                 return MobileActionResult(
-                    success=False, action_type=action_type, description=description,
-                    error_message=f"不支持的操作类型: {action_type}"
+                    success=False,
+                    action_type=action_type,
+                    description=description,
+                    error_message=f"不支持的操作类型: {action_type}",
                 )
         except MobileAIError:
             raise
@@ -85,8 +93,12 @@ class MobileActionExecutorMixin:
         if step_id and confidence >= self.CACHE_CONFIDENCE_THRESHOLD:
             locator_info = await self._cache_locator(step_id, description, element_info)
         return MobileActionResult(
-            success=True, action_type=MobileActionType.CLICK, description=description,
-            coordinates={"x": x, "y": y}, locator_info=locator_info, ai_confidence=confidence,
+            success=True,
+            action_type=MobileActionType.CLICK,
+            description=description,
+            coordinates={"x": x, "y": y},
+            locator_info=locator_info,
+            ai_confidence=confidence,
         )
 
     async def _execute_input(
@@ -98,7 +110,9 @@ class MobileActionExecutorMixin:
             click_result = await self._execute_click(target_desc, step_id, use_cache)
             if not click_result.success:
                 return MobileActionResult(
-                    success=False, action_type=MobileActionType.INPUT, description=description,
+                    success=False,
+                    action_type=MobileActionType.INPUT,
+                    description=description,
                     error_message=f"无法定位输入框: {target_desc}",
                 )
             await asyncio.sleep(0.5)
@@ -131,10 +145,14 @@ class MobileActionExecutorMixin:
     async def _execute_press_key(self, description: str) -> MobileActionResult:
         desc = description.lower()
         key_map = {
-            "enter": 66, "回车": 66,
-            "back": 4, "返回": 4,
-            "home": 3, "主页": 3,
-            "delete": 67, "删除": 67,
+            "enter": 66,
+            "回车": 66,
+            "back": 4,
+            "返回": 4,
+            "home": 3,
+            "主页": 3,
+            "delete": 67,
+            "删除": 67,
             "tab": 61,
         }
         for key_name, keycode in key_map.items():
@@ -160,13 +178,14 @@ class MobileActionExecutorMixin:
             "请以JSON格式返回结果，包含passed字段(boolean)和reason字段(string)。"
         )
         verify_response = self.vision_model.analyze_image(
-            screenshot, prompt=verify_prompt,
+            screenshot,
+            prompt=verify_prompt,
             system_prompt="你是一个专业的UI测试工程师，擅长验证页面状态是否符合预期。",
         )
         is_passed = False
         if verify_response:
             try:
-                json_match = re.search(r'\{[^}]+\}', verify_response)
+                json_match = re.search(r"\{[^}]+\}", verify_response)
                 if json_match:
                     result_data = json.loads(json_match.group())
                     is_passed = bool(result_data.get("passed", False))

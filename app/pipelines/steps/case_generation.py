@@ -4,6 +4,7 @@
 复用现有 TestCaseGenerationService 的 prompt 构建和解析逻辑，
 但通过 Pipeline AIClient 抽象层调用模型。
 """
+
 import hashlib
 from typing import Any, ClassVar
 
@@ -40,7 +41,6 @@ from app.pipelines.steps._task_generators import (  # noqa: F401
 )
 
 
-
 class CaseGeneration(PipelineStep):
     """用例生成 Step — 为每个测试点调用 AI 生成测试用例。"""
 
@@ -53,10 +53,7 @@ class CaseGeneration(PipelineStep):
         tasks_artifact = ctx.get_artifact("generation_tasks")
         if tasks_artifact is not None:
             tasks = tasks_artifact.get("generation_tasks", [])
-            actionable = [
-                t for t in tasks
-                if t.get("task_type") in ("create", "modify", "locator_fix")
-            ]
+            actionable = [t for t in tasks if t.get("task_type") in ("create", "modify", "locator_fix")]
             return bool(actionable) or ctx.config.get("scenario") in (4, 5)
         if ctx.config.get("scenario") in (4, 5):
             return True
@@ -75,22 +72,13 @@ class CaseGeneration(PipelineStep):
 
         task_ids = []
         if tasks is not None:
-            task_ids = sorted(
-                t.get("task_id", "") for t in tasks.get("generation_tasks", [])
-            )
+            task_ids = sorted(t.get("task_id", "") for t in tasks.get("generation_tasks", []))
 
         tp_ids = []
         if aligned:
-            tp_ids = sorted(
-                a["test_point"].get("id", 0)
-                for a in aligned.get("aligned_testpoints", [])
-            )
+            tp_ids = sorted(a["test_point"].get("id", 0) for a in aligned.get("aligned_testpoints", []))
         elif signals:
-            tp_ids = sorted(
-                tp.get("id", 0)
-                for tp in signals.get("test_points", [])
-                if tp is not None
-            )
+            tp_ids = sorted(tp.get("id", 0) for tp in signals.get("test_points", []) if tp is not None)
 
         raw = f"{self.name}:{self.version}:tasks={task_ids}:tp={tp_ids}"
         return hashlib.sha256(raw.encode()).hexdigest()
@@ -117,8 +105,7 @@ class CaseGeneration(PipelineStep):
             generation_tasks = tasks_artifact.get("generation_tasks", [])
             deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
             actionable_tasks = [
-                t for t in generation_tasks
-                if t.get("task_type") in ("create", "modify", "locator_fix")
+                t for t in generation_tasks if t.get("task_type") in ("create", "modify", "locator_fix")
             ]
         else:
             generation_tasks = []
@@ -130,17 +117,24 @@ class CaseGeneration(PipelineStep):
             hf_artifact = ctx.get_artifact("history_fingerprints")
             if hf_artifact:
                 for fp in hf_artifact.get("fingerprints", [])[:50]:
-                    history_cases.append({
-                        "title": fp.get("title", fp.get("case_title", "")),
-                        "module": fp.get("module", ""),
-                        "summary": fp.get("summary", ""),
-                        "priority": fp.get("priority", 3),
-                    })
+                    history_cases.append(
+                        {
+                            "title": fp.get("title", fp.get("case_title", "")),
+                            "module": fp.get("module", ""),
+                            "summary": fp.get("summary", ""),
+                            "priority": fp.get("priority", 3),
+                        }
+                    )
 
         if actionable_tasks:
             generated_cases, failed_count = _execute_task_based(
-                ctx, actionable_tasks, prd_content, ui_description,
-                ui_specs, has_ui, history_cases,
+                ctx,
+                actionable_tasks,
+                prd_content,
+                ui_description,
+                ui_specs,
+                has_ui,
+                history_cases,
             )
         elif tasks_artifact is not None:
             return StepResult(
@@ -182,8 +176,13 @@ class CaseGeneration(PipelineStep):
                     error="缺少 generation_tasks、aligned_testpoints 和 raw_signals 产物",
                 )
             generated_cases, failed_count = _execute_legacy(
-                ctx, aligned, signals, prd_content, ui_description,
-                ui_specs, has_ui,
+                ctx,
+                aligned,
+                signals,
+                prd_content,
+                ui_description,
+                ui_specs,
+                has_ui,
             )
 
         generated_cases = _dedup_cases_global(generated_cases)

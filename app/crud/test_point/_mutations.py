@@ -6,12 +6,7 @@ from app.models.enums import TestPointStatus
 from app.crud.test_point._queries import get_test_point_by_id
 
 
-def update_test_point(
-    db: Session,
-    test_point_id: int,
-    project_id: int,
-    **kwargs
-) -> TestPoint | None:
+def update_test_point(db: Session, test_point_id: int, project_id: int, **kwargs) -> TestPoint | None:
     test_point = get_test_point_by_id(db, test_point_id, project_id)
     if not test_point:
         return None
@@ -24,11 +19,7 @@ def update_test_point(
     return test_point
 
 
-def delete_test_point(
-    db: Session,
-    test_point_id: int,
-    project_id: int
-) -> bool:
+def delete_test_point(db: Session, test_point_id: int, project_id: int) -> bool:
     test_point = get_test_point_by_id(db, test_point_id, project_id)
     if not test_point:
         return False
@@ -48,14 +39,14 @@ def batch_create_test_points(
     for data in test_points_data:
         test_point = TestPoint(
             project_id=project_id,
-            module=data['module'],
-            point=data['point'],
-            priority=data['priority'],
-            ai_prompt=data.get('ai_prompt'),
-            created_by=data.get('created_by', created_by),
-            requirement_id=data.get('requirement_id'),
-            capability_id=data.get('capability_id'),
-            status=data.get('status', TestPointStatus.ACTIVE.value),
+            module=data["module"],
+            point=data["point"],
+            priority=data["priority"],
+            ai_prompt=data.get("ai_prompt"),
+            created_by=data.get("created_by", created_by),
+            requirement_id=data.get("requirement_id"),
+            capability_id=data.get("capability_id"),
+            status=data.get("status", TestPointStatus.ACTIVE.value),
         )
         db.add(test_point)
         test_points.append(test_point)
@@ -97,14 +88,14 @@ async def batch_create_test_points_async(
     for data in test_points_data:
         test_point = TestPoint(
             project_id=project_id,
-            module=data['module'],
-            point=data['point'],
-            priority=data['priority'],
-            ai_prompt=data.get('ai_prompt'),
-            created_by=data.get('created_by', created_by),
-            requirement_id=data.get('requirement_id'),
-            capability_id=data.get('capability_id'),
-            status=data.get('status', TestPointStatus.ACTIVE.value),
+            module=data["module"],
+            point=data["point"],
+            priority=data["priority"],
+            ai_prompt=data.get("ai_prompt"),
+            created_by=data.get("created_by", created_by),
+            requirement_id=data.get("requirement_id"),
+            capability_id=data.get("capability_id"),
+            status=data.get("status", TestPointStatus.ACTIVE.value),
         )
         db.add(test_point)
         test_points.append(test_point)

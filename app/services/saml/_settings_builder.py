@@ -10,6 +10,7 @@
     - 证书/私钥支持 PEM 格式（含 BEGIN/END 标记）或纯 base64
     - nameid_format 默认 urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress
 """
+
 from __future__ import annotations
 
 from typing import Any

@@ -21,6 +21,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Table, JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
@@ -30,19 +31,21 @@ from app.core.tenant_context import TenantAwareMixin
 # 用户-角色多对多关联表
 # 级联删除：删除用户或角色时，自动清除关联记录
 user_role = Table(
-    'user_role',
+    "user_role",
     Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id', ondelete="CASCADE"), primary_key=True),  # 用户ID，级联删除
-    Column('role_id', Integer, ForeignKey('roles.id', ondelete="CASCADE"), primary_key=True)    # 角色ID，级联删除
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),  # 用户ID，级联删除
+    Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),  # 角色ID，级联删除
 )
 
 # 角色-权限多对多关联表
 # 级联删除：删除角色或权限时，自动清除关联记录
 role_permission = Table(
-    'role_permission',
+    "role_permission",
     Base.metadata,
-    Column('role_id', Integer, ForeignKey('roles.id', ondelete="CASCADE"), primary_key=True),        # 角色ID，级联删除
-    Column('permission_id', Integer, ForeignKey('permissions.id', ondelete="CASCADE"), primary_key=True)  # 权限ID，级联删除
+    Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),  # 角色ID，级联删除
+    Column(
+        "permission_id", Integer, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True
+    ),  # 权限ID，级联删除
 )
 
 
@@ -77,17 +80,18 @@ class User(TenantAwareMixin, Base):
         - 账户安全策略（登录失败锁定、登录计数）
         - 外部系统集成（LDAP/SSO 单点登录）
     """
+
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)                          # 用户主键ID
-    username = Column(String(50), nullable=False, unique=True, index=True)      # 用户名，唯一且索引，用于登录
-    email = Column(String(100), nullable=False, unique=True, index=True)        # 邮箱，唯一且索引，用于通知和找回密码
-    phone = Column(String(20), nullable=True, index=True)                       # 手机号，可选，索引用于快速查找
-    password_hash = Column(String(255), nullable=False)                         # 密码哈希值，禁止存储明文密码
-    is_active = Column(Boolean, default=True)                                   # 账户是否激活，默认True
-    is_superuser = Column(Boolean, default=False)                               # 是否超级管理员，默认False
-    create_time = Column(DateTime, default=utcnow)                              # 创建时间，UTC时区
-    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)             # 更新时间，记录变更时自动更新
+    id = Column(Integer, primary_key=True, index=True)  # 用户主键ID
+    username = Column(String(50), nullable=False, unique=True, index=True)  # 用户名，唯一且索引，用于登录
+    email = Column(String(100), nullable=False, unique=True, index=True)  # 邮箱，唯一且索引，用于通知和找回密码
+    phone = Column(String(20), nullable=True, index=True)  # 手机号，可选，索引用于快速查找
+    password_hash = Column(String(255), nullable=False)  # 密码哈希值，禁止存储明文密码
+    is_active = Column(Boolean, default=True)  # 账户是否激活，默认True
+    is_superuser = Column(Boolean, default=False)  # 是否超级管理员，默认False
+    create_time = Column(DateTime, default=utcnow)  # 创建时间，UTC时区
+    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)  # 更新时间，记录变更时自动更新
 
     # 租户隔离：所属租户ID（冗余，加速按租户过滤）
     tenant_id = Column(
@@ -98,14 +102,15 @@ class User(TenantAwareMixin, Base):
         comment="所属租户ID（冗余，加速按租户过滤）",
     )
 
-
     # 安全增强字段
-    last_login_time = Column(DateTime, nullable=True, comment="最后登录时间")     # 用于安全审计和会话管理
-    login_count = Column(Integer, nullable=True, default=0, comment="登录次数")   # 统计用户活跃度
+    last_login_time = Column(DateTime, nullable=True, comment="最后登录时间")  # 用于安全审计和会话管理
+    login_count = Column(Integer, nullable=True, default=0, comment="登录次数")  # 统计用户活跃度
     external_id = Column(String(100), nullable=True, comment="外部系统ID（如LDAP/SSO）")  # 外部认证系统的用户标识
-    external_system = Column(String(50), nullable=True, comment="外部系统名称")   # 如 ldap、sso_cas 等
-    failed_login_attempts = Column(Integer, nullable=False, default=0, comment="失败登录次数")  # 连续失败计数，用于锁定策略
-    locked_until = Column(DateTime, nullable=True, comment="账户锁定截止时间")    # 超过失败阈值后锁定至该时间
+    external_system = Column(String(50), nullable=True, comment="外部系统名称")  # 如 ldap、sso_cas 等
+    failed_login_attempts = Column(
+        Integer, nullable=False, default=0, comment="失败登录次数"
+    )  # 连续失败计数，用于锁定策略
+    locked_until = Column(DateTime, nullable=True, comment="账户锁定截止时间")  # 超过失败阈值后锁定至该时间
 
     # SSO 字段：与迁移 20260730_add_oidc_fields / 20260730_add_saml_fields 对齐
     # （2026-11-17 修复：模型漏字段导致 OIDC/SAML 用户映射 AttributeError）
@@ -119,11 +124,11 @@ class User(TenantAwareMixin, Base):
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="users", foreign_keys=[tenant_id])  # 所属租户
-    roles = relationship("Role", secondary=user_role, back_populates="users")    # 用户拥有的角色列表（多对多）
+    roles = relationship("Role", secondary=user_role, back_populates="users")  # 用户拥有的角色列表（多对多）
     # 关联项目（用户可以拥有多个项目）
     projects = relationship("Project", back_populates="owner", foreign_keys="Project.user_id")  # 用户创建的项目
     # 关联测试任务（用户可以执行多个测试任务）
-    test_tasks = relationship("TestTask", back_populates="executor")             # 用户执行的测试任务
+    test_tasks = relationship("TestTask", back_populates="executor")  # 用户执行的测试任务
 
 
 class Role(Base):
@@ -142,19 +147,20 @@ class Role(Base):
         - RBAC 权限校验：判断用户是否拥有某权限时，遍历用户角色列表的 permissions
         - 角色管理：创建、编辑、删除角色及分配权限
     """
+
     __tablename__ = "roles"
 
-    id = Column(Integer, primary_key=True, index=True)                          # 角色主键ID
-    name = Column(String(50), nullable=False, unique=True)                      # 角色名称，唯一，如 admin/tester/viewer
-    desc = Column(Text, nullable=True)                                          # 角色描述，说明角色职责
+    id = Column(Integer, primary_key=True, index=True)  # 角色主键ID
+    name = Column(String(50), nullable=False, unique=True)  # 角色名称，唯一，如 admin/tester/viewer
+    desc = Column(Text, nullable=True)  # 角色描述，说明角色职责
     # 简化：以JSON列表存储权限code（兼容现有服务层与单测期望）
     # 格式示例：["project:create", "test_case:read", "test_case:update"]
-    permissions = Column(JSON, nullable=True)                                   # 权限code列表，JSON格式
-    create_time = Column(DateTime, default=utcnow)                              # 创建时间
-    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)             # 更新时间
+    permissions = Column(JSON, nullable=True)  # 权限code列表，JSON格式
+    create_time = Column(DateTime, default=utcnow)  # 创建时间
+    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)  # 更新时间
 
     # 关联关系
-    users = relationship("User", secondary=user_role, back_populates="roles")   # 拥有该角色的用户列表（多对多）
+    users = relationship("User", secondary=user_role, back_populates="roles")  # 拥有该角色的用户列表（多对多）
 
 
 class Permission(Base):
@@ -180,18 +186,21 @@ class Permission(Base):
         ├── project:update（更新项目）
         └── project:delete（删除项目）
     """
+
     __tablename__ = "permissions"
 
-    id = Column(Integer, primary_key=True, index=True)                          # 权限主键ID
-    name = Column(String(50), nullable=False, unique=True)                      # 权限显示名称，如"创建项目"
-    code = Column(String(50), nullable=False, unique=True)                      # 权限唯一编码，如"project:create"
-    type = Column(String(20), nullable=False, default="api")                    # 权限类型：api=接口权限，menu=菜单权限，data=数据权限
-    resource_type = Column(String(50), nullable=True, comment="资源类型（如project/test_case/user）")  # 权限所属资源类型
-    action = Column(String(20), nullable=True, comment="操作动作（如create/read/update/delete）")       # CRUD操作类型
-    parent_id = Column(Integer, ForeignKey("permissions.id"), nullable=True)    # 父级权限ID，构成树形结构
-    description = Column(Text, nullable=True)                                   # 权限详细说明
-    create_time = Column(DateTime, default=utcnow)                              # 创建时间
-    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)             # 更新时间
+    id = Column(Integer, primary_key=True, index=True)  # 权限主键ID
+    name = Column(String(50), nullable=False, unique=True)  # 权限显示名称，如"创建项目"
+    code = Column(String(50), nullable=False, unique=True)  # 权限唯一编码，如"project:create"
+    type = Column(String(20), nullable=False, default="api")  # 权限类型：api=接口权限，menu=菜单权限，data=数据权限
+    resource_type = Column(
+        String(50), nullable=True, comment="资源类型（如project/test_case/user）"
+    )  # 权限所属资源类型
+    action = Column(String(20), nullable=True, comment="操作动作（如create/read/update/delete）")  # CRUD操作类型
+    parent_id = Column(Integer, ForeignKey("permissions.id"), nullable=True)  # 父级权限ID，构成树形结构
+    description = Column(Text, nullable=True)  # 权限详细说明
+    create_time = Column(DateTime, default=utcnow)  # 创建时间
+    update_time = Column(DateTime, onupdate=utcnow, default=utcnow)  # 更新时间
 
     # 关联关系（可选，自引用）
-    parent = relationship("Permission", remote_side=[id], backref="children")   # 父级权限，remote_side指定自引用远端
+    parent = relationship("Permission", remote_side=[id], backref="children")  # 父级权限，remote_side指定自引用远端

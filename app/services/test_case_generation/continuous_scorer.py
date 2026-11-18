@@ -10,6 +10,7 @@ Task 14 前：本模块自带 7 个 _score_*_continuous 函数，与 grade_statu
 Task 14 后：统一委托 score_dimensions，与 grade_status 共享 _classify_*
 判定，消除冲突。
 """
+
 from typing import Any
 
 from app.services.case_quality.quality_scoring_constants import (

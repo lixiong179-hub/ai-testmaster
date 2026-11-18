@@ -11,6 +11,7 @@
     - StepRecordResult: 步骤定位结果
     - BatchRecordReport: 批量定位报告
 """
+
 from enum import StrEnum
 from dataclasses import dataclass, field
 from typing import Any
@@ -18,11 +19,12 @@ from typing import Any
 
 class BatchRecordStatus(StrEnum):
     """批量记录状态枚举 - 标识批量定位任务的执行状态。"""
-    PENDING = "pending"      # 待执行
-    RUNNING = "running"      # 执行中
+
+    PENDING = "pending"  # 待执行
+    RUNNING = "running"  # 执行中
     COMPLETED = "completed"  # 全部完成
-    FAILED = "failed"        # 全部失败
-    PARTIAL = "partial"      # 部分完成
+    FAILED = "failed"  # 全部失败
+    PARTIAL = "partial"  # 部分完成
 
 
 @dataclass
@@ -37,6 +39,7 @@ class BatchLocatorConfig:
         timeout: 单个步骤超时秒数，默认60。
         use_mcp: 是否使用MCP识别器，默认False。
     """
+
     skip_existing: bool = True
     execute_precondition: bool = True
     max_retries: int = 3
@@ -59,6 +62,7 @@ class StepRecordResult:
         error_message: 错误信息。
         duration_ms: 定位耗时（毫秒）。
     """
+
     step_id: int
     step_number: int
     status: BatchRecordStatus = BatchRecordStatus.PENDING
@@ -96,6 +100,7 @@ class BatchRecordReport:
         results: 各步骤定位结果列表。
         duration_ms: 总耗时（毫秒）。
     """
+
     case_id: int
     status: BatchRecordStatus = BatchRecordStatus.PENDING
     total_steps: int = 0

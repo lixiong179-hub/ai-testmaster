@@ -10,6 +10,7 @@ AI 客户端基类与工厂模块
     - openai: OpenAI 官方 SDK
     - app.core.config.settings: 全局配置（API 地址、密钥、模型名）
 """
+
 import time
 from typing import Any
 
@@ -35,6 +36,7 @@ class AIClientBase:
 
     该类作为Mixin基类使用，不单独实例化。
     """
+
     MAX_CACHE_SIZE = 200
 
     def __init__(self) -> None:
@@ -60,6 +62,7 @@ class AIClientBase:
             str: 32位MD5哈希字符串
         """
         import hashlib
+
         key_data = f"{function_name}:{str(args)}:{str(kwargs)}"
         return hashlib.md5(key_data.encode()).hexdigest()
 
@@ -124,6 +127,7 @@ def get_ai_client(api_key: str = None, base_url: str = None, model_name: str = N
         OpenAI: 配置好的OpenAI客户端实例，附带model_name属性
     """
     from app.core.constants import TimeoutConfig
+
     _api_key = api_key or settings.DEEPSEEK_API_KEY
     _base_url = base_url or "https://api.deepseek.com"
     _model_name = model_name or settings.DEEPSEEK_MODEL

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, Query
 from typing import TypeVar, Any
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class QueryHelper:

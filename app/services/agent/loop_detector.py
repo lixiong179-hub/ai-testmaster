@@ -13,6 +13,7 @@ AgentRuntime 多轮 function calling 中，LLM 可能陷入"重复调用相同�
 存储：Redis list key=`agent:loop:{agent_type}:{session_id}` 用 LPUSH+LTRIM 维护窗口；
       Redis 不可用或异常时降级为 deque(maxlen=window_size)。
 """
+
 from __future__ import annotations
 
 import json

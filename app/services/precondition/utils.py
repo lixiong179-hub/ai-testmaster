@@ -1,5 +1,5 @@
-
 """前置条件工具函数 - 验证码求解和登录表单识别。"""
+
 import re
 from typing import TYPE_CHECKING
 from loguru import logger
@@ -14,9 +14,9 @@ if TYPE_CHECKING:
 def solve_captcha_math(response: str) -> str:
     """求解数学验证码。"""
     math_patterns = [
-        r'(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=\??',
-        r'(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=?',
-        r'(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)',
+        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=\??",
+        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=?",
+        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)",
     ]
     for pattern in math_patterns:
         math_match = re.search(pattern, response)
@@ -25,13 +25,13 @@ def solve_captcha_math(response: str) -> str:
             operator = math_match.group(2)
             num2 = int(math_match.group(3))
             result = None
-            if operator in ['+', '＋']:
+            if operator in ["+", "＋"]:
                 result = num1 + num2
-            elif operator in ['-', '−', '－']:
+            elif operator in ["-", "−", "－"]:
                 result = num1 - num2
-            elif operator in ['*', '×', '＊']:
+            elif operator in ["*", "×", "＊"]:
                 result = num1 * num2
-            elif operator in ['/', '÷', '／']:
+            elif operator in ["/", "÷", "／"]:
                 if num2 != 0:
                     result = num1 // num2
                 else:
@@ -41,7 +41,7 @@ def solve_captcha_math(response: str) -> str:
                 logger.info(f"数学表达式计算: {num1} {operator} {num2} = {result}")
                 return str(result)
 
-    numbers = re.findall(r'\d+', response)
+    numbers = re.findall(r"\d+", response)
     if numbers:
         if len(numbers) == 1:
             return numbers[0]
@@ -49,15 +49,15 @@ def solve_captcha_math(response: str) -> str:
             if len(num) <= 4:
                 return num
 
-    alphanumeric = re.findall(r'[a-zA-Z0-9]+', response)
+    alphanumeric = re.findall(r"[a-zA-Z0-9]+", response)
     if alphanumeric:
-        filtered = [s for s in alphanumeric if s.lower() not in ['captcha', 'code', '验证码']]
+        filtered = [s for s in alphanumeric if s.lower() not in ["captcha", "code", "验证码"]]
         if filtered:
             return filtered[0]
 
     cleaned = response.strip()
-    cleaned = re.sub(r'(?i)(captcha|code|验证码|result|结果|答案|answer)[:\s]*', '', cleaned)
-    cleaned = cleaned.strip('"\'\n\r ')
+    cleaned = re.sub(r"(?i)(captcha|code|验证码|result|结果|答案|answer)[:\s]*", "", cleaned)
+    cleaned = cleaned.strip("\"'\n\r ")
     if cleaned and len(cleaned) <= 10:
         return cleaned
 
@@ -87,7 +87,7 @@ def recognize_login_form(vision_model, screenshot: bytes) -> LoginFormInfo:
 """
     try:
         response = vision_model.analyze_image(screenshot, prompt)
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        json_match = re.search(r"\{.*\}", response, re.DOTALL)
         if json_match:
             result = parse_ai_json_object(json_match.group())
             if result is not None:

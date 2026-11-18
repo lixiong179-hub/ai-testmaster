@@ -1,5 +1,4 @@
-"""测试数据类型常量定义
-"""
+"""测试数据类型常量定义"""
 
 DATA_TYPE_STRING = "string"
 DATA_TYPE_NUMBER = "number"

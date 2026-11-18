@@ -21,6 +21,7 @@ Pipeline 权限服务模块
     - app.models.pipeline_permission : PipelineRole, PipelinePermission, pipeline_user_role
     - app.services.audit_service : 审计日志
 """
+
 import logging
 from typing import Any
 from collections.abc import Callable
@@ -38,7 +39,9 @@ logger = logging.getLogger(__name__)
 def _get_current_user():
     """延迟导入 get_current_user 避免循环依赖。"""
     from app.api.v1.endpoints.auth import get_current_user
+
     return get_current_user
+
 
 ROLE_DEFINITIONS = {
     "admin": {
@@ -172,6 +175,7 @@ def require_permission(resource: str, action: str, scope: str = "project") -> Ca
     Returns:
         FastAPI 依赖函数。
     """
+
     async def _check(
         db: Session = Depends(get_db),
         current_user: User = Depends(_get_current_user),
@@ -181,6 +185,7 @@ def require_permission(resource: str, action: str, scope: str = "project") -> Ca
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"缺少权限: {resource}:{action} (scope={scope})",
             )
+
     return _check
 
 
@@ -260,13 +265,16 @@ def assign_pipeline_role(
 
     db.execute(
         pipeline_user_role.insert().values(
-            user_id=user_id, role_id=role.id, project_id=project_id,
+            user_id=user_id,
+            role_id=role.id,
+            project_id=project_id,
         )
     )
     db.flush()
 
     try:
         from app.services.audit_service import log_action
+
         log_action(
             db=db,
             action="permission_change",
@@ -313,6 +321,7 @@ def revoke_pipeline_role(
 
     try:
         from app.services.audit_service import log_action
+
         log_action(
             db=db,
             action="permission_change",

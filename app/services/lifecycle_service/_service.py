@@ -57,7 +57,8 @@ def transition(
     ):
         logger.info(
             "pending_review → active: manual approval, case_id=%d, actor_id=%s",
-            case_id, actor_id,
+            case_id,
+            actor_id,
         )
 
     if rule.get("cooldown_hours"):
@@ -127,22 +128,31 @@ def _create_new_version_case(
     modification_hint: str | None,
     actor_id: int | None,
 ) -> None:
-    _ = db.query(TestCase).filter(
-        TestCase.parent_case_id == old_case.id,
-        TestCase.is_deleted.is_(False),
-    ).count()
+    _ = (
+        db.query(TestCase)
+        .filter(
+            TestCase.parent_case_id == old_case.id,
+            TestCase.is_deleted.is_(False),
+        )
+        .count()
+    )
     root_case_id = old_case.id
     root_case = old_case
     while root_case.parent_case_id is not None:
-        parent = db.query(TestCase).filter(TestCase.id == root_case.parent_case_id, TestCase.is_deleted.is_(False)).first()
+        parent = (
+            db.query(TestCase).filter(TestCase.id == root_case.parent_case_id, TestCase.is_deleted.is_(False)).first()
+        )
         if parent is None:
             break
         root_case = parent
         root_case_id = root_case.id
-    total_versions = db.query(TestCase).filter(
-        (TestCase.parent_case_id == root_case_id) | (TestCase.id == root_case_id),
-        TestCase.is_deleted.is_(False)
-    ).count()
+    total_versions = (
+        db.query(TestCase)
+        .filter(
+            (TestCase.parent_case_id == root_case_id) | (TestCase.id == root_case_id), TestCase.is_deleted.is_(False)
+        )
+        .count()
+    )
     next_version = total_versions + 1
 
     base_no = root_case.case_no
@@ -199,6 +209,7 @@ def _write_audit_log(
 
     try:
         from app.services.audit_service import log_action
+
         log_action(
             db=db,
             action="lifecycle_transition",
@@ -209,7 +220,9 @@ def _write_audit_log(
         )
     except Exception as e:
         logger.error(
-            "Failed to write audit log for lifecycle_transition: "
-            "case_id=%d, %s → %s, error=%s",
-            case_id, old_status, new_status, e,
+            "Failed to write audit log for lifecycle_transition: case_id=%d, %s → %s, error=%s",
+            case_id,
+            old_status,
+            new_status,
+            e,
         )

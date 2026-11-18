@@ -20,7 +20,6 @@ DEFAULT_MAX_TOKENS = 8192
 
 
 class XmindAIParser:
-
     def __init__(
         self,
         api_key: str | None = None,
@@ -35,20 +34,14 @@ class XmindAIParser:
         self._base_url = base_url if base_url is not None else "https://api.deepseek.com"
         self._model = model if model is not None else settings.DEEPSEEK_MODEL
         self._batch_size = (
-            batch_size if batch_size is not None
-            else getattr(settings, "XMIND_AI_BATCH_SIZE", BATCH_SIZE)
+            batch_size if batch_size is not None else getattr(settings, "XMIND_AI_BATCH_SIZE", BATCH_SIZE)
         )
-        self._timeout = (
-            timeout if timeout is not None
-            else getattr(settings, "XMIND_AI_TIMEOUT", DEFAULT_AI_TIMEOUT)
-        )
+        self._timeout = timeout if timeout is not None else getattr(settings, "XMIND_AI_TIMEOUT", DEFAULT_AI_TIMEOUT)
         self._max_workers = (
-            max_workers if max_workers is not None
-            else getattr(settings, "XMIND_AI_MAX_WORKERS", DEFAULT_MAX_WORKERS)
+            max_workers if max_workers is not None else getattr(settings, "XMIND_AI_MAX_WORKERS", DEFAULT_MAX_WORKERS)
         )
         self._max_tokens = (
-            max_tokens if max_tokens is not None
-            else getattr(settings, "XMIND_AI_MAX_TOKENS", DEFAULT_MAX_TOKENS)
+            max_tokens if max_tokens is not None else getattr(settings, "XMIND_AI_MAX_TOKENS", DEFAULT_MAX_TOKENS)
         )
 
         if self._batch_size <= 0:
@@ -86,8 +79,7 @@ class XmindAIParser:
 
         worker_count = min(self._max_workers, len(batches))
         logger.info(
-            f"AI 增强解析开始：{len(paths)} 条路径，{len(batches)} 批，"
-            f"并发 {worker_count}，单批超时 {self._timeout}s"
+            f"AI 增强解析开始：{len(paths)} 条路径，{len(batches)} 批，并发 {worker_count}，单批超时 {self._timeout}s"
         )
 
         overall_start = time.perf_counter()
@@ -102,10 +94,7 @@ class XmindAIParser:
                 try:
                     batch_results = future.result()
                 except Exception as exc:
-                    logger.error(
-                        f"AI 批次 {batch_start}-{batch_start + len(batch)} "
-                        f"线程异常: {exc}"
-                    )
+                    logger.error(f"AI 批次 {batch_start}-{batch_start + len(batch)} 线程异常: {exc}")
                     batch_results = None
 
                 normalized: list[dict[str, Any]] = []
@@ -119,29 +108,20 @@ class XmindAIParser:
                         fallback_module = path[0] if path else ""
                         normalized.append(_normalize_case(raw, fallback_module))
                 else:
-                    logger.warning(
-                        f"AI 批次 {batch_start}-{batch_start + len(batch)} 失败，跳过"
-                    )
+                    logger.warning(f"AI 批次 {batch_start}-{batch_start + len(batch)} 失败，跳过")
                 results_by_index[idx] = normalized
 
                 if progress_callback:
                     completed_batches = len(results_by_index)
-                    completed_paths = sum(
-                        len(results_by_index.get(i, [])) for i in range(len(batches))
-                    )
-                    progress_callback(
-                        completed_batches, len(batches), completed_paths, len(paths)
-                    )
+                    completed_paths = sum(len(results_by_index.get(i, [])) for i in range(len(batches)))
+                    progress_callback(completed_batches, len(batches), completed_paths, len(paths))
 
         all_results: list[dict[str, Any]] = []
         for idx in range(len(batches)):
             all_results.extend(results_by_index.get(idx, []))
 
         elapsed = time.perf_counter() - overall_start
-        logger.info(
-            f"AI 增强解析完成，成功 {len(all_results)}/{len(paths)} 条，"
-            f"总耗时 {elapsed:.1f}s"
-        )
+        logger.info(f"AI 增强解析完成，成功 {len(all_results)}/{len(paths)} 条，总耗时 {elapsed:.1f}s")
         return all_results
 
     def _call_ai(self, batch: list[list[str]]) -> list[dict[str, Any]] | None:
@@ -161,19 +141,12 @@ class XmindAIParser:
             elapsed = time.perf_counter() - start
             content = response.choices[0].message.content or ""
             finish_reason = getattr(response.choices[0], "finish_reason", "")
-            logger.debug(
-                f"AI 批次返回：长度 {len(content)} 字符，耗时 {elapsed:.1f}s，"
-                f"finish_reason={finish_reason}"
-            )
+            logger.debug(f"AI 批次返回：长度 {len(content)} 字符，耗时 {elapsed:.1f}s，finish_reason={finish_reason}")
             if not content.strip():
-                logger.warning(
-                    f"AI 响应内容为空，finish_reason={finish_reason}，耗时 {elapsed:.1f}s"
-                )
+                logger.warning(f"AI 响应内容为空，finish_reason={finish_reason}，耗时 {elapsed:.1f}s")
                 return None
             if finish_reason == "length":
-                logger.warning(
-                    "AI 响应被 max_tokens 截断，建议调大 XMIND_AI_MAX_TOKENS 或减小 XMIND_AI_BATCH_SIZE"
-                )
+                logger.warning("AI 响应被 max_tokens 截断，建议调大 XMIND_AI_MAX_TOKENS 或减小 XMIND_AI_BATCH_SIZE")
             return _parse_ai_response(content, len(batch))
         except Exception as exc:
             elapsed = time.perf_counter() - start

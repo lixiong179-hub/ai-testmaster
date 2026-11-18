@@ -41,6 +41,7 @@
     - api_doc: API文档
     - other: 其他
 """
+
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,10 +49,18 @@ from app.models.project import ProjectFile
 from app.utils.db_time import utcnow
 
 
-def create_project_file(db: Session, project_id: int, file_name: str, file_type: str,
-                       file_url: str, file_source: str = "file", size: int | None = None,
-                       resource_type: str = "other", description: str = None,
-                       iteration_id: int | None = None) -> ProjectFile:
+def create_project_file(
+    db: Session,
+    project_id: int,
+    file_name: str,
+    file_type: str,
+    file_url: str,
+    file_source: str = "file",
+    size: int | None = None,
+    resource_type: str = "other",
+    description: str = None,
+    iteration_id: int | None = None,
+) -> ProjectFile:
     """
     创建项目文件记录
 
@@ -84,7 +93,7 @@ def create_project_file(db: Session, project_id: int, file_name: str, file_type:
         description=description,
         extract_status="pending",  # 初始提取状态：待提取
         is_active=True,  # 默认为活跃状态，软删除时设为False
-        iteration_id=iteration_id
+        iteration_id=iteration_id,
     )
     db.add(db_file)
     db.commit()
@@ -92,8 +101,9 @@ def create_project_file(db: Session, project_id: int, file_name: str, file_type:
     return db_file
 
 
-def update_file_content(db: Session, file_id: int, content: str, extract_status: str,
-                        extract_error: str = None) -> ProjectFile | None:
+def update_file_content(
+    db: Session, file_id: int, content: str, extract_status: str, extract_error: str = None
+) -> ProjectFile | None:
     """
     更新文件提取内容和状态
 
@@ -125,8 +135,7 @@ def update_file_content(db: Session, file_id: int, content: str, extract_status:
     return db_file
 
 
-def update_file_resource_type(db: Session, file_id: int, project_id: int,
-                               resource_type: str) -> ProjectFile | None:
+def update_file_resource_type(db: Session, file_id: int, project_id: int, resource_type: str) -> ProjectFile | None:
     """
     更新文件资源类型
 
@@ -141,10 +150,7 @@ def update_file_resource_type(db: Session, file_id: int, project_id: int,
     Returns:
         Optional[ProjectFile]: 更新后的文件对象，不存在则返回None
     """
-    db_file = db.query(ProjectFile).filter(
-        ProjectFile.id == file_id,
-        ProjectFile.project_id == project_id
-    ).first()
+    db_file = db.query(ProjectFile).filter(ProjectFile.id == file_id, ProjectFile.project_id == project_id).first()
     if not db_file:
         return None
     db_file.resource_type = resource_type
@@ -153,8 +159,9 @@ def update_file_resource_type(db: Session, file_id: int, project_id: int,
     return db_file
 
 
-def get_project_files(db: Session, project_id: int, is_active: bool = True,
-                      iteration_id: int | None = None) -> list[ProjectFile]:
+def get_project_files(
+    db: Session, project_id: int, is_active: bool = True, iteration_id: int | None = None
+) -> list[ProjectFile]:
     """
     获取项目文件列表（支持活跃状态/迭代过滤，按上传时间倒序）
 
@@ -205,11 +212,16 @@ def get_project_files_by_type(db: Session, project_id: int, resource_type: str) 
     Returns:
         List[ProjectFile]: 符合类型的活跃文件列表
     """
-    return db.query(ProjectFile).filter(
-        ProjectFile.project_id == project_id,
-        ProjectFile.resource_type == resource_type,
-        ProjectFile.is_active.is_(True)  # 仅查询活跃文件，排除已软删除的
-    ).order_by(ProjectFile.upload_time.desc()).all()
+    return (
+        db.query(ProjectFile)
+        .filter(
+            ProjectFile.project_id == project_id,
+            ProjectFile.resource_type == resource_type,
+            ProjectFile.is_active.is_(True),  # 仅查询活跃文件，排除已软删除的
+        )
+        .order_by(ProjectFile.upload_time.desc())
+        .all()
+    )
 
 
 def get_file_by_id(db: Session, file_id: int, project_id: int) -> ProjectFile | None:
@@ -226,10 +238,7 @@ def get_file_by_id(db: Session, file_id: int, project_id: int) -> ProjectFile | 
     Returns:
         Optional[ProjectFile]: 文件对象，不存在则返回None
     """
-    return db.query(ProjectFile).filter(
-        ProjectFile.id == file_id,
-        ProjectFile.project_id == project_id
-    ).first()
+    return db.query(ProjectFile).filter(ProjectFile.id == file_id, ProjectFile.project_id == project_id).first()
 
 
 def delete_file(db: Session, file_id: int, project_id: int, permanent: bool = False) -> bool:
@@ -281,8 +290,7 @@ def permanent_delete_file(db: Session, file_id: int, project_id: int) -> bool:
     return delete_file(db, file_id, project_id, permanent=True)
 
 
-def get_project_files_by_iteration(db: Session, project_id: int,
-                                    iteration_id: int) -> list[ProjectFile]:
+def get_project_files_by_iteration(db: Session, project_id: int, iteration_id: int) -> list[ProjectFile]:
     """
     根据迭代ID获取项目文件
 
@@ -301,18 +309,16 @@ def get_project_files_by_iteration(db: Session, project_id: int,
         此查询未过滤is_active，会包含已软删除的文件。
         如需仅查询活跃文件，应在调用方或此函数中增加过滤条件。
     """
-    return db.query(ProjectFile).filter(
-        ProjectFile.project_id == project_id,
-        ProjectFile.iteration_id == iteration_id
-    ).order_by(ProjectFile.upload_time.desc()).all()
+    return (
+        db.query(ProjectFile)
+        .filter(ProjectFile.project_id == project_id, ProjectFile.iteration_id == iteration_id)
+        .order_by(ProjectFile.upload_time.desc())
+        .all()
+    )
 
 
 async def update_file_content_async(
-    db: AsyncSession,
-    file_id: int,
-    content: str,
-    extract_status: str,
-    extract_error: str = None
+    db: AsyncSession, file_id: int, content: str, extract_status: str, extract_error: str = None
 ) -> ProjectFile | None:
     """
     更新文件提取内容和状态（异步版本）
@@ -329,9 +335,7 @@ async def update_file_content_async(
     Returns:
         Optional[ProjectFile]: 更新后的文件对象，不存在则返回None
     """
-    result = await db.execute(
-        select(ProjectFile).where(ProjectFile.id == file_id)
-    )
+    result = await db.execute(select(ProjectFile).where(ProjectFile.id == file_id))
     db_file = result.scalars().first()
     if not db_file:
         return None

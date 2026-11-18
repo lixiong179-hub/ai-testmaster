@@ -32,6 +32,7 @@
     本模块仅创建3张核心表，不包含角色、权限、测试用例等业务表。
     如需完整的表结构初始化，请使用 init_data.py 或 init_db()。
 """
+
 import logging
 import secrets
 
@@ -72,7 +73,8 @@ def init_database() -> None:
         #   is_superuser: 是否超级管理员，跳过权限检查
         #   create_time: 创建时间，自动填充当前时间
         #   update_time: 更新时间，自动更新为当前时间
-        conn.execute(text("""
+        conn.execute(
+            text("""
         CREATE TABLE IF NOT EXISTS users (
             id INT PRIMARY KEY AUTO_INCREMENT,
             username VARCHAR(50) NOT NULL UNIQUE,
@@ -83,7 +85,8 @@ def init_database() -> None:
             create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
             update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """))
+        """)
+        )
 
         # ============================================================
         # 创建 projects 表 - 项目信息表
@@ -96,7 +99,8 @@ def init_database() -> None:
         #   status: 项目状态（1=活跃，0=归档），默认1
         #   config: 项目配置，JSON格式存储灵活配置项
         #   create_time / update_time: 时间戳
-        conn.execute(text("""
+        conn.execute(
+            text("""
         CREATE TABLE IF NOT EXISTS projects (
             id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
@@ -108,7 +112,8 @@ def init_database() -> None:
             update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """))
+        """)
+        )
 
         # ============================================================
         # 创建 project_files 表 - 项目文件关联表
@@ -122,7 +127,8 @@ def init_database() -> None:
         #   file_source: 文件来源（file=本地上传，git=仓库同步），默认'file'
         #   size: 文件大小（字节）
         #   upload_time: 上传时间
-        conn.execute(text("""
+        conn.execute(
+            text("""
         CREATE TABLE IF NOT EXISTS project_files (
             id INT PRIMARY KEY AUTO_INCREMENT,
             project_id INT NOT NULL,
@@ -134,7 +140,8 @@ def init_database() -> None:
             upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """))
+        """)
+        )
 
         # ============================================================
         # 插入默认管理员用户 - 幂等检查
@@ -149,13 +156,10 @@ def init_database() -> None:
                 logger.warning("ADMIN_INITIAL_PASSWORD not set, generated random password for admin user")
             password_hash = get_password_hash(admin_password)
             conn.execute(
-                text("INSERT INTO users (username, email, password_hash, is_active) VALUES (:username, :email, :password_hash, :is_active)"),
-                {
-                    "username": "admin",
-                    "email": "admin@example.com",
-                    "password_hash": password_hash,
-                    "is_active": True
-                }
+                text(
+                    "INSERT INTO users (username, email, password_hash, is_active) VALUES (:username, :email, :password_hash, :is_active)"
+                ),
+                {"username": "admin", "email": "admin@example.com", "password_hash": password_hash, "is_active": True},
             )
             logger.info("默认管理员用户创建成功: admin / ****")
         else:

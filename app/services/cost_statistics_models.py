@@ -1,6 +1,6 @@
 # [R4-5 冻结 2026-11-10] 生产代码零引用（仅测试引用），保留备用；接线或删除前请先在《架构优化执行计划清单》登记。
-"""成本统计模型 - 定义成本统计的数据结构和枚举。
-"""
+"""成本统计模型 - 定义成本统计的数据结构和枚举。"""
+
 from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -38,8 +38,15 @@ class CostReport:
 
 def _build_empty_statistics() -> CostStatistics:
     return CostStatistics(
-        total_steps=0, ai_vision_calls=0, cache_hits=0,
-        css_selector_used=0, xpath_used=0, estimated_cost=0,
-        actual_cost=0, cost_savings=0, savings_rate=0,
-        cache_hit_rate=0, ai_dependency_rate=0
+        total_steps=0,
+        ai_vision_calls=0,
+        cache_hits=0,
+        css_selector_used=0,
+        xpath_used=0,
+        estimated_cost=0,
+        actual_cost=0,
+        cost_savings=0,
+        savings_rate=0,
+        cache_hit_rate=0,
+        ai_dependency_rate=0,
     )

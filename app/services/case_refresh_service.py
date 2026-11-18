@@ -117,14 +117,15 @@ class CaseRefreshService:
     def parse_refresh_response(self, response_text: str) -> dict[str, Any]:
         """解析 AI 保鲜响应文本为字典，失败时返回兜底结果。"""
         import re
+
         text = response_text.strip()
-        code_block_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)\n?\s*```', text)
+        code_block_match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?\s*```", text)
         if code_block_match:
             text = code_block_match.group(1).strip()
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            json_match = re.search(r'\{[\s\S]*\}', text)
+            json_match = re.search(r"\{[\s\S]*\}", text)
             if json_match:
                 try:
                     return json.loads(json_match.group(0))
@@ -134,18 +135,17 @@ class CaseRefreshService:
 
     async def get_suggestion_by_id(self, suggestion_id: int) -> CaseRefreshSuggestion | None:
         """根据ID获取保鲜建议。"""
-        result = await execute_async(self.db,
+        result = await execute_async(
+            self.db,
             select(CaseRefreshSuggestion).where(
                 CaseRefreshSuggestion.id == suggestion_id,
-            )
+            ),
         )
         return result.scalar_one_or_none()
 
     async def get_case_by_id(self, case_id: int) -> TestCase | None:
         """根据ID获取测试用例。"""
-        result = await execute_async(self.db,
-            select(TestCase).where(TestCase.id == case_id)
-        )
+        result = await execute_async(self.db, select(TestCase).where(TestCase.id == case_id))
         return result.scalar_one_or_none()
 
     async def list_suggestions(
@@ -163,13 +163,9 @@ class CaseRefreshService:
             .where(TestCase.project_id == project_id)
         )
         if suggestion_status:
-            query = query.where(
-                CaseRefreshSuggestion.suggestion_status == suggestion_status
-            )
+            query = query.where(CaseRefreshSuggestion.suggestion_status == suggestion_status)
         if review_status:
-            query = query.where(
-                CaseRefreshSuggestion.review_status == review_status
-            )
+            query = query.where(CaseRefreshSuggestion.review_status == review_status)
         query = query.order_by(CaseRefreshSuggestion.triggered_at.desc())
 
         count_query = (
@@ -179,13 +175,9 @@ class CaseRefreshService:
             .where(TestCase.project_id == project_id)
         )
         if suggestion_status:
-            count_query = count_query.where(
-                CaseRefreshSuggestion.suggestion_status == suggestion_status
-            )
+            count_query = count_query.where(CaseRefreshSuggestion.suggestion_status == suggestion_status)
         if review_status:
-            count_query = count_query.where(
-                CaseRefreshSuggestion.review_status == review_status
-            )
+            count_query = count_query.where(CaseRefreshSuggestion.review_status == review_status)
         total = (await execute_async(self.db, count_query)).scalar() or 0
 
         offset = (page - 1) * page_size
@@ -234,9 +226,7 @@ class CaseRefreshService:
         reject_reason: str | None = None,
     ) -> CaseRefreshSuggestion:
         """审核保鲜建议，委托至 _case_refresh_apply.review_suggestion。"""
-        return await _review_suggestion_impl(
-            self.db, suggestion_id, action, reviewer_id, reviewer_name, reject_reason
-        )
+        return await _review_suggestion_impl(self.db, suggestion_id, action, reviewer_id, reviewer_name, reject_reason)
 
     async def _apply_suggestion(self, suggestion: CaseRefreshSuggestion) -> int:
         """应用保鲜建议（内部方法）。"""
@@ -289,8 +279,8 @@ class CaseRefreshService:
             case = await self.get_case_by_id(stale_info["case_id"])
             if not case:
                 continue
-            req_result = await execute_async(self.db,
-                select(Requirement).where(Requirement.id == stale_info["requirement_id"])
+            req_result = await execute_async(
+                self.db, select(Requirement).where(Requirement.id == stale_info["requirement_id"])
             )
             req = req_result.scalar_one_or_none()
             if not req:
@@ -298,6 +288,7 @@ class CaseRefreshService:
             try:
                 prompt = self.build_refresh_prompt(case, req)
                 from app.utils.ai_client import get_ai_client
+
                 client = get_ai_client()
                 response = client.chat.completions.create(
                     model=client.model_name,
@@ -322,44 +313,44 @@ class CaseRefreshService:
 
     async def scan_stale_cases(self, project_id: int) -> list[dict[str, Any]]:
         """扫描项目下需求已变更但用例未同步的过期用例。"""
-        cases_result = await execute_async(self.db,
+        cases_result = await execute_async(
+            self.db,
             select(TestCase).where(
                 TestCase.project_id == project_id,
                 TestCase.is_deleted.is_(False),
                 TestCase.lifecycle_status.in_(["active", "pending_review"]),
-            )
+            ),
         )
         cases = cases_result.scalars().all()
         stale_cases: list[dict[str, Any]] = []
         for case in cases:
             if not case.test_point_id:
                 continue
-            tp_result = await execute_async(self.db,
-                select(TestPoint).where(TestPoint.id == case.test_point_id)
-            )
+            tp_result = await execute_async(self.db, select(TestPoint).where(TestPoint.id == case.test_point_id))
             tp = tp_result.scalar_one_or_none()
             if not tp or not tp.requirement_id:
                 continue
-            req_result = await execute_async(self.db,
-                select(Requirement).where(Requirement.id == tp.requirement_id)
-            )
+            req_result = await execute_async(self.db, select(Requirement).where(Requirement.id == tp.requirement_id))
             req = req_result.scalar_one_or_none()
             if not req or not req.update_time or not case.update_time:
                 continue
             if req.update_time > case.update_time:
-                existing_result = await execute_async(self.db,
+                existing_result = await execute_async(
+                    self.db,
                     select(CaseRefreshSuggestion).where(
                         CaseRefreshSuggestion.case_id == case.id,
                         CaseRefreshSuggestion.suggestion_status == "pending",
-                    )
+                    ),
                 )
                 existing = existing_result.scalar_one_or_none()
                 if not existing:
-                    stale_cases.append({
-                        "case_id": case.id,
-                        "case_title": case.title,
-                        "requirement_id": req.id,
-                        "requirement_title": req.title,
-                        "trigger_reason": "requirement_changed",
-                    })
+                    stale_cases.append(
+                        {
+                            "case_id": case.id,
+                            "case_title": case.title,
+                            "requirement_id": req.id,
+                            "requirement_title": req.title,
+                            "trigger_reason": "requirement_changed",
+                        }
+                    )
         return stale_cases

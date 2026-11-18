@@ -13,6 +13,7 @@
     对 sync 依赖（lifecycle_transition / CaseVersionService.create_snapshot）
     使用 db.run_sync() 桥接，避免越界迁移外部服务。
 """
+
 from datetime import datetime, UTC
 
 from sqlalchemy import delete, select
@@ -53,10 +54,11 @@ async def review_suggestion(
     Raises:
         ValueError: 建议不存在或已审核、动作非法时抛出。
     """
-    result = await execute_async(db,
+    result = await execute_async(
+        db,
         select(CaseRefreshSuggestion).where(
             CaseRefreshSuggestion.id == suggestion_id,
-        )
+        ),
     )
     suggestion = result.scalar_one_or_none()
     if not suggestion:
@@ -95,9 +97,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
     Returns:
         版本快照ID，若用例不存在则返回 0。
     """
-    result = await execute_async(db,
-        select(TestCase).where(TestCase.id == suggestion.case_id)
-    )
+    result = await execute_async(db, select(TestCase).where(TestCase.id == suggestion.case_id))
     case = result.scalar_one_or_none()
     if not case:
         suggestion.failure_reason = f"关联用例不存在: {suggestion.case_id}"
@@ -113,6 +113,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
             # lifecycle_transition 为 sync 外部依赖，使用 run_sync 桥接
             def _sync_lifecycle(sync_db):
                 from app.services.lifecycle_service._service import transition as lifecycle_transition
+
                 lifecycle_transition(
                     db=sync_db,
                     case_id=case.id,
@@ -120,6 +121,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
                     actor_id=suggestion.reviewer_id,
                     reason=suggestion.deprecation_reason,
                 )
+
             await run_sync_async(db, _sync_lifecycle)
         finally:
             disable_lifecycle_transition()
@@ -132,9 +134,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
         case.expected_result = suggestion.suggested_expected_result
     if suggestion.suggested_steps:
         case.steps_json = suggestion.suggested_steps
-        await execute_async(
-            db, delete(TestStep).where(TestStep.test_case_id == case.id)
-        )
+        await execute_async(db, delete(TestStep).where(TestStep.test_case_id == case.id))
         for idx, step_data in enumerate(suggestion.suggested_steps):
             if isinstance(step_data, dict):
                 step = TestStep(
@@ -152,9 +152,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
     return version_id
 
 
-async def create_version_snapshot(
-    db: AsyncSession, case: TestCase, change_type: str
-) -> int:
+async def create_version_snapshot(db: AsyncSession, case: TestCase, change_type: str) -> int:
     """创建用例版本快照（应用建议前自动快照）。
 
     使用 skip_version_snapshot 上下文避免快照事件递归触发。
@@ -180,6 +178,7 @@ async def create_version_snapshot(
                 change_type=change_type,
                 change_description="保鲜建议应用前自动快照",
             )
+
         version = await run_sync_async(db, _sync_snapshot)
     finally:
         resume_version_snapshot()

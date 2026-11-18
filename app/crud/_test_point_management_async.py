@@ -14,6 +14,7 @@
     `_apply_test_point_filters_async` helper，与 sync `_build_test_point_filters`
     保持等价语义。
 """
+
 from datetime import date, datetime, time
 
 from sqlalchemy import asc, desc, func, or_, select
@@ -67,13 +68,9 @@ def _apply_test_point_filters_async(
             )
         )
     if created_from:
-        stmt = stmt.where(
-            TestPoint.create_time >= datetime.combine(created_from, time.min)
-        )
+        stmt = stmt.where(TestPoint.create_time >= datetime.combine(created_from, time.min))
     if created_to:
-        stmt = stmt.where(
-            TestPoint.create_time <= datetime.combine(created_to, time.max)
-        )
+        stmt = stmt.where(TestPoint.create_time <= datetime.combine(created_to, time.max))
     return stmt
 
 

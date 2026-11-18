@@ -2,6 +2,7 @@
 UI Spec Parser - 核心解析Mixin
 提供图片读取、JSON解析、单屏视觉/text模式解析能力
 """
+
 import base64
 import asyncio
 import re
@@ -21,7 +22,7 @@ class UISpecCoreMixin:
         """将图片文件编码为base64"""
         try:
             with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode('utf-8')
+                return base64.b64encode(image_file.read()).decode("utf-8")
         except Exception as e:
             logger.error(f"图片编码失败: {image_path}, {str(e)}")
             return None
@@ -63,6 +64,7 @@ class UISpecCoreMixin:
 
                 import cv2
                 import numpy as np
+
                 nparr = np.frombuffer(bytes_data, np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 if img is None:
@@ -77,6 +79,7 @@ class UISpecCoreMixin:
         except Exception as e:
             logger.error(f"图片读取失败: {image_path}, {str(e)}")
             import traceback
+
             logger.error(f"  堆栈: {traceback.format_exc()}")
             return None
 
@@ -92,27 +95,27 @@ class UISpecCoreMixin:
             logger.debug("直接JSON解析失败，尝试正则提取")
 
         json_patterns = [
-            r'```json\s*([\s\S]*?)\s*```',
-            r'```\s*([\s\S]*?)\s*```',
+            r"```json\s*([\s\S]*?)\s*```",
+            r"```\s*([\s\S]*?)\s*```",
             r'\{\s*"screen_name"[\s\S]*\}',
             r'\{\s*"entry_screen"[\s\S]*\}',
             r'\{\s*"purpose"[\s\S]*\}',
-            r'\[\s*\{[\s\S]*\}\s*\]',
+            r"\[\s*\{[\s\S]*\}\s*\]",
         ]
         for pattern in json_patterns:
             match = re.search(pattern, content)
             if match:
-                json_str = match.group(1) if '```' in pattern else match.group(0)
+                json_str = match.group(1) if "```" in pattern else match.group(0)
                 try:
-                    json_str = re.sub(r',\s*}', '}', json_str)
-                    json_str = re.sub(r',\s*]', ']', json_str)
+                    json_str = re.sub(r",\s*}", "}", json_str)
+                    json_str = re.sub(r",\s*]", "]", json_str)
                     return json.loads(json_str)
                 except json.JSONDecodeError:
                     continue
 
         # 兜底：尝试用最大匹配提取最外层JSON对象/数组
         try:
-            start_idx = content.find('{')
+            start_idx = content.find("{")
             if start_idx != -1:
                 depth = 0
                 in_string = False
@@ -123,7 +126,7 @@ class UISpecCoreMixin:
                     if escape_next:
                         escape_next = False
                         continue
-                    if ch == '\\' and in_string:
+                    if ch == "\\" and in_string:
                         escape_next = True
                         continue
                     if ch == '"' and not escape_next:
@@ -131,17 +134,17 @@ class UISpecCoreMixin:
                         continue
                     if in_string:
                         continue
-                    if ch == '{':
+                    if ch == "{":
                         depth += 1
-                    elif ch == '}':
+                    elif ch == "}":
                         depth -= 1
                         if depth == 0:
                             end_idx = i
                             break
                 if depth == 0:
-                    json_str = content[start_idx:end_idx + 1]
-                    json_str = re.sub(r',\s*}', '}', json_str)
-                    json_str = re.sub(r',\s*]', ']', json_str)
+                    json_str = content[start_idx : end_idx + 1]
+                    json_str = re.sub(r",\s*}", "}", json_str)
+                    json_str = re.sub(r",\s*]", "]", json_str)
                     return json.loads(json_str)
         except Exception as e:
             logger.debug(f"兜底JSON提取失败: {e}")
@@ -150,9 +153,7 @@ class UISpecCoreMixin:
         return None
 
     async def parse_single_screen(
-        self,
-        image_path: str,
-        screen_name_hint: str | None = None
+        self, image_path: str, screen_name_hint: str | None = None
     ) -> tuple[bool, dict[str, Any], str]:
         """
         解析单张UI图（支持双模式）
@@ -199,9 +200,7 @@ class UISpecCoreMixin:
             return result
 
     async def _parse_with_text_mode(
-        self,
-        image_bytes: bytes,
-        screen_name_hint: str | None = None
+        self, image_bytes: bytes, screen_name_hint: str | None = None
     ) -> tuple[bool, dict[str, Any], str]:
         """
         text模式解析：OCR提取文字（优先带位置） + LLM结构化
@@ -240,9 +239,7 @@ class UISpecCoreMixin:
         return False, {}, "文本结构化解析失败"
 
     async def _parse_with_vision_mode(
-        self,
-        image_bytes: bytes,
-        screen_name_hint: str | None = None
+        self, image_bytes: bytes, screen_name_hint: str | None = None
     ) -> tuple[bool, dict[str, Any], str]:
         """
         vision模式解析：视觉模型直接分析图片
@@ -251,6 +248,7 @@ class UISpecCoreMixin:
             (成功标志, ui_spec字典, 错误信息)
         """
         from app.services.prompt_builder import SINGLE_IMAGE_PROMPT
+
         prompt = SINGLE_IMAGE_PROMPT
         if screen_name_hint:
             prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt
@@ -260,9 +258,7 @@ class UISpecCoreMixin:
                 logger.info(f"视觉模型解析UI图，尝试 {attempt + 1}/{self.max_retries}")
 
                 response = await asyncio.to_thread(
-                    self.vision_model.analyze_image,
-                    screenshot=image_bytes,
-                    prompt=prompt
+                    self.vision_model.analyze_image, screenshot=image_bytes, prompt=prompt
                 )
 
                 logger.info(f"视觉模型原始响应: {response[:500] if response else 'None'}")

@@ -3,6 +3,7 @@
 从 quality_validator.py 拆分，包含步骤完整性、测试数据质量、
 边界值策略与类型一致性校验。所有函数均为模块级纯函数。
 """
+
 from typing import Any
 
 from app.services.case_quality.quality_scoring_constants import (
@@ -31,9 +32,15 @@ def validate_steps(steps: list[dict[str, Any]], case_type: str = "") -> tuple[bo
     if not steps or len(steps) == 0:
         return False, "步骤列表为空"
     if len(steps) < 2:
-        return False, f"步骤数不足（仅{len(steps)}步），每条用例至少需要2步（导航+核心操作），前置条件中的状态必须通过步骤到达"
+        return (
+            False,
+            f"步骤数不足（仅{len(steps)}步），每条用例至少需要2步（导航+核心操作），前置条件中的状态必须通过步骤到达",
+        )
     if len(steps) > 8:
-        return False, f"步骤数过多（{len(steps)}步），每条用例最多8步，超过说明混合了多个测试场景，必须拆分为多条独立用例"
+        return (
+            False,
+            f"步骤数过多（{len(steps)}步），每条用例最多8步，超过说明混合了多个测试场景，必须拆分为多条独立用例",
+        )
     for i, step in enumerate(steps):
         action = step.get("action", "") or step.get("description", "")
         description = step.get("description", "")
@@ -45,7 +52,7 @@ def validate_steps(steps: list[dict[str, Any]], case_type: str = "") -> tuple[bo
         if STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
             return False, f"第{i + 1}步引用其他步骤或用例，应写成独立可执行步骤: {action[:50]}"
         if STEP_UNCERTAINTY_PATTERN.search(action):
-            return False, f"第{i + 1}步操作不确定（含\"或\"字措辞），应拆分为独立用例: {action[:50]}"
+            return False, f'第{i + 1}步操作不确定（含"或"字措辞），应拆分为独立用例: {action[:50]}'
         if STEP_INFERENCE_ACTION_PATTERN.search(action):
             return False, f"第{i + 1}步操作含推断性措辞，必须基于确定事实: {action[:50]}"
         if STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
@@ -77,7 +84,10 @@ def validate_test_data_quality(steps: list[dict[str, Any]]) -> tuple[bool, str]:
         input_value = (step.get("input_value") or "").strip()
         if not input_value or input_value in INPUT_VALUE_PLACEHOLDERS:
             action_desc = step.get("action", "")[:40]
-            return False, f"第{i + 1}步action_type为{action_type}但input_value为空或占位符，应填写具体输入值 (action={action_desc})"
+            return (
+                False,
+                f"第{i + 1}步action_type为{action_type}但input_value为空或占位符，应填写具体输入值 (action={action_desc})",
+            )
     return True, ""
 
 
@@ -110,10 +120,7 @@ def validate_boundary_strategy(case: dict[str, Any]) -> list[str]:
             continue
         input_value = str(step.get("input_value") or "").strip()
         if not input_value or input_value in INPUT_VALUE_PLACEHOLDERS:
-            issues.append(
-                f"[步骤{idx}] 边界用例应使用边界值（最大值/最小值/空值/特殊字符），"
-                f"而非占位符或空值"
-            )
+            issues.append(f"[步骤{idx}] 边界用例应使用边界值（最大值/最小值/空值/特殊字符），而非占位符或空值")
     return issues
 
 
@@ -144,14 +151,10 @@ def validate_type_consistency(case: dict[str, Any]) -> list[str]:
 
         # api_automation 不应含 UI 动作
         if case_type == "api_automation" and action_type in UI_ACTION_TYPES:
-            issues.append(
-                f"[步骤{idx}] api_automation 用例不应包含 UI 操作动作（{action_type}）"
-            )
+            issues.append(f"[步骤{idx}] api_automation 用例不应包含 UI 操作动作（{action_type}）")
 
         # manual 不应含 api_call
         if case_type == "manual" and action_type == "api_call":
-            issues.append(
-                f"[步骤{idx}] manual 用例不应包含 api_call 动作"
-            )
+            issues.append(f"[步骤{idx}] manual 用例不应包含 api_call 动作")
 
     return issues

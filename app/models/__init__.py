@@ -30,6 +30,7 @@
     TestTask → TestResult → TestCase
     UIPrototypeScreen ↔ TestCase（多对多）
 """
+
 # 导入顺序很重要：ui_prototype 必须先导入，因为它定义了 ui_screen_test_case_links 关联表
 # 而 test_case.py 中的 TestCase 模型需要引用这个关联表
 # 租户模型必须最早导入：业务模型的 tenant_id 外键指向 tenants 表
@@ -55,6 +56,7 @@ from app.models.video_record import VideoRecord
 # 核心业务模型
 from app.models.requirement import Requirement
 from app.models.requirement_link import RequirementLink
+
 # from app.models.bug import Bug
 # from app.models.group import Group, user_group, group_role
 from app.models.code_review import CodeReview, ReviewItem, ReviewComment, ReviewMetric
@@ -81,25 +83,39 @@ from app.models.prompt_template import PromptTemplate
 
 __all__ = [
     # UI原型相关
-    "UIPrototypeScreen", "UIScreenTestCaseLink", "UIPrototypeProject",
+    "UIPrototypeScreen",
+    "UIScreenTestCaseLink",
+    "UIPrototypeProject",
     "ProjectFlowData",
     # 迭代管理
-    "Iteration", "IterationInput",
+    "Iteration",
+    "IterationInput",
     # Pipeline 存储
-    "PipelineRun", "PipelineStep", "Artifact", "PipelineMetric",
+    "PipelineRun",
+    "PipelineStep",
+    "Artifact",
+    "PipelineMetric",
     # 项目管理
     "Project",
     "ProjectFile",
     # 用户与权限（RBAC）
-    "User", "Role", "Permission", "UserRole",
+    "User",
+    "Role",
+    "Permission",
+    "UserRole",
     # 租户（多租户隔离）
     "Tenant",
     # 元素定位（UI自动化）
     "ElementLocator",
     # 测试用例体系
-    "TestCase", "TestStep", "TestCaseExecution", "TestCaseVersion", "TestCasePreconditionStep",
+    "TestCase",
+    "TestStep",
+    "TestCaseExecution",
+    "TestCaseVersion",
+    "TestCasePreconditionStep",
     # 测试执行体系
-    "TestTask", "TestResult",
+    "TestTask",
+    "TestResult",
     # 测试点
     "TestPoint",
     # 业务能力
@@ -114,7 +130,10 @@ __all__ = [
     "Requirement",
     "RequirementLink",
     # 代码评审
-    "CodeReview", "ReviewItem", "ReviewComment", "ReviewMetric",
+    "CodeReview",
+    "ReviewItem",
+    "ReviewComment",
+    "ReviewMetric",
     # API成本日志
     "ApiCostLog",
     # AI调用日志（Pipeline）
@@ -133,12 +152,15 @@ __all__ = [
     "NLTestStep",
     # 测试用例数据关联
     "TestCaseData",
-    "IterationReview", "ReviewDecision", "ReviewLock",
+    "IterationReview",
+    "ReviewDecision",
+    "ReviewLock",
     "CaseRefreshSuggestion",
     # A/B测试指标
     "ABTestMetric",
     # 资料融合生成批次
-    "GenerationBatch", "GenerationBatchSave",
+    "GenerationBatch",
+    "GenerationBatchSave",
     "HistoryAsset",
     # 用例编号序列
     "CaseNumberSeq",

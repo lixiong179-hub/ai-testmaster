@@ -3,6 +3,7 @@
 校验用例步骤中引用的UI元素在UI原型规格中的命中率，
 命中率低于阈值时标记为 pending_review。
 """
+
 import re
 
 from app.services.quality.validators.base import (
@@ -15,15 +16,36 @@ from app.services.quality.validators.base import (
 class UIReferenceValidator(BaseValidator):
     """UI元素引用命中率校验器。"""
 
-    _UI_ELEMENT_KEYS = frozenset({
-        "id", "key", "name", "label", "text", "title",
-        "placeholder", "content", "value", "aria_label",
-        "element_name", "selector",
-    })
-    _GENERIC_UI_WORDS = frozenset({
-        "按钮", "输入框", "文本框", "链接", "页面",
-        "弹窗", "菜单", "选项", "入口", "控件",
-    })
+    _UI_ELEMENT_KEYS = frozenset(
+        {
+            "id",
+            "key",
+            "name",
+            "label",
+            "text",
+            "title",
+            "placeholder",
+            "content",
+            "value",
+            "aria_label",
+            "element_name",
+            "selector",
+        }
+    )
+    _GENERIC_UI_WORDS = frozenset(
+        {
+            "按钮",
+            "输入框",
+            "文本框",
+            "链接",
+            "页面",
+            "弹窗",
+            "菜单",
+            "选项",
+            "入口",
+            "控件",
+        }
+    )
 
     def __init__(self, min_hit_rate: float = 0.8) -> None:
         self.minHitRate = min_hit_rate
@@ -161,8 +183,7 @@ class UIReferenceValidator(BaseValidator):
         issue = ValidationIssue(
             field="ui_reference",
             message=(
-                f"UI元素命中率 {hit_rate:.0%} 低于阈值 {min_hit_rate:.0%}，"
-                f"未匹配元素: {'、'.join(unique_missing[:5])}"
+                f"UI元素命中率 {hit_rate:.0%} 低于阈值 {min_hit_rate:.0%}，未匹配元素: {'、'.join(unique_missing[:5])}"
             ),
             severity="pending_review",
         )

@@ -19,12 +19,16 @@ Mixin组合:
     4. 支持播放/暂停/跳转/调速
     5. 会话超时自动清理
 """
+
 from typing import Optional
 from collections.abc import Callable
 from sqlalchemy.orm import Session
 
 from app.services.execution_replay.models import (
-    ReplayEvent, ReplayEventType, ExecutionTimeline, ReplaySession,
+    ReplayEvent,
+    ReplayEventType,
+    ExecutionTimeline,
+    ReplaySession,
 )
 from app.services.execution_replay.session_manager_mixin import SessionManagerMixin
 from app.services.execution_replay.timeline_mixin import TimelineMixin
@@ -70,10 +74,10 @@ class ExecutionReplayService(
         self._session_timeout = session_timeout
         self._default_speed = default_speed
         self._event_callback = event_callback
-        self._screenshot_base_dir = '/tmp/test_screenshots'
+        self._screenshot_base_dir = "/tmp/test_screenshots"
 
     @classmethod
-    def get_instance(cls, db: Session, **kwargs) -> 'ExecutionReplayService':
+    def get_instance(cls, db: Session, **kwargs) -> "ExecutionReplayService":
         """获取单例实例，首次调用时初始化，后续调用更新db。
 
         Args:
@@ -91,13 +95,13 @@ class ExecutionReplayService(
 
 
 __all__ = [
-    'ExecutionReplayService',
-    'ReplayEvent',
-    'ReplayEventType',
-    'ExecutionTimeline',
-    'ReplaySession',
-    'SessionManagerMixin',
-    'TimelineMixin',
-    'PlaybackMixin',
-    'QueryMixin',
+    "ExecutionReplayService",
+    "ReplayEvent",
+    "ReplayEventType",
+    "ExecutionTimeline",
+    "ReplaySession",
+    "SessionManagerMixin",
+    "TimelineMixin",
+    "PlaybackMixin",
+    "QueryMixin",
 ]

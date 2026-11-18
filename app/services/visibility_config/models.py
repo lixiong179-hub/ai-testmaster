@@ -1,6 +1,7 @@
 """
 可见模式配置数据模型
 """
+
 from typing import Any
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -8,14 +9,16 @@ from enum import StrEnum
 
 class VisibilityLevel(StrEnum):
     """配置级别"""
-    GLOBAL = "global"      # 全局级别
-    TASK = "task"          # 任务级别
-    CASE = "case"          # 用例级别
+
+    GLOBAL = "global"  # 全局级别
+    TASK = "task"  # 任务级别
+    CASE = "case"  # 用例级别
 
 
 @dataclass
 class VisibilityConfig:
     """可见模式配置"""
+
     # 浏览器可见性
     headless: bool = True  # True=无头模式(后台运行), False=可见模式(显示窗口)
 
@@ -56,7 +59,7 @@ class VisibilityConfig:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'VisibilityConfig':
+    def from_dict(cls, data: dict[str, Any]) -> "VisibilityConfig":
         """从字典创建"""
         config = cls()
         if "headless" in data:

@@ -1,18 +1,12 @@
-"""回放控制Mixin - 控制执行过程的回放（播放/暂停/跳转/调速）。
-"""
+"""回放控制Mixin - 控制执行过程的回放（播放/暂停/跳转/调速）。"""
+
 import asyncio
 from typing import Any
 from loguru import logger
 
 
 class PlaybackMixin:
-
-    async def start_replay(
-        self,
-        session_id: str,
-        speed: float | None = None,
-        start_from: int = 0
-    ) -> dict[str, Any]:
+    async def start_replay(self, session_id: str, speed: float | None = None, start_from: int = 0) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")

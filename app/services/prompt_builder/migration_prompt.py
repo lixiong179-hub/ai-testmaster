@@ -1,4 +1,5 @@
 """跨设备用例迁移Prompt构建器。"""
+
 import json
 from typing import Any
 
@@ -48,16 +49,16 @@ def _build_migration_prompt(
     prompt = f"""你是一个专业的跨设备测试用例迁移专家。现在需要将一条{source_device}端测试用例迁移到{target_device}端。
 
 ## 源用例信息
-- 标题：{source_case.get('title', '')}
-- 前置条件：{source_case.get('precondition', '')}
+- 标题：{source_case.get("title", "")}
+- 前置条件：{source_case.get("precondition", "")}
 - 步骤：{steps_text}
-- 预期结果：{source_case.get('expected_result', '')}
-- 优先级：{source_case.get('priority', 2)}
-- 用例类型：{source_case.get('case_type', 'ui_automation')}
+- 预期结果：{source_case.get("expected_result", "")}
+- 优先级：{source_case.get("priority", 2)}
+- 用例类型：{source_case.get("case_type", "ui_automation")}
 
 ## 设备差异规则
 {source_device}→{target_device}的典型差异：
-{chr(10).join(diff_rules) if diff_rules else '无预设差异规则，请根据通用设备差异判断'}
+{chr(10).join(diff_rules) if diff_rules else "无预设差异规则，请根据通用设备差异判断"}
 {ui_section}
 ## 迁移要求
 1. 首先判断迁移类型：
