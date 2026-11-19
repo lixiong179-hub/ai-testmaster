@@ -50,7 +50,8 @@ APP = "app"
 # → 117（B2i：batch_upload_files 23，单文件单处）
 # → 116（B2j：update_technical_view 23，单文件单处）
 # → 115（B2k：save_generation_batch 34，单文件单处；B2 结批，api/v1 清零）
-TOTAL_BUDGET = 115
+# → 114（B3a：ensure_secret_keys 27，单文件单处）
+TOTAL_BUDGET = 114
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

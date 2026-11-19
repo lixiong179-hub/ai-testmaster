@@ -76,6 +76,134 @@ def is_default_value(value: str) -> bool:
     return any(pattern in value_lower for pattern in _DEFAULT_PATTERNS)
 
 
+def _validate_database_config(settings_instance) -> None:
+    """数据库必须配置且禁止 SQLite。"""
+    if not settings_instance.DATABASE_URL:
+        raise ValueError(
+            "DATABASE_URL 未配置！请在 .env 文件中设置 MySQL 连接字符串，"
+            "例如: mysql+pymysql://user:password@localhost:3306/ai_testmaster"
+        )
+    if settings_instance.DATABASE_URL.startswith("sqlite"):
+        raise ValueError("禁止使用 SQLite 数据库！请配置 MySQL 连接字符串。项目要求必须使用 MySQL。")
+
+
+def _sync_ai_api_keys(settings_instance) -> None:
+    """AI_API_KEY 与 DEEPSEEK_API_KEY 双向兜底。"""
+    if not settings_instance.AI_API_KEY and settings_instance.DEEPSEEK_API_KEY:
+        settings_instance.AI_API_KEY = settings_instance.DEEPSEEK_API_KEY
+    if not settings_instance.DEEPSEEK_API_KEY and settings_instance.AI_API_KEY:
+        settings_instance.DEEPSEEK_API_KEY = settings_instance.AI_API_KEY
+
+
+def _validate_prod_key_strength(settings_instance, key_name: str, noun: str, weak_suffix: str = "") -> None:
+    """生产环境校验单个密钥：弱默认值模式与最小长度。"""
+    value = getattr(settings_instance, key_name, "") or ""
+    if is_default_value(value):
+        raise ValueError(
+            f"生产环境{key_name}使用了弱默认值模式{weak_suffix}！"
+            f"请通过环境变量 {key_name} 设置{noun}。"
+            '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
+    if len(value) < 32:
+        raise ValueError(
+            f"生产环境{key_name}长度不足（至少32字符）！"
+            f'请使用{noun}。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
+
+
+def _require_prod_deepseek_key(settings_instance) -> None:
+    """生产环境必须配置真实 DEEPSEEK_API_KEY。"""
+    api_key = settings_instance.DEEPSEEK_API_KEY
+    if not api_key or is_default_value(api_key):
+        raise ValueError(
+            "生产环境DEEPSEEK_API_KEY未配置或使用了默认值！"
+            "请在 .env 中配置真实的 API 密钥。"
+            "获取地址: https://platform.deepseek.com/"
+        )
+
+
+def _warn_dev_secret_policy(settings_instance) -> None:
+    """非生产环境对缺省/弱默认值密钥发出告警（不阻断启动）。"""
+    api_key = settings_instance.DEEPSEEK_API_KEY
+    if not api_key or is_default_value(api_key):
+        warnings.warn(
+            "⚠️  DEEPSEEK_API_KEY 未配置或可能使用了默认值，AI功能可能无法正常工作。请在 .env 中配置真实的 API 密钥。",
+            UserWarning,
+        )
+    for key_name in ("JWT_SECRET_KEY", "ENCRYPTION_KEY", "ENCRYPTION_SALT"):
+        key_value = getattr(settings_instance, key_name, "")
+        if key_value and is_default_value(key_value):
+            warnings.warn(
+                f"⚠️  {key_name} 检测到弱默认值模式，生产环境将拒绝启动。请使用强随机密钥。",
+                UserWarning,
+            )
+
+
+def _enforce_secret_policy(settings_instance) -> None:
+    """生产环境严格校验密钥；非生产仅告警。"""
+    if settings_instance.ENVIRONMENT != "prod":
+        _warn_dev_secret_policy(settings_instance)
+        return
+    _require_prod_deepseek_key(settings_instance)
+    # 安全收紧：JWT/加密密钥既校验长度也校验是否为弱默认值模式
+    # 防止 "your-secret-key-here-padding-to-32-chars" 等绕过长度检查的弱密钥
+    _validate_prod_key_strength(
+        settings_instance,
+        "JWT_SECRET_KEY",
+        "强随机密钥",
+        weak_suffix="（包含 your-/changeme/secret 等关键字）",
+    )
+    _validate_prod_key_strength(settings_instance, "ENCRYPTION_KEY", "强随机密钥")
+    _validate_prod_key_strength(settings_instance, "ENCRYPTION_SALT", "强随机盐值")
+
+
+def _ensure_single_key(
+    settings_instance,
+    key_name: str,
+    cache_name: str,
+    cache_file: Path,
+    noun: str,
+) -> None:
+    """三级回退：环境变量 → 缓存文件 → 自动生成（生产环境禁止自动生成）。"""
+    if getattr(settings_instance, key_name):
+        _log_key_source(key_name, "env")
+        return
+
+    cached_value = load_cached_key(cache_name, cache_file)
+    if cached_value:
+        setattr(settings_instance, key_name, cached_value)
+        _log_key_source(key_name, "cache")
+        return
+
+    if settings_instance.ENVIRONMENT == "prod":
+        raise ValueError(
+            f"生产环境未设置{key_name}，禁止自动生成！"
+            f"请通过环境变量 {key_name} 设置{noun}。"
+            '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
+    new_value = generate_secret_key()
+    setattr(settings_instance, key_name, new_value)
+    save_cached_key(cache_name, new_value, cache_file)
+    _log_key_source(key_name, "auto-generated", auto_generated=True)
+
+
+def _validate_prod_cors(settings_instance) -> None:
+    """生产环境禁止 CORS 使用 '*' 通配符。"""
+    if settings_instance.ENVIRONMENT != "prod":
+        return
+    if not settings_instance.CORS_ORIGINS or settings_instance.CORS_ORIGINS == "*":
+        raise ValueError(
+            "生产环境必须配置 CORS_ORIGINS！禁止使用 '*' 通配符。"
+            "请在 .env 中设置允许的域名，例如: CORS_ORIGINS=https://yourdomain.com"
+        )
+    if not settings_instance.CORS_ALLOW_HEADERS or settings_instance.CORS_ALLOW_HEADERS.strip() == "*":
+        raise ValueError(
+            "生产环境必须配置 CORS_ALLOW_HEADERS！禁止使用 '*' 通配符。"
+            "请在 .env 中设置允许的请求头白名单，"
+            "例如: CORS_ALLOW_HEADERS=Authorization,Content-Type,Accept,Origin"
+        )
+
+
 def ensure_secret_keys(settings_instance) -> None:
     """确保必要的安全密钥已设置，支持持久化到文件以跨重启复用。
 
@@ -90,140 +218,12 @@ def ensure_secret_keys(settings_instance) -> None:
     """
     _key_cache_file = BASE_DIR / ".secret_keys"
 
-    if not settings_instance.DATABASE_URL:
-        raise ValueError(
-            "DATABASE_URL 未配置！请在 .env 文件中设置 MySQL 连接字符串，"
-            "例如: mysql+pymysql://user:password@localhost:3306/ai_testmaster"
-        )
+    _validate_database_config(settings_instance)
+    _sync_ai_api_keys(settings_instance)
+    _enforce_secret_policy(settings_instance)
 
-    if settings_instance.DATABASE_URL.startswith("sqlite"):
-        raise ValueError("禁止使用 SQLite 数据库！请配置 MySQL 连接字符串。项目要求必须使用 MySQL。")
+    _ensure_single_key(settings_instance, "JWT_SECRET_KEY", "jwt_secret_key", _key_cache_file, "强随机密钥")
+    _ensure_single_key(settings_instance, "ENCRYPTION_KEY", "encryption_key", _key_cache_file, "加密密钥")
+    _ensure_single_key(settings_instance, "ENCRYPTION_SALT", "encryption_salt", _key_cache_file, "加密盐值")
 
-    if not settings_instance.AI_API_KEY and settings_instance.DEEPSEEK_API_KEY:
-        settings_instance.AI_API_KEY = settings_instance.DEEPSEEK_API_KEY
-
-    if not settings_instance.DEEPSEEK_API_KEY and settings_instance.AI_API_KEY:
-        settings_instance.DEEPSEEK_API_KEY = settings_instance.AI_API_KEY
-
-    if settings_instance.ENVIRONMENT == "prod":
-        if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):
-            raise ValueError(
-                "生产环境DEEPSEEK_API_KEY未配置或使用了默认值！"
-                "请在 .env 中配置真实的 API 密钥。"
-                "获取地址: https://platform.deepseek.com/"
-            )
-        # 安全收紧：JWT/加密密钥既校验长度也校验是否为弱默认值模式
-        # 防止 "your-secret-key-here-padding-to-32-chars" 等绕过长度检查的弱密钥
-        if is_default_value(settings_instance.JWT_SECRET_KEY):
-            raise ValueError(
-                "生产环境JWT_SECRET_KEY使用了弱默认值模式（包含 your-/changeme/secret 等关键字）！"
-                "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
-                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-        if len(settings_instance.JWT_SECRET_KEY) < 32:
-            raise ValueError(
-                "生产环境JWT_SECRET_KEY长度不足（至少32字符）！"
-                '请使用强随机密钥。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-        if is_default_value(settings_instance.ENCRYPTION_KEY):
-            raise ValueError(
-                "生产环境ENCRYPTION_KEY使用了弱默认值模式！"
-                "请通过环境变量 ENCRYPTION_KEY 设置强随机密钥。"
-                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-        if len(settings_instance.ENCRYPTION_KEY) < 32:
-            raise ValueError(
-                "生产环境ENCRYPTION_KEY长度不足（至少32字符）！"
-                '请使用强随机密钥。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-        if is_default_value(settings_instance.ENCRYPTION_SALT):
-            raise ValueError(
-                "生产环境ENCRYPTION_SALT使用了弱默认值模式！"
-                "请通过环境变量 ENCRYPTION_SALT 设置强随机盐值。"
-                '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-        if len(settings_instance.ENCRYPTION_SALT) < 32:
-            raise ValueError(
-                "生产环境ENCRYPTION_SALT长度不足（至少32字符）！"
-                '请使用强随机盐值。生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-            )
-    else:
-        if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):
-            warnings.warn(
-                "⚠️  DEEPSEEK_API_KEY 未配置或可能使用了默认值，AI功能可能无法正常工作。"
-                "请在 .env 中配置真实的 API 密钥。",
-                UserWarning,
-            )
-        # 非生产环境对 JWT/加密密钥弱默认值发出警告，便于开发者发现配置错误
-        for _key_name in ("JWT_SECRET_KEY", "ENCRYPTION_KEY", "ENCRYPTION_SALT"):
-            _val = getattr(settings_instance, _key_name, "")
-            if _val and is_default_value(_val):
-                warnings.warn(f"⚠️  {_key_name} 检测到弱默认值模式，生产环境将拒绝启动。请使用强随机密钥。", UserWarning)
-
-    if settings_instance.JWT_SECRET_KEY:
-        _log_key_source("JWT_SECRET_KEY", "env")
-    else:
-        settings_instance.JWT_SECRET_KEY = load_cached_key("jwt_secret_key", _key_cache_file)
-        if settings_instance.JWT_SECRET_KEY:
-            _log_key_source("JWT_SECRET_KEY", "cache")
-        else:
-            if settings_instance.ENVIRONMENT == "prod":
-                raise ValueError(
-                    "生产环境未设置JWT_SECRET_KEY，禁止自动生成！"
-                    "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
-                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-                )
-            settings_instance.JWT_SECRET_KEY = generate_secret_key()
-            save_cached_key("jwt_secret_key", settings_instance.JWT_SECRET_KEY, _key_cache_file)
-            _log_key_source("JWT_SECRET_KEY", "auto-generated", auto_generated=True)
-
-    if settings_instance.ENCRYPTION_KEY:
-        _log_key_source("ENCRYPTION_KEY", "env")
-    else:
-        settings_instance.ENCRYPTION_KEY = load_cached_key("encryption_key", _key_cache_file)
-        if settings_instance.ENCRYPTION_KEY:
-            _log_key_source("ENCRYPTION_KEY", "cache")
-        else:
-            if settings_instance.ENVIRONMENT == "prod":
-                raise ValueError(
-                    "生产环境未设置ENCRYPTION_KEY，禁止自动生成！"
-                    "请通过环境变量 ENCRYPTION_KEY 设置加密密钥。"
-                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-                )
-            settings_instance.ENCRYPTION_KEY = generate_secret_key()
-            save_cached_key("encryption_key", settings_instance.ENCRYPTION_KEY, _key_cache_file)
-            _log_key_source("ENCRYPTION_KEY", "auto-generated", auto_generated=True)
-
-    if settings_instance.ENCRYPTION_SALT:
-        _log_key_source("ENCRYPTION_SALT", "env")
-    else:
-        settings_instance.ENCRYPTION_SALT = load_cached_key("encryption_salt", _key_cache_file)
-        if settings_instance.ENCRYPTION_SALT:
-            _log_key_source("ENCRYPTION_SALT", "cache")
-        else:
-            if settings_instance.ENVIRONMENT == "prod":
-                raise ValueError(
-                    "生产环境未设置ENCRYPTION_SALT，禁止自动生成！"
-                    "请通过环境变量 ENCRYPTION_SALT 设置加密盐值。"
-                    '生成命令: python -c "import secrets; print(secrets.token_urlsafe(32))"'
-                )
-            settings_instance.ENCRYPTION_SALT = generate_secret_key()
-            save_cached_key("encryption_salt", settings_instance.ENCRYPTION_SALT, _key_cache_file)
-            _log_key_source("ENCRYPTION_SALT", "auto-generated", auto_generated=True)
-
-    if settings_instance.ENVIRONMENT == "prod" and (
-        not settings_instance.CORS_ORIGINS or settings_instance.CORS_ORIGINS == "*"
-    ):
-        raise ValueError(
-            "生产环境必须配置 CORS_ORIGINS！禁止使用 '*' 通配符。"
-            "请在 .env 中设置允许的域名，例如: CORS_ORIGINS=https://yourdomain.com"
-        )
-
-    if settings_instance.ENVIRONMENT == "prod" and (
-        not settings_instance.CORS_ALLOW_HEADERS or settings_instance.CORS_ALLOW_HEADERS.strip() == "*"
-    ):
-        raise ValueError(
-            "生产环境必须配置 CORS_ALLOW_HEADERS！禁止使用 '*' 通配符。"
-            "请在 .env 中设置允许的请求头白名单，"
-            "例如: CORS_ALLOW_HEADERS=Authorization,Content-Type,Accept,Origin"
-        )
+    _validate_prod_cors(settings_instance)
