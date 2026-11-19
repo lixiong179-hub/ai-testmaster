@@ -48,7 +48,8 @@ APP = "app"
 # → 119（B2g：upload_ui_screens / ai_enhanced_generate_stream / event_generator / update_test_object）
 # → 118（B2h：precheck_scenario_4 21，单文件单处）
 # → 117（B2i：batch_upload_files 23，单文件单处）
-TOTAL_BUDGET = 117
+# → 116（B2j：update_technical_view 23，单文件单处）
+TOTAL_BUDGET = 116
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

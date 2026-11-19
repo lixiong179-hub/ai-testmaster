@@ -238,6 +238,96 @@ class TechnicalViewEditRequest(BaseModel):
         return v
 
 
+#: 技术视图编辑允许回写 TestStep 的字段白名单（顺序无关，仅出现才写）。
+_STEP_EDITABLE_FIELDS = ("action_type", "input_value", "target_element", "action", "expected_result")
+
+
+async def _lookup_step(db: Session, test_case_id: int, step_number: int):
+    """按用例 + 步骤序号查 TestStep 记录。"""
+    result = await asyncio.to_thread(
+        db.execute,
+        select(TestStep).where(TestStep.test_case_id == test_case_id, TestStep.step_number == step_number),
+    )
+    return result.scalar_one_or_none()
+
+
+async def _lookup_locator(db: Session, step_id: int):
+    """查步骤对应的元素定位记录。"""
+    result = await asyncio.to_thread(
+        db.execute,
+        select(ElementLocator).where(ElementLocator.step_id == step_id),
+    )
+    return result.scalar_one_or_none()
+
+
+def _assign_step_fields(db_step, updated_step: dict) -> None:
+    """把编辑内容按白名单写入 TestStep（只写请求里出现的键）。"""
+    for field_name in _STEP_EDITABLE_FIELDS:
+        if field_name in updated_step:
+            setattr(db_step, field_name, updated_step[field_name])
+
+
+def _merge_step_json(existing_steps: list, step_id, updated_step: dict) -> None:
+    """把编辑内容合并回 steps_json 中同 step_number 的项。"""
+    for idx, existing in enumerate(existing_steps):
+        if isinstance(existing, dict) and existing.get("step_number") == step_id:
+            existing_steps[idx].update({k: v for k, v in updated_step.items() if k != "step_number"})
+
+
+async def _apply_steps_update(db: Session, test_case, test_case_id: int, steps: list[dict]) -> None:
+    """按 step_number 更新 TestStep 并同步 steps_json。"""
+    existing_steps = (
+        test_case.steps_json if isinstance(test_case.steps_json, list) else json.loads(test_case.steps_json or "[]")
+    )
+    for updated_step in steps:
+        step_id = updated_step.get("step_number")
+        if not step_id:
+            continue
+        db_step = await _lookup_step(db, test_case_id, step_id)
+        if db_step:
+            _assign_step_fields(db_step, updated_step)
+        _merge_step_json(existing_steps, step_id, updated_step)
+    test_case.steps_json = existing_steps
+
+
+def _assign_locator_fields(existing_locator, locator_data: dict) -> None:
+    """把定位字段写入已有 ElementLocator（只写请求里出现的键）。"""
+    if "css_selector" in locator_data:
+        existing_locator.css_selector = locator_data["css_selector"]
+    if "xpath" in locator_data:
+        existing_locator.xpath = locator_data["xpath"]
+    if "element_type" in locator_data:
+        existing_locator.element_type = locator_data["element_type"]
+
+
+def _build_locator(step_id: int, locator_data: dict):
+    """人工录入的元素定位默认值：置信度 1.0、来源 manual。"""
+    return ElementLocator(
+        step_id=step_id,
+        css_selector=locator_data.get("css_selector"),
+        xpath=locator_data.get("xpath"),
+        element_type=locator_data.get("element_type", "unknown"),
+        ai_confidence=1.0,
+        source="manual",
+    )
+
+
+async def _apply_locators_update(db: Session, test_case_id: int, locators: dict) -> None:
+    """按 step_number 新建/更新元素定位，并回写步骤定位状态。"""
+    for step_number, locator_data in locators.items():
+        db_step = await _lookup_step(db, test_case_id, int(step_number))
+        if not db_step:
+            continue
+        existing_locator = await _lookup_locator(db, db_step.id)
+        if existing_locator:
+            _assign_locator_fields(existing_locator, locator_data)
+            existing_locator.updated_at = utcnow()
+        else:
+            db.add(_build_locator(db_step.id, locator_data))
+        db_step.has_locator = 1
+        db_step.locator_status = "recorded"
+
+
 @router.put("/{test_case_id}/technical-view")
 async def update_technical_view(
     test_case_id: int,
@@ -258,70 +348,10 @@ async def update_technical_view(
             test_case.exec_script = request.exec_script
 
         if request.steps is not None:
-            existing_steps = (
-                test_case.steps_json
-                if isinstance(test_case.steps_json, list)
-                else json.loads(test_case.steps_json or "[]")
-            )
-            for updated_step in request.steps:
-                step_id = updated_step.get("step_number")
-                if step_id:
-                    step_result = await asyncio.to_thread(
-                        db.execute,
-                        select(TestStep).where(TestStep.test_case_id == test_case_id, TestStep.step_number == step_id),
-                    )
-                    db_step = step_result.scalar_one_or_none()
-                    if db_step:
-                        if "action_type" in updated_step:
-                            db_step.action_type = updated_step["action_type"]
-                        if "input_value" in updated_step:
-                            db_step.input_value = updated_step["input_value"]
-                        if "target_element" in updated_step:
-                            db_step.target_element = updated_step["target_element"]
-                        if "action" in updated_step:
-                            db_step.action = updated_step["action"]
-                        if "expected_result" in updated_step:
-                            db_step.expected_result = updated_step["expected_result"]
-                    for idx, existing in enumerate(existing_steps):
-                        if isinstance(existing, dict) and existing.get("step_number") == step_id:
-                            existing_steps[idx].update({k: v for k, v in updated_step.items() if k != "step_number"})
-            test_case.steps_json = existing_steps
+            await _apply_steps_update(db, test_case, test_case_id, request.steps)
 
         if request.locators is not None:
-            for step_number, locator_data in request.locators.items():
-                step_result = await asyncio.to_thread(
-                    db.execute,
-                    select(TestStep).where(
-                        TestStep.test_case_id == test_case_id, TestStep.step_number == int(step_number)
-                    ),
-                )
-                db_step = step_result.scalar_one_or_none()
-                if db_step:
-                    loc_result = await asyncio.to_thread(
-                        db.execute,
-                        select(ElementLocator).where(ElementLocator.step_id == db_step.id),
-                    )
-                    existing_locator = loc_result.scalar_one_or_none()
-                    if existing_locator:
-                        if "css_selector" in locator_data:
-                            existing_locator.css_selector = locator_data["css_selector"]
-                        if "xpath" in locator_data:
-                            existing_locator.xpath = locator_data["xpath"]
-                        if "element_type" in locator_data:
-                            existing_locator.element_type = locator_data["element_type"]
-                        existing_locator.updated_at = utcnow()
-                    else:
-                        new_locator = ElementLocator(
-                            step_id=db_step.id,
-                            css_selector=locator_data.get("css_selector"),
-                            xpath=locator_data.get("xpath"),
-                            element_type=locator_data.get("element_type", "unknown"),
-                            ai_confidence=1.0,
-                            source="manual",
-                        )
-                        db.add(new_locator)
-                    db_step.has_locator = 1
-                    db_step.locator_status = "recorded"
+            await _apply_locators_update(db, test_case_id, request.locators)
 
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, test_case)
