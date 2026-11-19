@@ -8,6 +8,80 @@
 from typing import Any
 
 
+def _format_purpose(ui_spec: dict[str, Any]) -> list[str]:
+    """页面功能描述。"""
+    if not ui_spec.get("purpose"):
+        return []
+    return [f"页面功能：{ui_spec['purpose']}"]
+
+
+def _format_regions(regions) -> list[str]:
+    """页面区域划分：dict（名称→描述）或 list（含 name/desc）。"""
+    if not regions:
+        return []
+    lines = ["页面区域："]
+    if isinstance(regions, dict):
+        for region_name, region_desc in regions.items():
+            if region_desc:
+                lines.append(f"  - {region_name}: {region_desc}")
+    elif isinstance(regions, list):
+        for region in regions:
+            if isinstance(region, dict):
+                name = region.get("name", "")
+                desc = region.get("desc", region.get("description", ""))
+                if name or desc:
+                    lines.append(f"  - {name}: {desc}")
+    return lines
+
+
+def _format_elements(elements: list) -> list[str]:
+    """页面元素列表（最多 30 个）。"""
+    if not elements:
+        return []
+    lines = [f"页面元素（共{len(elements)}个）："]
+    for elem in elements[:30]:
+        elem_type = elem.get("type", "未知")
+        label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
+        state = elem.get("state", "normal")
+        interactive = elem.get("interactive", False)
+        desc = elem.get("description", "")
+        lines.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
+    return lines
+
+
+def _format_navigation(navigation) -> list[str]:
+    """导航结构。"""
+    if not navigation:
+        return []
+    lines = ["导航结构："]
+    for nav_key, nav_val in navigation.items():
+        if nav_val:
+            lines.append(f"  - {nav_key}: {nav_val}")
+    return lines
+
+
+def _format_layout_constraints(layout_checks: list) -> list[str]:
+    """布局约束（最多 10 条）。"""
+    if not layout_checks:
+        return []
+    lines = [f"布局约束（共{len(layout_checks)}项）："]
+    for check in layout_checks[:10]:
+        desc = check.get("description", "")
+        if desc:
+            lines.append(f"  - {desc}")
+    return lines
+
+
+def _format_flows(flows) -> list[str]:
+    """页面跳转关系。"""
+    if not flows:
+        return []
+    next_screens = flows.get("expected_next_screens", [])
+    if not next_screens:
+        return []
+    return [f"预期跳转页面：{', '.join(next_screens)}"]
+
+
 def format_ui_spec_for_prompt(screen_name: str, ui_spec: dict[str, Any]) -> str:
     """将 UI 规格数据格式化为 Prompt 友好的文本描述（唯一实现）。
 
@@ -27,57 +101,12 @@ def format_ui_spec_for_prompt(screen_name: str, ui_spec: dict[str, Any]) -> str:
         格式化后的文本描述。
     """
     parts = [f"【页面：{screen_name}】"]
-
-    if ui_spec.get("purpose"):
-        parts.append(f"页面功能：{ui_spec['purpose']}")
-
-    regions = ui_spec.get("regions", {})
-    if regions:
-        parts.append("页面区域：")
-        if isinstance(regions, dict):
-            for region_name, region_desc in regions.items():
-                if region_desc:
-                    parts.append(f"  - {region_name}: {region_desc}")
-        elif isinstance(regions, list):
-            for region in regions:
-                if isinstance(region, dict):
-                    name = region.get("name", "")
-                    desc = region.get("desc", region.get("description", ""))
-                    if name or desc:
-                        parts.append(f"  - {name}: {desc}")
-
-    elements = ui_spec.get("elements", [])
-    if elements:
-        parts.append(f"页面元素（共{len(elements)}个）：")
-        for elem in elements[:30]:
-            elem_type = elem.get("type", "未知")
-            label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
-            state = elem.get("state", "normal")
-            interactive = elem.get("interactive", False)
-            desc = elem.get("description", "")
-            parts.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
-
-    navigation = ui_spec.get("navigation", {})
-    if navigation:
-        parts.append("导航结构：")
-        for nav_key, nav_val in navigation.items():
-            if nav_val:
-                parts.append(f"  - {nav_key}: {nav_val}")
-
-    layout_checks = ui_spec.get("layout_constraints", [])
-    if layout_checks:
-        parts.append(f"布局约束（共{len(layout_checks)}项）：")
-        for check in layout_checks[:10]:
-            desc = check.get("description", "")
-            if desc:
-                parts.append(f"  - {desc}")
-
-    flows = ui_spec.get("flows", {})
-    if flows:
-        next_screens = flows.get("expected_next_screens", [])
-        if next_screens:
-            parts.append(f"预期跳转页面：{', '.join(next_screens)}")
-
+    parts.extend(_format_purpose(ui_spec))
+    parts.extend(_format_regions(ui_spec.get("regions", {})))
+    parts.extend(_format_elements(ui_spec.get("elements", [])))
+    parts.extend(_format_navigation(ui_spec.get("navigation", {})))
+    parts.extend(_format_layout_constraints(ui_spec.get("layout_constraints", [])))
+    parts.extend(_format_flows(ui_spec.get("flows", {})))
     return "\n".join(parts)
 
 
