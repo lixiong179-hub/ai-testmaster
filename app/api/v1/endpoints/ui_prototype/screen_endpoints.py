@@ -78,6 +78,87 @@ def _apply_iteration_filter_stmt(stmt, iteration_id: int | None):
     return stmt
 
 
+def _save_uploaded_files(
+    files: list[UploadFile],
+    project_dir: str,
+    project_dir_abs: str,
+    safe_prototype_name: str,
+) -> tuple[list[dict], list[dict]]:
+    """落盘上传图片并逐张校验，返回 (有效文件, 无效文件)。"""
+    saved_files: list[dict] = []
+    invalid_files: list[dict] = []
+
+    for i, file in enumerate(files):
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        ext = os.path.splitext(file.filename)[1] if file.filename else ".png"
+        filename = f"{safe_prototype_name}_{timestamp}_{i}{ext}"
+        filepath = os.path.join(project_dir, filename)
+        # 防御性兜底：验证最终路径仍在 project_dir 内
+        if not os.path.abspath(filepath).startswith(project_dir_abs + os.sep):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="文件名包含非法字符",
+            )
+
+        try:
+            with open(filepath, "wb") as f:
+                shutil.copyfileobj(file.file, f)
+        finally:
+            if hasattr(file, "file") and hasattr(file.file, "close"):
+                file.file.close()
+
+        file_size = os.path.getsize(filepath)
+
+        is_valid, error_msg = _validate_image_file(filepath)
+        if not is_valid:
+            logger.warning(f"图片验证失败: {filename}, 原因: {error_msg}")
+            invalid_files.append({"name": file.filename or filename, "error": error_msg})
+            try:
+                os.remove(filepath)
+            except OSError:
+                logger.debug("删除无效图片文件失败")
+            continue
+
+        saved_files.append(
+            {
+                "path": filepath,
+                "name": file.filename or filename,
+                "size": file_size,
+            }
+        )
+
+    return saved_files, invalid_files
+
+
+def _ensure_prototype_project(
+    sync_db: Session,
+    *,
+    prototype_project_id: int | None,
+    project_id: int,
+    prototype_name: str,
+    created_by: int,
+    iteration_id: int | None,
+) -> int:
+    """确保原型项目存在并同步迭代归属，返回原型项目 ID。"""
+    if prototype_project_id is None:
+        db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
+        proto_project = ui_prototype_crud.create_ui_prototype_project(
+            db=sync_db,
+            project_id=project_id,
+            name=prototype_name,
+            created_by=created_by,
+            iteration_id=db_iteration_id,
+        )
+        return proto_project.id
+    if iteration_id is not None:
+        db_iteration_id = iteration_id if iteration_id > 0 else None
+        proto_project = sync_db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
+        if proto_project:
+            proto_project.iteration_id = db_iteration_id
+            sync_db.commit()
+    return prototype_project_id
+
+
 @router.post("/upload", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def upload_ui_screens(
     project_id: int = Form(...),
@@ -104,7 +185,6 @@ async def upload_ui_screens(
 
         _ensure_upload_dir()
 
-        saved_files = []
         project_dir = os.path.join(UPLOAD_DIR, str(project_id))
         os.makedirs(project_dir, exist_ok=True)
         # 规范化为绝对路径，用于后续边界校验
@@ -113,45 +193,7 @@ async def upload_ui_screens(
         # P0-1: 对用户输入的 prototype_name 进行 sanitize，杜绝路径遍历
         safe_prototype_name = _sanitize_filename_component(prototype_name)
 
-        invalid_files = []
-        for i, file in enumerate(files):
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            ext = os.path.splitext(file.filename)[1] if file.filename else ".png"
-            filename = f"{safe_prototype_name}_{timestamp}_{i}{ext}"
-            filepath = os.path.join(project_dir, filename)
-            # 防御性兜底：验证最终路径仍在 project_dir 内
-            if not os.path.abspath(filepath).startswith(project_dir_abs + os.sep):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="文件名包含非法字符",
-                )
-
-            try:
-                with open(filepath, "wb") as f:
-                    shutil.copyfileobj(file.file, f)
-            finally:
-                if hasattr(file, "file") and hasattr(file.file, "close"):
-                    file.file.close()
-
-            file_size = os.path.getsize(filepath)
-
-            is_valid, error_msg = _validate_image_file(filepath)
-            if not is_valid:
-                logger.warning(f"图片验证失败: {filename}, 原因: {error_msg}")
-                invalid_files.append({"name": file.filename or filename, "error": error_msg})
-                try:
-                    os.remove(filepath)
-                except OSError:
-                    logger.debug("删除无效图片文件失败")
-                continue
-
-            saved_files.append(
-                {
-                    "path": filepath,
-                    "name": file.filename or filename,
-                    "size": file_size,
-                }
-            )
+        saved_files, invalid_files = _save_uploaded_files(files, project_dir, project_dir_abs, safe_prototype_name)
 
         if invalid_files:
             error_details = "; ".join([f"{f['name']}: {f['error']}" for f in invalid_files])
@@ -162,28 +204,16 @@ async def upload_ui_screens(
         if not saved_files:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="没有有效的图片文件可上传")
 
-        def _ensure_prototype(sync_db: Session):
-            nonlocal prototype_project_id
-            if prototype_project_id is None:
-                db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
-                proto_project = ui_prototype_crud.create_ui_prototype_project(
-                    db=sync_db,
-                    project_id=project_id,
-                    name=prototype_name,
-                    created_by=current_user.id,
-                    iteration_id=db_iteration_id,
-                )
-                prototype_project_id = proto_project.id
-            elif iteration_id is not None:
-                db_iteration_id = iteration_id if iteration_id > 0 else None
-                proto_project = (
-                    sync_db.query(UIPrototypeProject).filter(UIPrototypeProject.id == prototype_project_id).first()
-                )
-                if proto_project:
-                    proto_project.iteration_id = db_iteration_id
-                    sync_db.commit()
-
-        await db.run_sync(_ensure_prototype)
+        prototype_project_id = await db.run_sync(
+            lambda sync_db: _ensure_prototype_project(
+                sync_db,
+                prototype_project_id=prototype_project_id,
+                project_id=project_id,
+                prototype_name=prototype_name,
+                created_by=current_user.id,
+                iteration_id=iteration_id,
+            )
+        )
 
         def _create_pipeline(sync_db: Session):
             return UISpecParsePipeline(sync_db, project_id, current_user.id, UPLOAD_DIR)

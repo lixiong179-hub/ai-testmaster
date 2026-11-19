@@ -45,7 +45,8 @@ APP = "app"
 # → 132（B2d：_extract_images_from_zip / upload_file / _run_ai_parse_with_progress / import_xmind_stream）
 # → 126（B2e：websocket 三处 / start_test_execution / fetch_link_content / batch_save_test_points）
 # → 123（B2f：parse_ui_screens / import_xmind / get_test_cases）
-TOTAL_BUDGET = 123
+# → 119（B2g：upload_ui_screens / ai_enhanced_generate_stream / event_generator / update_test_object）
+TOTAL_BUDGET = 119
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

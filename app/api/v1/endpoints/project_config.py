@@ -281,6 +281,45 @@ async def get_test_object(
         raise HTTPException(status_code=500, detail="获取被测对象失败")
 
 
+def _load_web_env_configs(project: Project) -> dict:
+    """读取项目 Web 环境配置（dict 或 JSON 字符串），解析失败返回空 dict。"""
+    if not project.web_env_configs:
+        return {}
+    try:
+        if isinstance(project.web_env_configs, dict):
+            return dict(project.web_env_configs)
+        return json.loads(project.web_env_configs)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+
+
+def _apply_test_env_config(project: Project, obj_data: TestObjectInfoUpdate) -> None:
+    """把 url/username/password 合并进 test 环境配置（密码按需加密）。"""
+    if not (obj_data.url or obj_data.username or obj_data.password):
+        return
+    existing_configs = _load_web_env_configs(project)
+    test_cfg = existing_configs.get("test", {})
+    if obj_data.url:
+        test_cfg["url"] = obj_data.url
+    if obj_data.username:
+        test_cfg["username"] = obj_data.username
+    if obj_data.password:
+        password = obj_data.password
+        # 仅加密非已加密的密码
+        if not password.startswith("gAAAAA"):
+            password = encrypt_password(password)
+        test_cfg["password"] = password
+    existing_configs["test"] = test_cfg
+    project.web_env_configs = json.dumps(existing_configs)
+
+
+def _merge_device_extra(project: Project, key: str, value: str) -> None:
+    """把 app_package / app_activity 合并进设备配置。"""
+    dev_cfg = _parse_device_config(project) or {}
+    dev_cfg[key] = value
+    project.device_config = json.dumps(dev_cfg)
+
+
 @router.put("/{project_id}/test-object", response_model=ApiResponse)
 async def update_test_object(
     project_id: int,
@@ -315,44 +354,16 @@ async def update_test_object(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         if obj_data.type:
             project.project_type = obj_data.type
-        # 合并已有Web环境配置
-        existing_configs = {}
-        if project.web_env_configs:
-            try:
-                if isinstance(project.web_env_configs, dict):
-                    existing_configs = dict(project.web_env_configs)
-                else:
-                    existing_configs = json.loads(project.web_env_configs)
-            except (TypeError, json.JSONDecodeError):
-                pass
-        # 更新测试环境连接信息
-        if obj_data.url or obj_data.username or obj_data.password:
-            test_cfg = existing_configs.get("test", {})
-            if obj_data.url:
-                test_cfg["url"] = obj_data.url
-            if obj_data.username:
-                test_cfg["username"] = obj_data.username
-            if obj_data.password:
-                password = obj_data.password
-                # 仅加密非已加密的密码
-                if not password.startswith("gAAAAA"):
-                    password = encrypt_password(password)
-                test_cfg["password"] = password
-            existing_configs["test"] = test_cfg
-            project.web_env_configs = json.dumps(existing_configs)
+        # 合并已有Web环境配置并更新测试环境连接信息
+        _apply_test_env_config(project, obj_data)
         # 更新设备配置
         if obj_data.device_info:
             project.device_config = json.dumps(obj_data.device_info)
-        # 更新App包名（合并到设备配置中）
+        # 更新App包名/Activity（合并到设备配置中）
         if obj_data.app_package:
-            dev_cfg = _parse_device_config(project) or {}
-            dev_cfg["app_package"] = obj_data.app_package
-            project.device_config = json.dumps(dev_cfg)
-        # 更新App Activity（合并到设备配置中）
+            _merge_device_extra(project, "app_package", obj_data.app_package)
         if obj_data.app_activity:
-            dev_cfg = _parse_device_config(project) or {}
-            dev_cfg["app_activity"] = obj_data.app_activity
-            project.device_config = json.dumps(dev_cfg)
+            _merge_device_extra(project, "app_activity", obj_data.app_activity)
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, project)
         return create_response(data={"id": project.id}, msg="更新成功")

@@ -97,6 +97,50 @@ async def _run_quality_feedback_for_cases(
     return final_cases, regen_events
 
 
+def _build_stream_context(request: AIGenerateEnhancedRequest) -> dict:
+    """合并请求 context 与额外要求。"""
+    context = dict(request.context or {})
+    if request.extra_requirements:
+        context["extra_requirements"] = request.extra_requirements
+    return context
+
+
+def _build_stream_ai_metadata(stream_db: Session, context: dict) -> dict[str, Any]:
+    """构建审计增强 metadata（挂独立 sync session，避免跨 greenlet 访问）。"""
+    ai_metadata: dict[str, Any] = {
+        "db": stream_db,
+        "scenario_type": context.get("scenario_type"),
+        "generation_strategy": context.get("generation_strategy"),
+    }
+    batch_id = context.get("generation_batch_id")
+    if batch_id is not None:
+        ai_metadata["generation_batch_id"] = int(batch_id)
+    return ai_metadata
+
+
+def _make_regen_case(prompt_data: dict, ai_metadata: dict) -> Any:
+    """构造质量闭环用的重生成函数（合并反馈信号后重跑增强生成）。"""
+
+    async def _regen_case(extra_ctx: dict[str, Any]) -> Any:
+        new_prompt_data = dict(prompt_data)
+        if extra_ctx.get("quality_feedback"):
+            new_prompt_data["quality_feedback"] = extra_ctx["quality_feedback"]
+        if extra_ctx.get("quality_signals"):
+            new_prompt_data["quality_signals"] = extra_ctx["quality_signals"]
+        result = await asyncio.to_thread(
+            generate_test_case_enhanced,
+            new_prompt_data,
+            ai_metadata,
+        )
+        if isinstance(result, list) and result and isinstance(result[0], dict):
+            return result[0]
+        if isinstance(result, dict):
+            return result
+        return None
+
+    return _regen_case
+
+
 # ── AI增强模式流式生成端点 ────────────────────────────────
 
 
@@ -132,22 +176,13 @@ async def ai_enhanced_generate_stream(
         stream_db = PrimarySessionLocal()
         try:
             # 先构建context，提取context_stats和warnings用于首帧推送
-            context = dict(request.context or {})
-            if request.extra_requirements:
-                context["extra_requirements"] = request.extra_requirements
+            context = _build_stream_context(request)
             context_stats = context.get("context_stats", {})
             warnings = context.get("warnings", [])
             evidence_refs = context.get("evidence_refs", {})
 
             # 构建审计增强 metadata：使用独立 sync session，避免跨 greenlet 访问
-            ai_metadata: dict[str, Any] = {
-                "db": stream_db,
-                "scenario_type": context.get("scenario_type"),
-                "generation_strategy": context.get("generation_strategy"),
-            }
-            batch_id = context.get("generation_batch_id")
-            if batch_id is not None:
-                ai_metadata["generation_batch_id"] = int(batch_id)
+            ai_metadata = _build_stream_ai_metadata(stream_db, context)
 
             yield f"data: {json.dumps({'code': 0, 'message': '开始生成', 'data': {'status': 'started', 'context_stats': context_stats, 'warnings': warnings, 'evidence_refs': evidence_refs}}, ensure_ascii=False)}\n\n"
 
@@ -193,26 +228,9 @@ async def ai_enhanced_generate_stream(
             cases_list = [c for c in cases_list if isinstance(c, dict) and c]
 
             # Task 15: 流式端点接入 3 轮反馈闭环，低质量用例重生成而非直接丢弃
-            async def _regen_case(extra_ctx: dict[str, Any]) -> Any:
-                new_prompt_data = dict(prompt_data)
-                if extra_ctx.get("quality_feedback"):
-                    new_prompt_data["quality_feedback"] = extra_ctx["quality_feedback"]
-                if extra_ctx.get("quality_signals"):
-                    new_prompt_data["quality_signals"] = extra_ctx["quality_signals"]
-                result = await asyncio.to_thread(
-                    generate_test_case_enhanced,
-                    new_prompt_data,
-                    ai_metadata,
-                )
-                if isinstance(result, list) and result and isinstance(result[0], dict):
-                    return result[0]
-                if isinstance(result, dict):
-                    return result
-                return None
-
             valid_cases, regen_events = await _run_quality_feedback_for_cases(
                 cases_list,
-                _regen_case,
+                _make_regen_case(prompt_data, ai_metadata),
             )
 
             # Task 15.3: 推送重生成进度事件（仅重生成轮次，首轮不推送）
