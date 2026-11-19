@@ -99,6 +99,53 @@ class TestGenerateTestCaseEnhanced:
             assert len(result) >= 1
 
     @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_truncated_response_retries_with_full_tokens(self, mock_get_client):
+        """finish_reason=length 时提升 max_tokens 重试，第二次成功即返回。"""
+        case_json = json.dumps(
+            [
+                {
+                    "title": "截断重试用例",
+                    "precondition": "P",
+                    "steps": [],
+                    "case_type": "ui_automation",
+                    "priority": "P0",
+                    "expected_result": "R",
+                    "test_data": {},
+                    "change_type": "added",
+                    "parent_case_id": None,
+                    "case_category": "positive",
+                }
+            ]
+        )
+        truncated = MagicMock()
+        truncated.choices = [MagicMock()]
+        truncated.choices[0].finish_reason = "length"
+        truncated.choices[0].message.content = ""
+        completed = MagicMock()
+        completed.choices = [MagicMock()]
+        completed.choices[0].finish_reason = "stop"
+        completed.choices[0].message.content = case_json
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = [truncated, completed]
+        mock_client.model_name = "test-model"
+        mock_get_client.return_value = mock_client
+
+        with (
+            patch("app.utils.ai_client_enhanced._enhanced.validate_cases_quality", return_value=(True, [])),
+            patch("app.utils.ai_client_enhanced._enhanced.compute_quality_score", return_value=90.0),
+        ):
+            # 非 graph 模式初始 max_tokens=8192 < FULL(16384)，才会走截断提升分支
+            result = generate_test_case_enhanced(
+                {"requirement": "R", "test_points": [], "ui_specs": [], "project_config": {}}
+            )
+
+        assert len(result) == 1
+        calls = mock_client.chat.completions.create.call_args_list
+        assert len(calls) == 2
+        assert calls[0].kwargs["max_tokens"] < calls[1].kwargs["max_tokens"]
+
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
     def test_normal_mode_with_requirement(self, mock_get_client):
         mock_client = MagicMock()
         mock_response = MagicMock()
