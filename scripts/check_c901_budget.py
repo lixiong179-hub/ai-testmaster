@@ -46,7 +46,8 @@ APP = "app"
 # → 126（B2e：websocket 三处 / start_test_execution / fetch_link_content / batch_save_test_points）
 # → 123（B2f：parse_ui_screens / import_xmind / get_test_cases）
 # → 119（B2g：upload_ui_screens / ai_enhanced_generate_stream / event_generator / update_test_object）
-TOTAL_BUDGET = 119
+# → 118（B2h：precheck_scenario_4 21，单文件单处）
+TOTAL_BUDGET = 118
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
