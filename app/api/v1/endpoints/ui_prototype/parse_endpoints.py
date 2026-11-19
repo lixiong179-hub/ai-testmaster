@@ -50,6 +50,80 @@ async def _execute(db: Session, stmt):
 router = APIRouter(tags=["UI原型管理"])
 
 
+async def _validate_parse_targets(db: Session, screen_ids: list[int], user_id: int) -> set[int]:
+    """批量校验屏幕存在、同项目且项目归当前用户，返回所属项目 ID 集合。"""
+    # 一次性批量查询所有屏幕，防止N+1及越权风险
+    screens_result = await _execute(db, select(UIPrototypeScreen).where(UIPrototypeScreen.id.in_(screen_ids)))
+    screens = screens_result.scalars().all()
+    # 校验所有 screen_id 均存在
+    found_ids = {s.id for s in screens}
+    missing_ids = set(screen_ids) - found_ids
+    if missing_ids:
+        logger.warning(f"屏幕不存在: {missing_ids}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"屏幕不存在: {missing_ids}",
+        )
+    # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
+    screen_project_ids = {s.project_id for s in screens}
+    if len(screen_project_ids) > 1:
+        logger.warning(f"screen_ids 跨多个项目: project_ids={screen_project_ids}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="screen_ids 必须属于同一项目",
+        )
+    # 一次性校验所有屏幕均属于当前用户拥有的项目
+    authorized_result = await _execute(
+        db,
+        select(Project.id).where(
+            Project.id.in_(screen_project_ids),
+            Project.user_id == user_id,
+        ),
+    )
+    authorized_project_ids = {pid for (pid,) in authorized_result.all()}
+    unauthorized_project_ids = screen_project_ids - authorized_project_ids
+    if unauthorized_project_ids:
+        logger.warning(f"用户 user_id={user_id} 无权限操作项目 project_ids={unauthorized_project_ids}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目",
+        )
+    return screen_project_ids
+
+
+async def _run_parse_background(
+    project_id: int,
+    user_id: int,
+    screen_ids: list[int],
+    parse_mode: str | None,
+    prototype_project_id: int | None,
+) -> None:
+    """后台执行解析（独立会话）；异常时把仍处 running/pending 的屏幕标记为 failed。"""
+    try:
+        with get_db_context() as bg_db:
+            pipeline = UISpecParsePipeline(bg_db, project_id, user_id, UPLOAD_DIR, parse_mode=parse_mode)
+            result = await pipeline.batch_parse_screens(screen_ids)
+
+            if prototype_project_id:
+                ui_prototype_crud.update_prototype_project_stats(bg_db, prototype_project_id)
+
+        logger.info(
+            f"[后台解析完成] project_id={project_id} "
+            f"success={result.get('success', 0)} failed={result.get('failed', 0)}"
+        )
+    except Exception as e:
+        logger.error(f"[后台解析异常] {e}\n{traceback.format_exc()}")
+        # 将仍在 running 或 pending 状态的屏幕标记为 failed
+        try:
+            with get_db_context() as bg_db:
+                for screen_id in screen_ids:
+                    screen = ui_prototype_crud.get_ui_screen_by_id(bg_db, screen_id, project_id)
+                    if screen and screen.parse_status in ("running", "pending"):
+                        ui_prototype_crud.update_ui_screen_parse_status(bg_db, screen_id, "failed", str(e))
+        except Exception as mark_err:
+            logger.error(f"[后台解析] 标记失败状态异常: {mark_err}")
+
+
 @router.post("/parse", response_model=ApiResponse)
 async def parse_ui_screens(
     parse_request: UIScreenParseRequest,
@@ -64,77 +138,20 @@ async def parse_ui_screens(
                 detail="请选择要解析的屏幕",
             )
 
-        # 一次性批量查询所有屏幕，防止N+1及越权风险
-        screens_result = await _execute(
-            db, select(UIPrototypeScreen).where(UIPrototypeScreen.id.in_(parse_request.screen_ids))
-        )
-        screens = screens_result.scalars().all()
-        # 校验所有 screen_id 均存在
-        found_ids = {s.id for s in screens}
-        missing_ids = set(parse_request.screen_ids) - found_ids
-        if missing_ids:
-            logger.warning(f"屏幕不存在: {missing_ids}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"屏幕不存在: {missing_ids}",
-            )
-        # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
-        screen_project_ids = {s.project_id for s in screens}
-        if len(screen_project_ids) > 1:
-            logger.warning(f"screen_ids 跨多个项目: project_ids={screen_project_ids}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="screen_ids 必须属于同一项目",
-            )
-        # 一次性校验所有屏幕均属于当前用户拥有的项目
-        authorized_result = await _execute(
-            db,
-            select(Project.id).where(
-                Project.id.in_(screen_project_ids),
-                Project.user_id == current_user.id,
-            ),
-        )
-        authorized_project_ids = {pid for (pid,) in authorized_result.all()}
-        unauthorized_project_ids = screen_project_ids - authorized_project_ids
-        if unauthorized_project_ids:
-            logger.warning(f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
-            )
-
+        screen_project_ids = await _validate_parse_targets(db, parse_request.screen_ids, current_user.id)
         target_project_id = next(iter(screen_project_ids))
 
         # 后台执行解析，使用独立数据库会话，避免请求会话被关闭
         # 不在此处预设 running 状态，由 pipeline.parse_screen() 逐屏设置，保证进度条渐进推进
-        async def _run_parse_background():
-            try:
-                with get_db_context() as bg_db:
-                    pipeline = UISpecParsePipeline(
-                        bg_db, target_project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
-                    )
-                    result = await pipeline.batch_parse_screens(parse_request.screen_ids)
-
-                    if parse_request.prototype_project_id:
-                        ui_prototype_crud.update_prototype_project_stats(bg_db, parse_request.prototype_project_id)
-
-                logger.info(
-                    f"[后台解析完成] project_id={target_project_id} "
-                    f"success={result.get('success', 0)} failed={result.get('failed', 0)}"
-                )
-            except Exception as e:
-                logger.error(f"[后台解析异常] {e}\n{traceback.format_exc()}")
-                # 将仍在 running 或 pending 状态的屏幕标记为 failed
-                try:
-                    with get_db_context() as bg_db:
-                        for screen_id in parse_request.screen_ids:
-                            screen = ui_prototype_crud.get_ui_screen_by_id(bg_db, screen_id, target_project_id)
-                            if screen and screen.parse_status in ("running", "pending"):
-                                ui_prototype_crud.update_ui_screen_parse_status(bg_db, screen_id, "failed", str(e))
-                except Exception as mark_err:
-                    logger.error(f"[后台解析] 标记失败状态异常: {mark_err}")
-
-        task = asyncio.create_task(_run_parse_background())
+        task = asyncio.create_task(
+            _run_parse_background(
+                project_id=target_project_id,
+                user_id=current_user.id,
+                screen_ids=parse_request.screen_ids,
+                parse_mode=parse_request.parse_mode,
+                prototype_project_id=parse_request.prototype_project_id,
+            )
+        )
         task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
         return create_response(

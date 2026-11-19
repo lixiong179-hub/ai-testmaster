@@ -108,6 +108,105 @@ async def create_test_case(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建测试用例失败")
 
 
+async def _validate_project_access(db: Session, project_id: int, user_id: int) -> None:
+    """校验项目归属当前用户，否则 403。"""
+    result = await _execute(db, select(Project.id).where(Project.id == project_id, Project.user_id == user_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此项目")
+
+
+def _append_equality_filters(conditions: list, **filters) -> None:
+    """按「字段 → 值」追加等值条件（假值跳过，与历史 if 判断一致）。"""
+    for field_name, value in filters.items():
+        if not value:
+            continue
+        conditions.append(getattr(TestCase, field_name) == value)
+
+
+def _apply_target_device_filter(conditions: list, target_device: str | None) -> None:
+    """目标设备筛选；general 表示未限定设备。"""
+    if not target_device:
+        return
+    if target_device == "general":
+        conditions.append(TestCase.target_device.is_(None))
+    else:
+        conditions.append(TestCase.target_device == target_device)
+
+
+def _apply_keyword_filter(conditions: list, keyword: str | None) -> None:
+    """标题/编号/模块模糊匹配。"""
+    if not keyword:
+        return
+    keyword_like = f"%{keyword.strip()}%"
+    conditions.append(
+        or_(
+            TestCase.title.like(keyword_like),
+            TestCase.case_no.like(keyword_like),
+            TestCase.module.like(keyword_like),
+        )
+    )
+
+
+def _normalize_lifecycle_statuses(raw_status: str) -> list[str]:
+    """拆分逗号分隔的状态并校验枚举；含非法值则 400。"""
+    valid_statuses = {s.value for s in TestCaseLifecycleStatus}
+    statuses = [s.strip() for s in raw_status.split(",") if s.strip()]
+    invalid = [s for s in statuses if s not in valid_statuses]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"无效的生命周期状态: {', '.join(invalid)}",
+        )
+    return statuses
+
+
+def _apply_lifecycle_filter(conditions: list, raw_status: str | None) -> None:
+    """生命周期状态筛选（单值等值 / 多值 IN）。"""
+    if not raw_status:
+        return
+    statuses = _normalize_lifecycle_statuses(raw_status)
+    if not statuses:
+        return
+    if len(statuses) == 1:
+        conditions.append(TestCase.lifecycle_status == statuses[0])
+    else:
+        conditions.append(TestCase.lifecycle_status.in_(statuses))
+
+
+async def _build_case_conditions(
+    db: Session,
+    user_id: int,
+    *,
+    project_id: int | None,
+    requirement_file_id: int | None,
+    module: str | None,
+    priority: int | None,
+    case_type: str | None,
+    target_device: str | None,
+    keyword: str | None,
+    lifecycle_status: str | None,
+) -> list:
+    """组装列表查询条件（含项目权限校验）。"""
+    conditions = [
+        TestCase.is_deleted.is_(False),
+        TestCase.project_id.in_(select(Project.id).where(Project.user_id == user_id)),
+    ]
+    if project_id:
+        await _validate_project_access(db, project_id, user_id)
+        conditions.append(TestCase.project_id == project_id)
+    _append_equality_filters(
+        conditions,
+        requirement_file_id=requirement_file_id,
+        module=module,
+        priority=priority,
+        case_type=case_type,
+    )
+    _apply_target_device_filter(conditions, target_device)
+    _apply_keyword_filter(conditions, keyword)
+    _apply_lifecycle_filter(conditions, lifecycle_status)
+    return conditions
+
+
 async def get_test_cases(
     project_id: int | None = Query(default=None, description="项目ID"),
     requirement_file_id: int | None = Query(default=None, description="需求文件ID"),
@@ -128,59 +227,18 @@ async def get_test_cases(
     """查询测试用例列表（分页，按项目/需求文件筛选，排除已删除，只返回用户有权访问的项目的用例）"""
     effective_lifecycle_status = lifecycle_status or status_filter
     try:
-        authorized_subquery = select(Project.id).where(Project.user_id == current_user.id)
-
-        conditions = [
-            TestCase.is_deleted.is_(False),
-            TestCase.project_id.in_(authorized_subquery),
-        ]
-
-        if project_id:
-            project_access_result = await _execute(
-                db,
-                select(Project.id).where(
-                    Project.id == project_id,
-                    Project.user_id == current_user.id,
-                ),
-            )
-            if not project_access_result.scalar_one_or_none():
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此项目")
-            conditions.append(TestCase.project_id == project_id)
-        if requirement_file_id:
-            conditions.append(TestCase.requirement_file_id == requirement_file_id)
-        if module:
-            conditions.append(TestCase.module == module)
-        if priority is not None:
-            conditions.append(TestCase.priority == priority)
-        if case_type:
-            conditions.append(TestCase.case_type == case_type)
-        if target_device:
-            if target_device == "general":
-                conditions.append(TestCase.target_device.is_(None))
-            else:
-                conditions.append(TestCase.target_device == target_device)
-        if keyword:
-            keyword_like = f"%{keyword.strip()}%"
-            conditions.append(
-                or_(
-                    TestCase.title.like(keyword_like),
-                    TestCase.case_no.like(keyword_like),
-                    TestCase.module.like(keyword_like),
-                )
-            )
-        if effective_lifecycle_status:
-            valid_statuses = {s.value for s in TestCaseLifecycleStatus}
-            statuses = [s.strip() for s in effective_lifecycle_status.split(",") if s.strip()]
-            invalid = [s for s in statuses if s not in valid_statuses]
-            if invalid:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"无效的生命周期状态: {', '.join(invalid)}",
-                )
-            if len(statuses) == 1:
-                conditions.append(TestCase.lifecycle_status == statuses[0])
-            elif statuses:
-                conditions.append(TestCase.lifecycle_status.in_(statuses))
+        conditions = await _build_case_conditions(
+            db,
+            current_user.id,
+            project_id=project_id,
+            requirement_file_id=requirement_file_id,
+            module=module,
+            priority=priority,
+            case_type=case_type,
+            target_device=target_device,
+            keyword=keyword,
+            lifecycle_status=effective_lifecycle_status,
+        )
 
         offset = (page - 1) * page_size
 

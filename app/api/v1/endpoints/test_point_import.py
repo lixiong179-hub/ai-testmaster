@@ -56,6 +56,97 @@ from loguru import logger
 router = APIRouter()
 
 
+def _parse_ai_cases(paths: list) -> list:
+    """调用 AI 解析并把各类异常映射为对应的 HTTPException。"""
+    try:
+        ai_parser = XmindAIParser()
+        return ai_parser.parse_paths(paths)
+    except AITimeoutError as e:
+        logger.error(f"AI增强解析超时: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+            detail="AI增强解析超时，请稍后重试或关闭AI增强模式使用普通导入",
+        )
+    except AIAuthenticationError as e:
+        logger.error(f"AI增强解析认证失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI服务认证失败，请联系管理员检查 API Key 配置",
+        )
+    except AIRateLimitError as e:
+        logger.warning(f"AI增强解析触发限流: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI服务请求过于频繁，请稍后重试",
+        )
+    except AIPermissionError as e:
+        logger.error(f"AI增强解析权限不足: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI服务权限不足，请联系管理员",
+        )
+    except AIServiceError as e:
+        # 其他已知 AI 业务异常：暴露语义化 message，不暴露原始 exc
+        logger.error(f"AI增强解析失败({e.error_code}): {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI增强解析失败：{e.message}，请稍后重试或关闭AI增强模式使用普通导入",
+        )
+    except Exception as e:
+        # 未知异常仅写日志，给前端返回通用文案，避免泄漏内部细节
+        logger.exception(f"AI增强解析发生未知错误: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AI增强解析发生未知错误，请稍后重试或关闭AI增强模式使用普通导入",
+        )
+
+
+async def _handle_ai_enhanced_flow(
+    db: Session,
+    project_id: int,
+    username: str,
+    tmp_path: str,
+    preview: bool,
+) -> TestPointXmindImportResponse:
+    """AI 增强分支：提取路径 → 采样 → AI 解析 → 入库。"""
+    parser = XmindParser()
+    all_paths = parser.extract_paths(tmp_path)
+    if not all_paths:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="AI增强模式失败：XMind文件未提取到有效路径，请检查文件内容后重试",
+        )
+    total_paths = len(all_paths)
+    # 预览模式只采样前 N 条路径给 AI，加速预览体验
+    if preview:
+        sample_size = settings.XMIND_AI_PREVIEW_SAMPLE
+        paths = all_paths[:sample_size]
+        logger.info(f"AI预览采样: {len(paths)}/{total_paths} 条路径")
+    else:
+        paths = all_paths
+
+    ai_cases = _parse_ai_cases(paths)
+    if not ai_cases:
+        logger.warning("AI增强解析返回空结果")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="AI增强解析返回空结果，请检查文件内容或关闭AI增强模式使用普通导入",
+        )
+
+    def _ai_import(sync_db: Session):
+        return handle_ai_enhanced_import(
+            db=sync_db,
+            project_id=project_id,
+            current_username=username,
+            ai_cases=ai_cases,
+            preview=preview,
+            ai_timeout=False,
+            total_paths=total_paths,
+        )
+
+    return await asyncio.to_thread(_ai_import, db)
+
+
 @router.post("/import-xmind")
 async def import_xmind(
     file: UploadFile = File(..., description="XMind 文件"),
@@ -94,80 +185,13 @@ async def import_xmind(
     try:
         parser = XmindParser()
         if ai_enhance:
-            all_paths = parser.extract_paths(tmp_path)
-            if not all_paths:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="AI增强模式失败：XMind文件未提取到有效路径，请检查文件内容后重试",
-                )
-            total_paths = len(all_paths)
-            # 预览模式只采样前 N 条路径给 AI，加速预览体验
-            if preview:
-                sample_size = settings.XMIND_AI_PREVIEW_SAMPLE
-                paths = all_paths[:sample_size]
-                logger.info(f"AI预览采样: {len(paths)}/{total_paths} 条路径")
-            else:
-                paths = all_paths
-            try:
-                ai_parser = XmindAIParser()
-                ai_cases = ai_parser.parse_paths(paths)
-            except AITimeoutError as e:
-                logger.error(f"AI增强解析超时: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                    detail="AI增强解析超时，请稍后重试或关闭AI增强模式使用普通导入",
-                )
-            except AIAuthenticationError as e:
-                logger.error(f"AI增强解析认证失败: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="AI服务认证失败，请联系管理员检查 API Key 配置",
-                )
-            except AIRateLimitError as e:
-                logger.warning(f"AI增强解析触发限流: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="AI服务请求过于频繁，请稍后重试",
-                )
-            except AIPermissionError as e:
-                logger.error(f"AI增强解析权限不足: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="AI服务权限不足，请联系管理员",
-                )
-            except AIServiceError as e:
-                # 其他已知 AI 业务异常：暴露语义化 message，不暴露原始 exc
-                logger.error(f"AI增强解析失败({e.error_code}): {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"AI增强解析失败：{e.message}，请稍后重试或关闭AI增强模式使用普通导入",
-                )
-            except Exception as e:
-                # 未知异常仅写日志，给前端返回通用文案，避免泄漏内部细节
-                logger.exception(f"AI增强解析发生未知错误: {e}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="AI增强解析发生未知错误，请稍后重试或关闭AI增强模式使用普通导入",
-                )
-            if not ai_cases:
-                logger.warning("AI增强解析返回空结果")
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="AI增强解析返回空结果，请检查文件内容或关闭AI增强模式使用普通导入",
-                )
-
-            def _ai_import(sync_db: Session):
-                return handle_ai_enhanced_import(
-                    db=sync_db,
-                    project_id=project_id,
-                    current_username=current_user.username,
-                    ai_cases=ai_cases,
-                    preview=preview,
-                    ai_timeout=False,
-                    total_paths=total_paths,
-                )
-
-            return await asyncio.to_thread(_ai_import, db)
+            return await _handle_ai_enhanced_flow(
+                db=db,
+                project_id=project_id,
+                username=current_user.username,
+                tmp_path=tmp_path,
+                preview=preview,
+            )
 
         parsed_points = parser.parse(tmp_path)
         case_parser = XmindCaseParser()
