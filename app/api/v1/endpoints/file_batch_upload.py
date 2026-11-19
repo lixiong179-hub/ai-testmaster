@@ -16,6 +16,8 @@
     - 每个文件独立处理，部分失败不影响其他文件
 """
 
+from dataclasses import dataclass
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -66,6 +68,161 @@ async def _execute(db: Session, stmt):
 router = APIRouter()
 
 
+@dataclass(frozen=True)
+class _BatchUploadContext:
+    """批量上传的请求级上下文（避免 helper 参数膨胀）。"""
+
+    project_id: int
+    project_upload_dir: str
+    resource_type: str
+    description: str
+    name: str
+    iteration_id: int | None
+
+
+def _validate_batch_request(resource_type: str, files: list[UploadFile]) -> None:
+    """校验资源类型白名单与文件数量上限。"""
+    valid_resource_types = [e.value for e in ResourceType]
+    if resource_type not in valid_resource_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
+        )
+    if not files or len(files) == 0:
+        raise HTTPException(status_code=400, detail="请选择至少一个文件")
+    if len(files) > 20:
+        raise HTTPException(status_code=400, detail="单次最多上传20个文件")
+
+
+def _check_mime_risk(contents: bytes, file_ext: str, resource_type: str) -> str | None:
+    """MIME 探测：返回阻断原因；非阻断告警或探测异常返回 None。"""
+    if not (_MAGIC_AVAILABLE and _magic_module is not None):
+        return None
+    try:
+        detected_mime = _magic_module.from_buffer(contents, mime=True)
+        mime_error = validate_file_mime(file_ext, detected_mime)
+        if not mime_error:
+            return None
+        if "危险" in mime_error:
+            return mime_error
+        if "压缩包" in mime_error and not (file_ext in ARCHIVE_EXTENSIONS and resource_type == "ui_mockup"):
+            return mime_error
+        logger.warning(mime_error)
+    except Exception:
+        logger.debug("文件MIME校验异常", exc_info=True)
+    return None
+
+
+async def _prepare_batch_file(
+    file: UploadFile, allowed_extensions: list[str], resource_type: str
+) -> tuple[str | None, bytes | None, dict | None]:
+    """逐项校验单文件；被拒绝时返回失败项（file_ext / contents 为 None）。"""
+    if not file.filename:
+        return None, None, {"file_name": "未知文件", "reason": "文件名不能为空"}
+
+    file_ext = validate_file_format(file.filename)
+    if not file_ext:
+        return None, None, {"file_name": file.filename, "reason": "不支持的文件格式"}
+
+    if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
+        return None, None, {"file_name": file.filename, "reason": f"不允许的文件类型: .{file_ext}"}
+
+    contents = await file.read()
+    if len(contents) > settings.MAX_UPLOAD_SIZE:
+        max_size_mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
+        return None, None, {"file_name": file.filename, "reason": f"文件过大，最大允许 {max_size_mb}MB"}
+
+    mime_reason = _check_mime_risk(contents, file_ext, resource_type)
+    if mime_reason:
+        return None, None, {"file_name": file.filename, "reason": mime_reason}
+    return file_ext, contents, None
+
+
+async def _store_archive_file(
+    file: UploadFile,
+    file_ext: str,
+    contents: bytes,
+    ctx: _BatchUploadContext,
+    file_resource_type: str,
+) -> tuple[list[dict], list[dict]]:
+    """落盘压缩包、解压导入 UI 原型图片，成功与失败均返回明细。"""
+    zip_path = os.path.join(ctx.project_upload_dir, f"{uuid.uuid4()}.{file_ext}")
+    with open(zip_path, "wb") as f:
+        f.write(contents)
+
+    def _extract_zip(sync_db: Session) -> tuple:
+        return _extract_images_from_zip(
+            zip_path=zip_path,
+            project_upload_dir=ctx.project_upload_dir,
+            project_id=ctx.project_id,
+            resource_type=file_resource_type,
+            description=ctx.description,
+            db=sync_db,
+            zip_filename=file.filename,
+            name=ctx.name,
+            iteration_id=ctx.iteration_id,
+        )
+
+    zip_sync_db = PrimarySessionLocal()
+    try:
+        zip_uploaded, zip_failed = await asyncio.to_thread(_extract_zip, zip_sync_db)
+    finally:
+        zip_sync_db.close()
+
+    try:
+        os.remove(zip_path)
+    except Exception:
+        logger.debug("删除临时zip文件失败", exc_info=True)
+    return zip_uploaded, zip_failed
+
+
+async def _store_batch_file(
+    file: UploadFile,
+    file_ext: str,
+    contents: bytes,
+    file_index: int,
+    ctx: _BatchUploadContext,
+) -> tuple[list[dict], list[dict], bool]:
+    """落盘并入库单文件；返回（成功项, 失败项, 是否占用序号）。"""
+    file_resource_type = ctx.resource_type
+    if ctx.resource_type == "other":
+        file_resource_type = _auto_detect_resource_type(file.filename, file_ext)
+
+    if file_ext in ARCHIVE_EXTENSIONS and ctx.resource_type == "ui_mockup":
+        uploaded, failed = await _store_archive_file(file, file_ext, contents, ctx, file_resource_type)
+        return uploaded, failed, False
+
+    file_path = os.path.join(ctx.project_upload_dir, f"{uuid.uuid4()}.{file_ext}")
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    file_size = get_file_size(file_path)
+    display_name = f"{ctx.name} ({file_index})" if ctx.name else file.filename
+    db_iteration_id = ctx.iteration_id if ctx.iteration_id and ctx.iteration_id > 0 else None
+
+    def _create_file(sync_db: Session):
+        return file_crud.create_project_file(
+            db=sync_db,
+            project_id=ctx.project_id,
+            file_name=display_name,
+            file_type=file_ext,
+            file_url=file_path,
+            file_source="file",
+            size=file_size,
+            resource_type=file_resource_type,
+            description=ctx.description,
+            iteration_id=db_iteration_id,
+        )
+
+    file_sync_db = PrimarySessionLocal()
+    try:
+        new_file = await asyncio.to_thread(_create_file, file_sync_db)
+    finally:
+        file_sync_db.close()
+
+    return [_file_to_dict(new_file)], [], True
+
+
 @router.post("/batch-upload", response_model=ApiResponse)
 async def batch_upload_files(
     project_id: int = Form(...),
@@ -78,12 +235,7 @@ async def batch_upload_files(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        valid_resource_types = [e.value for e in ResourceType]
-        if resource_type not in valid_resource_types:
-            raise HTTPException(
-                status_code=400,
-                detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
-            )
+        _validate_batch_request(resource_type, files)
 
         project_result = await _execute(
             db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
@@ -95,15 +247,18 @@ async def batch_upload_files(
                 detail="无权限操作此项目",
             )
 
-        if not files or len(files) == 0:
-            raise HTTPException(status_code=400, detail="请选择至少一个文件")
-
-        if len(files) > 20:
-            raise HTTPException(status_code=400, detail="单次最多上传20个文件")
-
         allowed_extensions = settings.allowed_extensions_list
         project_upload_dir = os.path.join(settings.UPLOAD_DIR, str(project_id))
         os.makedirs(project_upload_dir, exist_ok=True)
+
+        ctx = _BatchUploadContext(
+            project_id=project_id,
+            project_upload_dir=project_upload_dir,
+            resource_type=resource_type,
+            description=description,
+            name=name,
+            iteration_id=iteration_id,
+        )
 
         uploaded_files = []
         failed_files = []
@@ -111,141 +266,16 @@ async def batch_upload_files(
 
         for file in files:
             try:
-                if not file.filename:
-                    failed_files.append({"file_name": "未知文件", "reason": "文件名不能为空"})
+                file_ext, contents, failure = await _prepare_batch_file(file, allowed_extensions, resource_type)
+                if failure is not None:
+                    failed_files.append(failure)
                     continue
 
-                file_ext = validate_file_format(file.filename)
-                if not file_ext:
-                    failed_files.append(
-                        {
-                            "file_name": file.filename,
-                            "reason": "不支持的文件格式",
-                        }
-                    )
-                    continue
-
-                if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
-                    failed_files.append(
-                        {
-                            "file_name": file.filename,
-                            "reason": f"不允许的文件类型: .{file_ext}",
-                        }
-                    )
-                    continue
-
-                contents = await file.read()
-                if len(contents) > settings.MAX_UPLOAD_SIZE:
-                    max_size_mb = settings.MAX_UPLOAD_SIZE // (1024 * 1024)
-                    failed_files.append(
-                        {
-                            "file_name": file.filename,
-                            "reason": f"文件过大，最大允许 {max_size_mb}MB",
-                        }
-                    )
-                    continue
-
-                if _MAGIC_AVAILABLE and _magic_module is not None:
-                    try:
-                        detected_mime = _magic_module.from_buffer(contents, mime=True)
-                        mime_error = validate_file_mime(file_ext, detected_mime)
-                        if mime_error:
-                            if "危险" in mime_error:
-                                failed_files.append(
-                                    {
-                                        "file_name": file.filename,
-                                        "reason": mime_error,
-                                    }
-                                )
-                                continue
-                            if "压缩包" in mime_error and not (
-                                file_ext in ARCHIVE_EXTENSIONS and resource_type == "ui_mockup"
-                            ):
-                                failed_files.append(
-                                    {
-                                        "file_name": file.filename,
-                                        "reason": mime_error,
-                                    }
-                                )
-                                continue
-                            logger.warning(mime_error)
-                    except Exception:
-                        logger.debug("文件MIME校验异常", exc_info=True)
-
-                file_resource_type = resource_type
-                if resource_type == "other":
-                    file_resource_type = _auto_detect_resource_type(file.filename, file_ext)
-
-                if file_ext in ARCHIVE_EXTENSIONS and resource_type == "ui_mockup":
-                    unique_filename = f"{uuid.uuid4()}.{file_ext}"
-                    zip_path = os.path.join(project_upload_dir, unique_filename)
-
-                    with open(zip_path, "wb") as f:
-                        f.write(contents)
-
-                    def _extract_zip(sync_db: Session) -> tuple:
-                        return _extract_images_from_zip(
-                            zip_path=zip_path,
-                            project_upload_dir=project_upload_dir,
-                            project_id=project_id,
-                            resource_type=file_resource_type,
-                            description=description,
-                            db=sync_db,
-                            zip_filename=file.filename,
-                            name=name,
-                            iteration_id=iteration_id,
-                        )
-
-                    zip_sync_db = PrimarySessionLocal()
-                    try:
-                        zip_uploaded, zip_failed = await asyncio.to_thread(_extract_zip, zip_sync_db)
-                    finally:
-                        zip_sync_db.close()
-
-                    uploaded_files.extend(zip_uploaded)
-                    failed_files.extend(zip_failed)
-
-                    try:
-                        os.remove(zip_path)
-                    except Exception:
-                        logger.debug("删除临时zip文件失败", exc_info=True)
-
-                    continue
-
-                unique_filename = f"{uuid.uuid4()}.{file_ext}"
-                file_path = os.path.join(project_upload_dir, unique_filename)
-
-                with open(file_path, "wb") as f:
-                    f.write(contents)
-
-                file_size = get_file_size(file_path)
-
-                display_name = f"{name} ({file_index})" if name else file.filename
-
-                db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
-
-                def _create_file(sync_db: Session):
-                    return file_crud.create_project_file(
-                        db=sync_db,
-                        project_id=project_id,
-                        file_name=display_name,
-                        file_type=file_ext,
-                        file_url=file_path,
-                        file_source="file",
-                        size=file_size,
-                        resource_type=file_resource_type,
-                        description=description,
-                        iteration_id=db_iteration_id,
-                    )
-
-                file_sync_db = PrimarySessionLocal()
-                try:
-                    new_file = await asyncio.to_thread(_create_file, file_sync_db)
-                finally:
-                    file_sync_db.close()
-
-                uploaded_files.append(_file_to_dict(new_file))
-                file_index += 1
+                stored, fails, occupies_index = await _store_batch_file(file, file_ext, contents, file_index, ctx)
+                uploaded_files.extend(stored)
+                failed_files.extend(fails)
+                if occupies_index:
+                    file_index += 1
             except Exception as e:
                 logger.error(f"批量上传-单文件处理失败: {file.filename}, 错误: {str(e)}")
                 failed_files.append({"file_name": file.filename, "reason": str(e)})
