@@ -66,6 +66,71 @@ def _strip_code_block(text: str) -> str:
     return text.strip()
 
 
+def _loads_with_repair(text: str):
+    """先直接 loads，失败再用截断修复重试；均失败返回 None。"""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return json.loads(_repair_truncated_json(text))
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def _parse_strict_json(cleaned: str) -> dict[str, Any] | None:
+    """整段严格解析；数组包装为 `{"cases": [...]}`，非对象/数组返回 None。"""
+    try:
+        result = json.loads(cleaned)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(result, list):
+        return {"cases": result}
+    if isinstance(result, dict):
+        return result
+    return None
+
+
+def _parse_embedded_object(cleaned: str) -> dict[str, Any] | None:
+    """提取文本中首个 `{...}` 片段并解析（含截断修复）。"""
+    json_match = re.search(r"\{[\s\S]*\}", cleaned)
+    if not json_match:
+        return None
+    parsed = _loads_with_repair(json_match.group(0))
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _parse_embedded_array(cleaned: str) -> dict[str, Any] | None:
+    """提取文本中首个 `[...]` 片段并解析（含截断修复）。"""
+    json_match = re.search(r"\[[\s\S]*\]", cleaned)
+    if not json_match:
+        return None
+    parsed = _loads_with_repair(json_match.group(0))
+    return {"cases": parsed} if isinstance(parsed, list) else None
+
+
+def _ordered_embedded_parsers(cleaned: str) -> tuple:
+    """按 `{` / `[` 首次出现位置决定两种探测的先后顺序。"""
+    first_object = cleaned.find("{")
+    first_array = cleaned.find("[")
+    if first_object != -1 and (first_array == -1 or first_object < first_array):
+        return _parse_embedded_object, _parse_embedded_array
+    return _parse_embedded_array, _parse_embedded_object
+
+
+def _parse_repaired_whole(cleaned: str) -> dict[str, Any] | None:
+    """整段修复后解析；对象原样返回，数组包装为 `{"cases": [...]}`。"""
+    try:
+        result = json.loads(_repair_truncated_json(cleaned))
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, list):
+        return {"cases": result}
+    return None
+
+
 def parse_ai_response(content: str) -> dict[str, Any]:
     """解析AI响应内容，支持JSON对象、JSON数组和截断JSON。
 
@@ -83,73 +148,17 @@ def parse_ai_response(content: str) -> dict[str, Any]:
 
     cleaned = _strip_code_block(content)
 
-    try:
-        result = json.loads(cleaned)
-        if isinstance(result, list):
-            return {"cases": result}
-        if isinstance(result, dict):
-            return result
-        raise ValueError(f"AI响应解析为非对象/数组类型: {type(result)}")
-    except (json.JSONDecodeError, ValueError):
-        pass
+    parsed = _parse_strict_json(cleaned)
+    if parsed is not None:
+        return parsed
 
-    def _parse_embedded_object() -> dict[str, Any] | None:
-        json_match = re.search(r"\{[\s\S]*\}", cleaned)
-        if not json_match:
-            return None
-        try:
-            result = json.loads(json_match.group(0))
-            if isinstance(result, dict):
-                return result
-        except json.JSONDecodeError:
-            try:
-                repaired = _repair_truncated_json(json_match.group(0))
-                result = json.loads(repaired)
-                if isinstance(result, dict):
-                    return result
-            except (json.JSONDecodeError, ValueError):
-                pass
-        return None
-
-    def _parse_embedded_array() -> dict[str, Any] | None:
-        json_match = re.search(r"\[[\s\S]*\]", cleaned)
-        if not json_match:
-            return None
-        try:
-            result = json.loads(json_match.group(0))
-            if isinstance(result, list):
-                return {"cases": result}
-        except json.JSONDecodeError:
-            try:
-                repaired = _repair_truncated_json(json_match.group(0))
-                result = json.loads(repaired)
-                if isinstance(result, list):
-                    return {"cases": result}
-            except (json.JSONDecodeError, ValueError):
-                pass
-        return None
-
-    first_object = cleaned.find("{")
-    first_array = cleaned.find("[")
-    prefer_object = first_object != -1 and (first_array == -1 or first_object < first_array)
-    parsers = (
-        (_parse_embedded_object, _parse_embedded_array)
-        if prefer_object
-        else (_parse_embedded_array, _parse_embedded_object)
-    )
-    for parser in parsers:
-        parsed = parser()
+    for parser in _ordered_embedded_parsers(cleaned):
+        parsed = parser(cleaned)
         if parsed is not None:
             return parsed
 
-    try:
-        repaired = _repair_truncated_json(cleaned)
-        result = json.loads(repaired)
-        if isinstance(result, dict):
-            return result
-        if isinstance(result, list):
-            return {"cases": result}
-    except (json.JSONDecodeError, ValueError):
-        pass
+    parsed = _parse_repaired_whole(cleaned)
+    if parsed is not None:
+        return parsed
 
     raise ValueError("无法解析AI响应内容")
