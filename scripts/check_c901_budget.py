@@ -55,7 +55,8 @@ APP = "app"
 # → 112（B3c：validate_flow_structure 20，单文件单处）
 # → 111（B3d：enrich_context_with_trust_and_scoring 20，单文件单处）
 # → 110（B3e：parse_ai_response 22，单文件单处）
-TOTAL_BUDGET = 110
+# → 109（B3f：read_test_object_info 23，单文件单处）
+TOTAL_BUDGET = 109
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
