@@ -12,6 +12,7 @@
 import logging
 import re
 import subprocess
+from dataclasses import dataclass, field
 
 from app.services.impact_analysis.models import CodeChange
 
@@ -21,6 +22,94 @@ logger = logging.getLogger(__name__)
 # 同时捕获 old 文件起始行（group 1）和 new 文件起始行（group 2），
 # 以便 deleted/added 行分别使用各自文件的行号，避免连续删除行号错位。
 _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+# 文件级元信息行前缀（判定归属，不推进行号）
+_FILE_META_PREFIXES = ("+++ b/", "+++ /dev/null", "--- a/", "--- /dev/null", "new file mode", "deleted file mode")
+
+
+@dataclass
+class _DiffParseState:
+    """单文件 diff 解析的跨行累积状态。"""
+
+    file_path: str | None = None
+    added: set[int] = field(default_factory=set)
+    deleted: set[int] = field(default_factory=set)
+    is_new: bool = False
+    is_deleted: bool = False
+    old_line: int = 0
+    new_line: int = 0
+
+
+def _flush_diff_state(state: _DiffParseState, changes: list[CodeChange]) -> None:
+    """把当前文件状态落成 CodeChange（无路径则跳过）。"""
+    if state.file_path is None:
+        return
+    changes.append(
+        CodeChange(
+            file_path=state.file_path,
+            added_lines=frozenset(state.added),
+            deleted_lines=frozenset(state.deleted),
+            is_new_file=state.is_new,
+            is_deleted=state.is_deleted,
+        )
+    )
+
+
+def _apply_hunk_header(line: str, state: _DiffParseState) -> None:
+    """解析 `@@ -a,b +c,d @@`，重置两侧行号。"""
+    match = _HUNK_HEADER_RE.match(line)
+    if match is None:
+        return
+    state.old_line = int(match.group(1))
+    state.new_line = int(match.group(2))
+
+
+def _apply_file_header(line: str, state: _DiffParseState) -> None:
+    """处理 `+++`/`---`/新增/删除文件等文件级元信息行。"""
+    if line.startswith("new file mode"):
+        state.is_new = True
+    elif line.startswith("deleted file mode"):
+        state.is_deleted = True
+    elif line.startswith("+++ b/") or (line.startswith("--- a/") and state.file_path is None):
+        state.file_path = line[6:]
+
+
+def _record_added(line: str, state: _DiffParseState) -> None:
+    """记录新增行号（`+++` 为文件头，不计数）。"""
+    if line.startswith("+++") or not state.file_path:
+        return
+    state.added.add(state.new_line)
+    state.new_line += 1
+
+
+def _record_deleted(line: str, state: _DiffParseState) -> None:
+    """记录删除行号（`---` 为文件头，不计数）。"""
+    if line.startswith("---") or not state.file_path:
+        return
+    state.deleted.add(state.old_line)
+    state.old_line += 1
+
+
+def _advance_context_line(state: _DiffParseState) -> None:
+    """上下文行同时推进新旧行号。"""
+    if not state.file_path:
+        return
+    state.old_line += 1
+    state.new_line += 1
+
+
+def _apply_diff_line(line: str, state: _DiffParseState) -> None:
+    """按行首分派：hunk 头→文件元信息→增/删/上下文行。"""
+    if line.startswith("@@"):
+        _apply_hunk_header(line, state)
+    elif line.startswith(_FILE_META_PREFIXES):
+        _apply_file_header(line, state)
+    elif line.startswith("+"):
+        _record_added(line, state)
+    elif line.startswith("-"):
+        _record_deleted(line, state)
+    elif line.startswith(" "):
+        _advance_context_line(state)
 
 
 class ChangeAnalyzer:
@@ -87,91 +176,15 @@ class ChangeAnalyzer:
             return []
 
         changes: list[CodeChange] = []
-        current_file: str | None = None
-        current_added: set = set()
-        current_deleted: set = set()
-        is_new_file = False
-        is_deleted = False
-        old_line = 0  # 旧文件行号（deleted 行使用）
-        new_line = 0  # 新文件行号（added 行使用）
-
+        state = _DiffParseState()
         for line in diff_text.splitlines():
             if line.startswith("diff --git"):
-                # 文件边界：保存上一个文件的变更
-                if current_file is not None:
-                    changes.append(
-                        self._build_change(
-                            current_file,
-                            current_added,
-                            current_deleted,
-                            is_new_file,
-                            is_deleted,
-                        )
-                    )
-                # 重置状态
-                current_file = None
-                current_added = set()
-                current_deleted = set()
-                is_new_file = False
-                is_deleted = False
-            elif line.startswith("new file mode"):
-                is_new_file = True
-            elif line.startswith("deleted file mode"):
-                is_deleted = True
-            elif line.startswith("+++ b/"):
-                current_file = line[6:]  # 去除 "+++ b/" 前缀
-            elif line.startswith("+++ /dev/null"):
-                # 文件被删除，current_file 已通过 --- a/ 设置
-                pass
-            elif line.startswith("--- a/"):
-                if current_file is None:
-                    current_file = line[6:]
-            elif line.startswith("@@"):
-                match = _HUNK_HEADER_RE.match(line)
-                if match:
-                    old_line = int(match.group(1))
-                    new_line = int(match.group(2))
-            elif line.startswith("+") and not line.startswith("+++"):
-                if current_file:
-                    current_added.add(new_line)
-                    new_line += 1
-            elif line.startswith("-") and not line.startswith("---"):
-                if current_file:
-                    current_deleted.add(old_line)
-                    old_line += 1
-            elif line.startswith(" "):
-                if current_file:
-                    old_line += 1
-                    new_line += 1
+                # 文件边界：先落上一个文件，再开新状态
+                _flush_diff_state(state, changes)
+                state = _DiffParseState()
+                continue
+            _apply_diff_line(line, state)
 
-        # 保存最后一个文件
-        if current_file is not None:
-            changes.append(
-                self._build_change(
-                    current_file,
-                    current_added,
-                    current_deleted,
-                    is_new_file,
-                    is_deleted,
-                )
-            )
-
+        _flush_diff_state(state, changes)
         logger.info(f"解析 diff 完成: files={len(changes)}")
         return changes
-
-    @staticmethod
-    def _build_change(
-        file_path: str,
-        added: set,
-        deleted: set,
-        is_new: bool,
-        is_deleted: bool,
-    ) -> CodeChange:
-        """构建 CodeChange 实例。"""
-        return CodeChange(
-            file_path=file_path,
-            added_lines=frozenset(added),
-            deleted_lines=frozenset(deleted),
-            is_new_file=is_new,
-            is_deleted=is_deleted,
-        )
