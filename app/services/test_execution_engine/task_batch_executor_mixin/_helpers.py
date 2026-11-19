@@ -1,9 +1,95 @@
+import json
+from dataclasses import dataclass
 from typing import Any
+
 from loguru import logger
 
 from app.models.test_case import TestCase
 from app.models.enums import ExecStatus
 from app.services.test_execution_engine.models import ExecutionError
+
+
+@dataclass
+class _CaseCounts:
+    """任务内用例执行计数。"""
+
+    passed: int = 0
+    failed: int = 0
+    blocked: int = 0
+
+
+def _parse_web_env_configs(raw: Any) -> dict[str, Any]:
+    """解析项目 web_env_configs（dict / JSON 串 / 双层编码串），失败返回空 dict。"""
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return {}
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, str):
+        try:
+            inner = json.loads(parsed)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return {}
+        if isinstance(inner, dict):
+            return inner
+    return {}
+
+
+_EVIDENCE_KEYS = ("console_errors", "network_failures", "uncaught_exceptions", "memory_leak_suspect")
+
+
+def _collect_step_evidence(steps: Any) -> dict[str, list] | None:
+    """合并各步骤的 defect_evidence；无任何证据返回 None。"""
+    merged: dict[str, list] = {key: [] for key in _EVIDENCE_KEYS}
+    has_evidence = False
+    for step in steps:
+        evidence = getattr(step, "defect_evidence", None)
+        if not evidence or not isinstance(evidence, dict):
+            continue
+        has_evidence = True
+        for key in _EVIDENCE_KEYS:
+            items = evidence.get(key)
+            if isinstance(items, list):
+                merged[key].extend(items)
+    return merged if has_evidence else None
+
+
+def _dedupe_evidence(merged: dict[str, list]) -> dict[str, list]:
+    """按内容去重（dict 转有序 tuple 作标识）。"""
+    deduped: dict[str, list] = {}
+    for key, items in merged.items():
+        seen = set()
+        unique = []
+        for item in items:
+            ident = tuple(sorted(item.items())) if isinstance(item, dict) else str(item)
+            if ident not in seen:
+                seen.add(ident)
+                unique.append(item)
+        deduped[key] = unique
+    return deduped
+
+
+def _resolve_target_env_config(raw_configs: Any, target_env: str) -> dict[str, Any]:
+    """取目标环境配置；目标不存在时回退第一个可用环境并告警。"""
+    resolved = _parse_web_env_configs(raw_configs)
+    if not resolved:
+        return {}
+    env_config = resolved.get(target_env, {})
+    if env_config:
+        return env_config
+    available_envs = list(resolved.keys())
+    if not available_envs:
+        return {}
+    fallback_env = available_envs[0]
+    logger.warning(f"目标环境 '{target_env}' 不存在，回退到 '{fallback_env}'")
+    return resolved.get(fallback_env, {})
 
 
 class _HelpersMixin:
