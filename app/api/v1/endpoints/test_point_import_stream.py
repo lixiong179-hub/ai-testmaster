@@ -51,6 +51,22 @@ def _sse_event(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json_str}\n\n"
 
 
+def _ai_parse_error_event(exc: Exception) -> str:
+    """把 AI 解析异常映射为一条 SSE error 事件（判定顺序与原逻辑一致）。"""
+    if isinstance(exc, AITimeoutError):
+        return _sse_event("error", {"detail": "AI增强解析超时，请稍后重试或关闭AI增强模式", "error_type": "timeout"})
+    if isinstance(exc, AIAuthenticationError):
+        return _sse_event("error", {"detail": "AI服务认证失败，请联系管理员", "error_type": "auth"})
+    if isinstance(exc, AIRateLimitError):
+        return _sse_event("error", {"detail": "AI服务请求过于频繁，请稍后重试", "error_type": "rate_limit"})
+    if isinstance(exc, AIPermissionError):
+        return _sse_event("error", {"detail": "AI服务权限不足，请联系管理员", "error_type": "permission"})
+    if isinstance(exc, AIServiceError):
+        return _sse_event("error", {"detail": f"AI增强解析失败：{exc.message}", "error_type": "ai_service"})
+    logger.exception(f"AI增强解析未知错误: {exc}")
+    return _sse_event("error", {"detail": "AI增强解析发生未知错误，请稍后重试", "error_type": "unknown"})
+
+
 async def _run_ai_parse_with_progress(
     paths: list,
     preview: bool,
@@ -123,24 +139,8 @@ async def _run_ai_parse_with_progress(
     # 获取AI解析结果
     try:
         ai_cases = task.result()
-    except AITimeoutError:
-        yield _sse_event("error", {"detail": "AI增强解析超时，请稍后重试或关闭AI增强模式", "error_type": "timeout"})
-        return
-    except AIAuthenticationError:
-        yield _sse_event("error", {"detail": "AI服务认证失败，请联系管理员", "error_type": "auth"})
-        return
-    except AIRateLimitError:
-        yield _sse_event("error", {"detail": "AI服务请求过于频繁，请稍后重试", "error_type": "rate_limit"})
-        return
-    except AIPermissionError:
-        yield _sse_event("error", {"detail": "AI服务权限不足，请联系管理员", "error_type": "permission"})
-        return
-    except AIServiceError as exc:
-        yield _sse_event("error", {"detail": f"AI增强解析失败：{exc.message}", "error_type": "ai_service"})
-        return
     except Exception as exc:
-        logger.exception(f"AI增强解析未知错误: {exc}")
-        yield _sse_event("error", {"detail": "AI增强解析发生未知错误，请稍后重试", "error_type": "unknown"})
+        yield _ai_parse_error_event(exc)
         return
 
     if not ai_cases:
@@ -200,6 +200,34 @@ def _serialize_result(result) -> dict:
     return {"raw": str(result)}
 
 
+def _cleanup_tmp_file(tmp_path: str) -> None:
+    """删除临时文件；失败仅记 debug 日志。"""
+    try:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+    except Exception:
+        logger.debug("删除临时xmind文件失败", exc_info=True)
+
+
+def _sse_error_response(detail: str, error_type: str) -> StreamingResponse:
+    """返回只包含一条 error 事件的 SSE 流式响应。"""
+
+    async def _error_gen():
+        yield _sse_event("error", {"detail": detail, "error_type": error_type})
+
+    return StreamingResponse(_error_gen(), media_type="text/event-stream")
+
+
+def _select_parse_paths(all_paths: list, preview: bool) -> list:
+    """预览模式按配置采样，否则全量返回。"""
+    if not preview:
+        return all_paths
+    sample_size = settings.XMIND_AI_PREVIEW_SAMPLE
+    paths = all_paths[:sample_size]
+    logger.info(f"AI SSE预览采样: {len(paths)}/{len(all_paths)} 条路径")
+    return paths
+
+
 @router.post("/import-xmind-stream")
 async def import_xmind_stream(
     file: UploadFile = File(..., description="XMind 文件"),
@@ -223,21 +251,10 @@ async def import_xmind_stream(
         parser = XmindParser()
         all_paths = parser.extract_paths(tmp_path)
         if not all_paths:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+            _cleanup_tmp_file(tmp_path)
+            return _sse_error_response("XMind文件未提取到有效路径", "parse_error")
 
-            async def _error_gen():
-                yield _sse_event("error", {"detail": "XMind文件未提取到有效路径", "error_type": "parse_error"})
-
-            return StreamingResponse(_error_gen(), media_type="text/event-stream")
-
-        total_paths = len(all_paths)
-        if preview:
-            sample_size = settings.XMIND_AI_PREVIEW_SAMPLE
-            paths = all_paths[:sample_size]
-            logger.info(f"AI SSE预览采样: {len(paths)}/{total_paths} 条路径")
-        else:
-            paths = all_paths
+        paths = _select_parse_paths(all_paths, preview)
 
         async def event_generator():
             try:
@@ -250,11 +267,7 @@ async def import_xmind_stream(
                     yield event
             finally:
                 # 清理临时文件
-                try:
-                    if os.path.exists(tmp_path):
-                        os.unlink(tmp_path)
-                except Exception:
-                    logger.debug("删除临时xmind文件失败", exc_info=True)
+                _cleanup_tmp_file(tmp_path)
 
         return StreamingResponse(
             event_generator(),
@@ -266,13 +279,5 @@ async def import_xmind_stream(
             },
         )
     except XmindParseError:
-        try:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-        except Exception:
-            logger.debug("删除临时xmind文件失败", exc_info=True)
-
-        async def _error_gen():
-            yield _sse_event("error", {"detail": "XMind解析失败", "error_type": "parse_error"})
-
-        return StreamingResponse(_error_gen(), media_type="text/event-stream")
+        _cleanup_tmp_file(tmp_path)
+        return _sse_error_response("XMind解析失败", "parse_error")

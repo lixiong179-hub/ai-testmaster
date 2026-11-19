@@ -91,6 +91,62 @@ def _auto_detect_resource_type(filename: str, file_ext: str) -> str:
     return detect_resource_type(filename, file_ext)
 
 
+def _check_upload_extension(file_ext: str) -> None:
+    """校验扩展名是否在配置白名单内。"""
+    allowed_extensions = settings.allowed_extensions_list
+    if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"不允许的文件类型: .{file_ext}，允许的类型: {', '.join(allowed_extensions)}"),
+        )
+
+
+def _check_upload_size(contents: bytes) -> None:
+    """校验文件大小上限。"""
+    if len(contents) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"文件过大，最大允许 {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"),
+        )
+
+
+def _check_upload_mime(contents: bytes, file_ext: str) -> None:
+    """用 magic 探测真实 MIME；危险类型直接拒绝，其余仅告警。"""
+    if not _MAGIC_AVAILABLE:
+        return
+    try:
+        detected_mime = magic.from_buffer(contents, mime=True)
+        mime_error = validate_file_mime(file_ext, detected_mime)
+        if mime_error:
+            if "危险" in mime_error:
+                raise HTTPException(status_code=400, detail=mime_error)
+            logger.warning(mime_error)
+    except HTTPException:
+        raise
+
+
+def _persist_upload(contents: bytes, file_ext: str, project_id: int) -> str:
+    """写入项目上传目录并返回落盘路径（失败抛出，由调用方清理）。"""
+    project_upload_dir = os.path.join(settings.UPLOAD_DIR, str(project_id))
+    os.makedirs(project_upload_dir, exist_ok=True)
+
+    file_path = os.path.join(project_upload_dir, f"{uuid.uuid4()}.{file_ext}")
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    return file_path
+
+
+def _cleanup_saved_file(saved_file_path: str | None) -> None:
+    """上传失败时清理已落盘文件（尽力而为）。"""
+    if not saved_file_path or not os.path.exists(saved_file_path):
+        return
+    try:
+        os.remove(saved_file_path)
+        logger.info(f"已清理失败的文件: {saved_file_path}")
+    except OSError as cleanup_error:
+        logger.warning(f"清理文件失败: {cleanup_error}")
+
+
 @router.post("/upload", response_model=ApiResponse)
 async def upload_file(
     project_id: int = Form(...),
@@ -117,45 +173,17 @@ async def upload_file(
         if not file_ext:
             raise HTTPException(status_code=400, detail="不支持的文件格式")
 
-        allowed_extensions = settings.allowed_extensions_list
-        if allowed_extensions and file_ext.lower() not in [e.lower().lstrip(".") for e in allowed_extensions]:
-            raise HTTPException(
-                status_code=400,
-                detail=(f"不允许的文件类型: .{file_ext}，允许的类型: {', '.join(allowed_extensions)}"),
-            )
+        _check_upload_extension(file_ext)
 
         contents = await file.read()
-        if len(contents) > settings.MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=(f"文件过大，最大允许 {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"),
-            )
-
-        if _MAGIC_AVAILABLE:
-            try:
-                detected_mime = magic.from_buffer(contents, mime=True)
-                mime_error = validate_file_mime(file_ext, detected_mime)
-                if mime_error:
-                    if "危险" in mime_error:
-                        raise HTTPException(status_code=400, detail=mime_error)
-                    logger.warning(mime_error)
-            except HTTPException:
-                raise
+        _check_upload_size(contents)
+        _check_upload_mime(contents, file_ext)
 
         if resource_type == "other":
             resource_type = _auto_detect_resource_type(file.filename, file_ext)
 
-        project_upload_dir = os.path.join(settings.UPLOAD_DIR, str(project_id))
-        os.makedirs(project_upload_dir, exist_ok=True)
-
-        unique_filename = f"{uuid.uuid4()}.{file_ext}"
-        file_path = os.path.join(project_upload_dir, unique_filename)
-
-        with open(file_path, "wb") as f:
-            f.write(contents)
-        saved_file_path = file_path
-
-        file_size = get_file_size(file_path)
+        saved_file_path = _persist_upload(contents, file_ext, project_id)
+        file_size = get_file_size(saved_file_path)
 
         db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
 
@@ -165,7 +193,7 @@ async def upload_file(
                 project_id=project_id,
                 file_name=file.filename,
                 file_type=file_ext,
-                file_url=file_path,
+                file_url=saved_file_path,
                 file_source="file",
                 size=file_size,
                 resource_type=resource_type,
@@ -187,12 +215,7 @@ async def upload_file(
     except HTTPException:
         raise
     except Exception:
-        if saved_file_path and os.path.exists(saved_file_path):
-            try:
-                os.remove(saved_file_path)
-                logger.info(f"已清理失败的文件: {saved_file_path}")
-            except OSError as cleanup_error:
-                logger.warning(f"清理文件失败: {cleanup_error}")
+        _cleanup_saved_file(saved_file_path)
         raise HTTPException(status_code=500, detail="上传文件失败")
 
 

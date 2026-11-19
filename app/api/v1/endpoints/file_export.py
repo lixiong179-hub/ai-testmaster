@@ -58,6 +58,37 @@ MAX_ZIP_ENTRIES = settings.MAX_ZIP_ENTRIES
 MAX_ZIP_TOTAL_SIZE = settings.MAX_ZIP_TOTAL_SIZE
 
 
+def _zip_entry_ext(basename: str) -> str:
+    """取小写扩展名（无扩展名返回空串）。"""
+    return basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
+
+
+def _filter_safe_zip_entries(entries, failed_files: list) -> list:
+    """剔除绝对路径 / 路径穿越条目，并把被剔除项登记到 failed_files。"""
+    safe_entries = []
+    for info in entries:
+        if info.filename.startswith("/") or ".." in info.filename:
+            failed_files.append(
+                {
+                    "file_name": os.path.basename(info.filename) or "未知文件",
+                    "reason": "文件路径包含非法字符",
+                }
+            )
+            continue
+        safe_entries.append(info)
+    return safe_entries
+
+
+def _sum_supported_image_bytes(entries) -> int:
+    """统计 ZIP 内受支持图片的总字节数。"""
+    total_size = 0
+    for info in entries:
+        basename = os.path.basename(info.filename)
+        if basename and _zip_entry_ext(basename) in SUPPORTED_IMAGE_EXTENSIONS:
+            total_size += info.file_size
+    return total_size
+
+
 def _extract_images_from_zip(
     zip_path: str,
     project_upload_dir: str,
@@ -74,7 +105,6 @@ def _extract_images_from_zip(
 
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
-            total_size = 0
             entries = [info for info in zf.infolist() if not info.is_dir()]
 
             if len(entries) > MAX_ZIP_ENTRIES:
@@ -86,25 +116,9 @@ def _extract_images_from_zip(
                 )
                 return uploaded_files, failed_files
 
-            safe_entries = []
-            for info in entries:
-                if info.filename.startswith("/") or ".." in info.filename:
-                    failed_files.append(
-                        {
-                            "file_name": os.path.basename(info.filename) or "未知文件",
-                            "reason": "文件路径包含非法字符",
-                        }
-                    )
-                    continue
-                safe_entries.append(info)
+            safe_entries = _filter_safe_zip_entries(entries, failed_files)
 
-            for info in safe_entries:
-                basename = os.path.basename(info.filename)
-                if not basename:
-                    continue
-                file_ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
-                if file_ext in SUPPORTED_IMAGE_EXTENSIONS:
-                    total_size += info.file_size
+            total_size = _sum_supported_image_bytes(safe_entries)
 
             if total_size > MAX_ZIP_TOTAL_SIZE:
                 failed_files.append(
@@ -121,7 +135,7 @@ def _extract_images_from_zip(
                 if not basename:
                     continue
 
-                file_ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
+                file_ext = _zip_entry_ext(basename)
 
                 if file_ext not in SUPPORTED_IMAGE_EXTENSIONS:
                     continue

@@ -42,7 +42,8 @@ APP = "app"
 # → 143（B2a：auth_endpoints.login）→ 142（B2a：file_management.update_file）
 # → 139（B2b：update_requirement_link / run_pipeline / decide_batch）
 # → 136（B2c：align_history_assets / get_pipeline_summary / update_project_config）
-TOTAL_BUDGET = 136
+# → 132（B2d：_extract_images_from_zip / upload_file / _run_ai_parse_with_progress / import_xmind_stream）
+TOTAL_BUDGET = 132
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
