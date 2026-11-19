@@ -38,6 +38,55 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _ws_authorize(websocket: WebSocket, token: str) -> bool:
+    """校验 token；失败时按 1008 关闭连接并返回 False。"""
+    try:
+        payload = decode_token(token)
+        if not payload:
+            await websocket.close(code=1008, reason="Invalid token")
+            return False
+    except Exception:
+        await websocket.close(code=1008, reason="Token validation failed")
+        return False
+    return True
+
+
+async def _ws_send_connected(websocket: WebSocket, channel_id: str, payload: dict) -> bool:
+    """发送连接成功消息；失败时断开通道并返回 False。"""
+    if await manager.send_message(websocket, payload):
+        return True
+    manager.disconnect(websocket, channel_id)
+    return False
+
+
+async def _ws_handle_client_message(websocket: WebSocket, message: dict, allow_subscribe: bool) -> bool:
+    """处理单条客户端消息；返回 False 表示需要结束连接。"""
+    msg_type = message.get("type")
+    if msg_type == "ping":
+        return await manager.send_message(websocket, {"type": "pong"})
+    if msg_type == "subscribe" and allow_subscribe:
+        await manager.send_message(websocket, {"type": "subscribed", "channels": message.get("channels", [])})
+        return True
+    return msg_type != "close"
+
+
+async def _ws_receive_loop(websocket: WebSocket, allow_subscribe: bool = False) -> None:
+    """保持连接：30 秒无消息则主动 ping，心跳发送失败即退出。"""
+    while True:
+        try:
+            data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError:
+                await manager.send_message(websocket, {"type": "error", "message": "Invalid JSON format"})
+                continue
+            if not await _ws_handle_client_message(websocket, message, allow_subscribe):
+                break
+        except TimeoutError:
+            if not await manager.send_message(websocket, {"type": "ping"}):
+                break
+
+
 @router.websocket("/ws/execution/{execution_id}")
 async def execution_websocket(
     websocket: WebSocket, execution_id: str, token: str = Query(..., description="JWT Token用于身份验证")
@@ -59,13 +108,7 @@ async def execution_websocket(
         token: JWT Token
     """
     # 验证token
-    try:
-        payload = decode_token(token)
-        if not payload:
-            await websocket.close(code=1008, reason="Invalid token")
-            return
-    except Exception:
-        await websocket.close(code=1008, reason="Token validation failed")
+    if not await _ws_authorize(websocket, token):
         return
 
     # 建立连接（带连接数限制检查）
@@ -75,48 +118,15 @@ async def execution_websocket(
 
     try:
         # 发送连接成功消息
-        success = await manager.send_message(
-            websocket, {"type": "connected", "execution_id": execution_id, "message": "WebSocket连接成功"}
-        )
-
-        if not success:
-            manager.disconnect(websocket, execution_id)
+        if not await _ws_send_connected(
+            websocket,
+            execution_id,
+            {"type": "connected", "execution_id": execution_id, "message": "WebSocket连接成功"},
+        ):
             return
 
-        # 保持连接，接收客户端消息
-        while True:
-            try:
-                # 接收客户端消息（带30秒超时）
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-
-                try:
-                    message = json.loads(data)
-                except json.JSONDecodeError:
-                    await manager.send_message(websocket, {"type": "error", "message": "Invalid JSON format"})
-                    continue
-
-                # 处理心跳
-                if message.get("type") == "ping":
-                    success = await manager.send_message(websocket, {"type": "pong"})
-                    if not success:
-                        break  # 发送失败，退出循环
-
-                # 处理其他客户端消息
-                elif message.get("type") == "subscribe":
-                    # 客户端订阅特定消息类型
-                    await manager.send_message(
-                        websocket, {"type": "subscribed", "channels": message.get("channels", [])}
-                    )
-
-                elif message.get("type") == "close":
-                    # 客户端主动关闭
-                    break
-
-            except TimeoutError:
-                # 超时，发送心跳检测
-                success = await manager.send_message(websocket, {"type": "ping"})
-                if not success:
-                    break  # 发送失败，退出循环
+        # 保持连接，接收客户端消息（含 subscribe 订阅分支）
+        await _ws_receive_loop(websocket, allow_subscribe=True)
 
     except WebSocketDisconnect:
         logger.debug("WebSocket连接断开")
@@ -148,13 +158,7 @@ async def pipeline_progress_websocket(
         run_id: Pipeline运行ID
         token: JWT Token
     """
-    try:
-        payload = decode_token(token)
-        if not payload:
-            await websocket.close(code=1008, reason="Invalid token")
-            return
-    except Exception:
-        await websocket.close(code=1008, reason="Token validation failed")
+    if not await _ws_authorize(websocket, token):
         return
 
     channel_id = f"pipeline:{run_id}"
@@ -164,47 +168,18 @@ async def pipeline_progress_websocket(
         return
 
     try:
-        success = await manager.send_message(
+        if not await _ws_send_connected(
             websocket,
+            channel_id,
             {
                 "type": "connected",
                 "run_id": run_id,
                 "message": "Pipeline进度WebSocket连接成功",
             },
-        )
-        if not success:
-            manager.disconnect(websocket, channel_id)
+        ):
             return
 
-        while True:
-            try:
-                data = await asyncio.wait_for(
-                    websocket.receive_text(),
-                    timeout=30.0,
-                )
-                try:
-                    message = json.loads(data)
-                except json.JSONDecodeError:
-                    await manager.send_message(
-                        websocket,
-                        {
-                            "type": "error",
-                            "message": "Invalid JSON format",
-                        },
-                    )
-                    continue
-
-                if message.get("type") == "ping":
-                    success = await manager.send_message(websocket, {"type": "pong"})
-                    if not success:
-                        break
-                elif message.get("type") == "close":
-                    break
-
-            except TimeoutError:
-                success = await manager.send_message(websocket, {"type": "ping"})
-                if not success:
-                    break
+        await _ws_receive_loop(websocket)
 
     except WebSocketDisconnect:
         logger.debug("Pipeline进度WebSocket连接断开")
@@ -238,13 +213,7 @@ async def quick_test_websocket(
         task_id: 快速测试任务ID
         token: JWT Token
     """
-    try:
-        payload = decode_token(token)
-        if not payload:
-            await websocket.close(code=1008, reason="Invalid token")
-            return
-    except Exception:
-        await websocket.close(code=1008, reason="Token validation failed")
+    if not await _ws_authorize(websocket, token):
         return
 
     channel_id = f"quick_test:{task_id}"
@@ -254,47 +223,18 @@ async def quick_test_websocket(
         return
 
     try:
-        success = await manager.send_message(
+        if not await _ws_send_connected(
             websocket,
+            channel_id,
             {
                 "type": "connected",
                 "task_id": task_id,
                 "message": "快速测试WebSocket连接成功",
             },
-        )
-        if not success:
-            manager.disconnect(websocket, channel_id)
+        ):
             return
 
-        while True:
-            try:
-                data = await asyncio.wait_for(
-                    websocket.receive_text(),
-                    timeout=30.0,
-                )
-                try:
-                    message = json.loads(data)
-                except json.JSONDecodeError:
-                    await manager.send_message(
-                        websocket,
-                        {
-                            "type": "error",
-                            "message": "Invalid JSON format",
-                        },
-                    )
-                    continue
-
-                if message.get("type") == "ping":
-                    success = await manager.send_message(websocket, {"type": "pong"})
-                    if not success:
-                        break
-                elif message.get("type") == "close":
-                    break
-
-            except TimeoutError:
-                success = await manager.send_message(websocket, {"type": "ping"})
-                if not success:
-                    break
+        await _ws_receive_loop(websocket)
 
     except WebSocketDisconnect:
         logger.debug("快速测试WebSocket连接断开")

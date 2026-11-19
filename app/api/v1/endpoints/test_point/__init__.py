@@ -246,6 +246,43 @@ async def get_test_point_detail(
         )
 
 
+def _normalize_test_point_item(item: Any, index: int) -> dict[str, Any] | None:
+    """校验并规范化单条测试点；非法数据记日志后返回 None。"""
+    if not isinstance(item, dict):
+        logger.warning(f"跳过无效数据项[{index}]: 非字典类型")
+        return None
+    module = str(item.get("module", "")).strip()
+    point = str(item.get("point", "")).strip()
+    if not module or not point:
+        logger.warning(f"跳过数据项[{index}]: 缺少必填字段(module/point)")
+        return None
+    if len(module) > 100 or len(point) > 500:
+        logger.warning(f"跳过数据项[{index}]: 字段超长")
+        return None
+    try:
+        priority = int(item.get("priority", 2))
+        if priority < 1 or priority > 3:
+            priority = 2
+    except (ValueError, TypeError):
+        priority = 2
+    return {
+        "module": module,
+        "point": point,
+        "priority": priority,
+        "ai_prompt": item.get("ai_prompt"),
+    }
+
+
+def _collect_valid_test_points(test_points: list) -> list[dict[str, Any]]:
+    """批量规范化测试点，丢弃非法项。"""
+    valid_points: list[dict[str, Any]] = []
+    for index, item in enumerate(test_points):
+        normalized = _normalize_test_point_item(item, index)
+        if normalized is not None:
+            valid_points.append(normalized)
+    return valid_points
+
+
 @router.post("/batch-save")
 async def batch_save_test_points(
     project_id: int = Query(..., description="项目ID"),
@@ -262,33 +299,7 @@ async def batch_save_test_points(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"单次保存数量不能超过{max_batch_size}个",
             )
-        valid_points = []
-        for i, item in enumerate(test_points):
-            if not isinstance(item, dict):
-                logger.warning(f"跳过无效数据项[{i}]: 非字典类型")
-                continue
-            module = str(item.get("module", "")).strip()
-            point = str(item.get("point", "")).strip()
-            if not module or not point:
-                logger.warning(f"跳过数据项[{i}]: 缺少必填字段(module/point)")
-                continue
-            if len(module) > 100 or len(point) > 500:
-                logger.warning(f"跳过数据项[{i}]: 字段超长")
-                continue
-            try:
-                priority = int(item.get("priority", 2))
-                if priority < 1 or priority > 3:
-                    priority = 2
-            except (ValueError, TypeError):
-                priority = 2
-            valid_points.append(
-                {
-                    "module": module,
-                    "point": point,
-                    "priority": priority,
-                    "ai_prompt": item.get("ai_prompt"),
-                }
-            )
+        valid_points = _collect_valid_test_points(test_points)
         if not valid_points:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

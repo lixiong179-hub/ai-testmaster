@@ -94,6 +94,48 @@ async def list_connected_devices(current_user: User = Depends(get_current_user))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取设备列表失败")
 
 
+#: 目标环境白名单（非法值告警后回退 test）。
+_ALLOWED_TARGET_ENVS = {"test", "staging", "prod"}
+
+#: 执行模式白名单（非法值告警后回退 smart）。
+_EXECUTION_MODES = ("preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart")
+
+
+def _parse_execution_config(config: dict | None) -> dict:
+    """解析执行配置并按白名单回退（默认值与历史行为一致）。"""
+    parsed = {
+        "headless": True,
+        "record_video": False,
+        "target_env": "test",
+        "skip_init": False,
+        "use_mcp": None,
+        "execution_mode": "smart",
+        "mobile_device_id": None,
+    }
+    if not config:
+        return parsed
+
+    parsed["headless"] = config.get("headless", True)
+    parsed["record_video"] = config.get("recordVideo", False)
+    parsed["skip_init"] = config.get("skipInit", False)
+    parsed["use_mcp"] = config.get("use_mcp", None)
+    parsed["mobile_device_id"] = config.get("mobileDeviceId")
+
+    raw_target_env = config.get("targetEnv", "test")
+    if raw_target_env and raw_target_env not in _ALLOWED_TARGET_ENVS:
+        logger.warning(f"非法目标环境值 '{raw_target_env}'，已回退到默认值 'test'")
+        parsed["target_env"] = "test"
+    else:
+        parsed["target_env"] = raw_target_env or "test"
+
+    execution_mode = config.get("executionMode", "smart")
+    if execution_mode not in _EXECUTION_MODES:
+        logger.warning(f"非法执行模式 '{execution_mode}'，回退到默认值 'smart'")
+        execution_mode = "smart"
+    parsed["execution_mode"] = execution_mode
+    return parsed
+
+
 @router.post("/{task_id}/start")
 async def start_test_execution(
     task_id: int,
@@ -129,33 +171,11 @@ async def start_test_execution(
         task.error_message = None
         await asyncio.to_thread(db.commit)
 
-        headless = True
-        record_video = False
-        target_env = "test"
-        skip_init = False
-        use_mcp = None
-        ALLOWED_ENVS = {"test", "staging", "prod"}
-        execution_mode = "smart"
-        mobile_device_id = None
-        if config:
-            headless = config.get("headless", True)
-            record_video = config.get("recordVideo", False)
-            raw_target_env = config.get("targetEnv", "test")
-            if raw_target_env and raw_target_env not in ALLOWED_ENVS:
-                logger.warning(f"非法目标环境值 '{raw_target_env}'，已回退到默认值 'test'")
-                target_env = "test"
-            else:
-                target_env = raw_target_env or "test"
-            skip_init = config.get("skipInit", False)
-            execution_mode = config.get("executionMode", "smart") if config else "smart"
-            mobile_device_id = config.get("mobileDeviceId") if config else None
-            if execution_mode not in ("preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart"):
-                logger.warning(f"非法执行模式 '{execution_mode}'，回退到默认值 'smart'")
-                execution_mode = "smart"
-            use_mcp = config.get("use_mcp", None)
-
+        exec_config = _parse_execution_config(config)
         logger.info(
-            f"执行配置: headless={headless}, recordVideo={record_video}, targetEnv={target_env}, skipInit={skip_init}, useMcp={use_mcp}"
+            f"执行配置: headless={exec_config['headless']}, recordVideo={exec_config['record_video']}, "
+            f"targetEnv={exec_config['target_env']}, skipInit={exec_config['skip_init']}, "
+            f"useMcp={exec_config['use_mcp']}"
         )
 
         # 性能优化：引擎为 sync API，跑在独立线程释放事件循环；会话复用请求级 Session
@@ -166,13 +186,13 @@ async def start_test_execution(
             await run_async_coro_in_thread(
                 executor.execute_test_task(
                     task_id=task_id,
-                    global_headless=headless,
-                    global_record_video=record_video,
-                    target_env=target_env,
-                    skip_init=skip_init,
-                    execution_mode=execution_mode,
-                    mobile_device_id=mobile_device_id,
-                    use_mcp=use_mcp,
+                    global_headless=exec_config["headless"],
+                    global_record_video=exec_config["record_video"],
+                    target_env=exec_config["target_env"],
+                    skip_init=exec_config["skip_init"],
+                    execution_mode=exec_config["execution_mode"],
+                    mobile_device_id=exec_config["mobile_device_id"],
+                    use_mcp=exec_config["use_mcp"],
                 )
             )
         except Exception as e:

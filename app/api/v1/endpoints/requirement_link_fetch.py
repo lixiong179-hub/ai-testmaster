@@ -35,6 +35,51 @@ from loguru import logger
 router = APIRouter()
 
 
+def _get_cached_content_response(link, force_refresh: bool) -> FetchContentResponse | None:
+    """命中有效期内的缓存时返回缓存响应，否则返回 None。"""
+    if force_refresh or not link.cached_content or not link.last_fetch_time:
+        return None
+    expire_time = link.last_fetch_time + timedelta(minutes=link.cache_expire_minutes)
+    if utcnow() >= expire_time:
+        return None
+    return FetchContentResponse(
+        success=True,
+        content=link.cached_content,
+        content_type="cached",
+        message="从缓存获取成功",
+        cached=True,
+    )
+
+
+def _fetch_ui_mockup_content(sync_db: Session, link) -> FetchContentResponse:
+    """抓取并解析 UI 原型，成功/失败均回写缓存状态。"""
+    success, result, message = link_fetcher_service.fetch_and_parse_ui_mockup(
+        url=link.link_url, auth_type=link.auth_type, auth_config=link.auth_config
+    )
+    if success:
+        content = json.dumps(result, ensure_ascii=False) if isinstance(result, dict) else str(result)
+        requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
+        return FetchContentResponse(
+            success=True, content=content, content_type="json", message="获取成功", cached=False
+        )
+    requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
+    return FetchContentResponse(success=False, content=None, content_type=None, message=message, cached=False)
+
+
+def _fetch_plain_content(sync_db: Session, link) -> FetchContentResponse:
+    """抓取普通链接内容，成功/失败均回写缓存状态。"""
+    success, content, message = link_fetcher_service.fetch_content(
+        url=link.link_url, auth_type=link.auth_type, auth_config=link.auth_config
+    )
+    if success:
+        requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
+        return FetchContentResponse(
+            success=True, content=content, content_type=message, message="获取成功", cached=False
+        )
+    requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
+    return FetchContentResponse(success=False, content=None, content_type=None, message=message, cached=False)
+
+
 @router.post("/fetch-content", response_model=FetchContentResponse)
 async def fetch_link_content(
     request: FetchContentRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -48,45 +93,12 @@ async def fetch_link_content(
         )
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
-        if not request.force_refresh and link.cached_content and link.last_fetch_time:
-            expire_time = link.last_fetch_time + timedelta(minutes=link.cache_expire_minutes)
-            if utcnow() < expire_time:
-                return FetchContentResponse(
-                    success=True,
-                    content=link.cached_content,
-                    content_type="cached",
-                    message="从缓存获取成功",
-                    cached=True,
-                )
+        cached_response = _get_cached_content_response(link, request.force_refresh)
+        if cached_response is not None:
+            return cached_response
         if link.link_type == "ui_mockup":
-            success, result, message = link_fetcher_service.fetch_and_parse_ui_mockup(
-                url=link.link_url, auth_type=link.auth_type, auth_config=link.auth_config
-            )
-            if success:
-                content = json.dumps(result, ensure_ascii=False) if isinstance(result, dict) else str(result)
-                requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
-                return FetchContentResponse(
-                    success=True, content=content, content_type="json", message="获取成功", cached=False
-                )
-            else:
-                requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
-                return FetchContentResponse(
-                    success=False, content=None, content_type=None, message=message, cached=False
-                )
-        else:
-            success, content, message = link_fetcher_service.fetch_content(
-                url=link.link_url, auth_type=link.auth_type, auth_config=link.auth_config
-            )
-            if success:
-                requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
-                return FetchContentResponse(
-                    success=True, content=content, content_type=message, message="获取成功", cached=False
-                )
-            else:
-                requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
-                return FetchContentResponse(
-                    success=False, content=None, content_type=None, message=message, cached=False
-                )
+            return _fetch_ui_mockup_content(sync_db, link)
+        return _fetch_plain_content(sync_db, link)
 
     try:
         return await asyncio.to_thread(_fetch, db)
