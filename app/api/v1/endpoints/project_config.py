@@ -135,6 +135,35 @@ async def get_project_config(
         raise HTTPException(status_code=500, detail="获取项目配置失败")
 
 
+def _encrypt_env_password(env_value):
+    """环境配置为 dict 时按需加密明文密码（已是 Fernet 密文则跳过）。"""
+    if not isinstance(env_value, dict):
+        return env_value
+    env_data = env_value.copy()
+    password = env_data.get("password")
+    if password and not password.startswith("gAAAAA"):
+        env_data["password"] = encrypt_password(password)
+    return env_data
+
+
+def _merge_web_env_configs(project: Project, web_configs_input: dict) -> str:
+    """把入参环境配置合并进项目现有配置（未提交的环境保持原值）。"""
+    existing_configs: dict = {}
+    if project.web_env_configs:
+        with contextlib.suppress(json.JSONDecodeError):
+            existing_configs = json.loads(project.web_env_configs)
+    for env_name in ["test", "staging", "prod"]:
+        if env_name in web_configs_input and web_configs_input[env_name]:
+            existing_configs[env_name] = _encrypt_env_password(web_configs_input[env_name])
+    return json.dumps(existing_configs)
+
+
+def _dump_device_config(device_config) -> str | None:
+    """设备配置为空时返回 None（用于清空），否则序列化落库。"""
+    device_data = device_config.model_dump(exclude_none=True)
+    return json.dumps(device_data) if device_data else None
+
+
 @router.put("/{project_id}/config", response_model=ApiResponse)
 async def update_project_config(
     project_id: int,
@@ -170,31 +199,9 @@ async def update_project_config(
             project.project_type = config_data.project_type
         if config_data.web_env_configs is not None:
             web_configs_input = config_data.web_env_configs.model_dump(exclude_none=True)
-            if web_configs_input:
-                existing_configs = {}
-                if project.web_env_configs:
-                    with contextlib.suppress(json.JSONDecodeError):
-                        existing_configs = json.loads(project.web_env_configs)
-                for env_name in ["test", "staging", "prod"]:
-                    if env_name in web_configs_input and web_configs_input[env_name]:
-                        env_data = (
-                            web_configs_input[env_name].copy()
-                            if isinstance(web_configs_input[env_name], dict)
-                            else web_configs_input[env_name]
-                        )
-                        password = env_data.get("password") if isinstance(env_data, dict) else None
-                        if password and not password.startswith("gAAAAA"):
-                            env_data["password"] = encrypt_password(password)
-                        existing_configs[env_name] = env_data
-                project.web_env_configs = json.dumps(existing_configs)
-            else:
-                project.web_env_configs = None
+            project.web_env_configs = _merge_web_env_configs(project, web_configs_input) if web_configs_input else None
         if config_data.device_config is not None:
-            device_config = config_data.device_config.model_dump(exclude_none=True)
-            if device_config:
-                project.device_config = json.dumps(device_config)
-            else:
-                project.device_config = None
+            project.device_config = _dump_device_config(config_data.device_config)
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, project)
         return create_response(

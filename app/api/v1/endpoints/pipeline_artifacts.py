@@ -41,6 +41,51 @@ from app.services.pipeline_artifacts_helpers import (
 router = APIRouter(tags=["Pipeline管理"])
 
 
+#: 摘要统计的固定动作键（缺失时保持 0，顺序即响应字段顺序）。
+_SUMMARY_ACTION_KEYS = (
+    "keep",
+    "needs_modify",
+    "locator_broken",
+    "locator_and_modify",
+    "deprecate",
+    "add_new",
+    "conflict",
+    "pending_review",
+)
+
+
+def _resolve_scenario_id(pipeline_version: str | None) -> int:
+    """按 pipeline_version 反查场景编号；无匹配返回 0。"""
+    from app.pipelines.scenarios import get_scenario_by_version, list_scenarios
+
+    if not get_scenario_by_version(pipeline_version):
+        return 0
+    for sid, cfg in list_scenarios().items():
+        if cfg["version"] == pipeline_version:
+            return sid
+    return 0
+
+
+def _aggregate_artifacts(artifacts) -> tuple[dict[str, int], list[int], list[str]]:
+    """汇总 run 产物中的动作统计、已持久化用例 ID 与产物种类。"""
+    actions = dict.fromkeys(_SUMMARY_ACTION_KEYS, 0)
+    persisted_case_ids: list[int] = []
+    artifact_kinds: list[str] = []
+
+    for artifact in artifacts:
+        artifact_kinds.append(artifact.kind)
+        payload = artifact.payload
+        if artifact.kind == "merged_verdicts" and payload:
+            stats = payload.get("stats", {})
+            for key in actions:
+                if key in stats:
+                    actions[key] = stats[key]
+        if artifact.kind == "persisted_case_ids" and payload:
+            persisted_case_ids = payload.get("persisted_case_ids", [])
+
+    return actions, persisted_case_ids, sorted(set(artifact_kinds))
+
+
 async def get_pipeline_summary(
     run_id: int,
     db: Session = Depends(get_db),
@@ -53,40 +98,8 @@ async def get_pipeline_summary(
 
         await asyncio.to_thread(_verify_iteration_access, db, run.iteration_id, current_user)
 
-        from app.pipelines.scenarios import get_scenario_by_version, list_scenarios
-
-        scenario_config = get_scenario_by_version(run.pipeline_version)
-        scenario_id = 0
-        if scenario_config:
-            for sid, cfg in list_scenarios().items():
-                if cfg["version"] == run.pipeline_version:
-                    scenario_id = sid
-                    break
-
-        actions = {
-            "keep": 0,
-            "needs_modify": 0,
-            "locator_broken": 0,
-            "locator_and_modify": 0,
-            "deprecate": 0,
-            "add_new": 0,
-            "conflict": 0,
-            "pending_review": 0,
-        }
-        persisted_case_ids: list[int] = []
-        artifact_kinds: list[str] = []
-
-        for artifact in run.artifacts:
-            artifact_kinds.append(artifact.kind)
-            if artifact.kind == "merged_verdicts" and artifact.payload:
-                stats = artifact.payload.get("stats", {})
-                for key in actions:
-                    if key in stats:
-                        actions[key] = stats[key]
-            if artifact.kind == "persisted_case_ids" and artifact.payload:
-                persisted_case_ids = artifact.payload.get("persisted_case_ids", [])
-
-        artifact_kinds = sorted(set(artifact_kinds))
+        scenario_id = _resolve_scenario_id(run.pipeline_version)
+        actions, persisted_case_ids, artifact_kinds = _aggregate_artifacts(run.artifacts)
 
         return create_response(
             data={

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import uuid
 from typing import Any
@@ -160,6 +161,74 @@ async def list_history_assets(
     return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size})
 
 
+def _parse_align_params(
+    history_asset_ids: str,
+    requirement_file_ids: str | None,
+    test_point_ids: str | None,
+    ui_screen_ids: str | None,
+) -> tuple[list[int], list[int] | None]:
+    """解析对齐入参；test_point_ids / ui_screen_ids 仅做 JSON 合法性校验。"""
+    try:
+        asset_ids = json.loads(history_asset_ids)
+        req_file_ids = json.loads(requirement_file_ids) if requirement_file_ids else None
+        if test_point_ids:
+            json.loads(test_point_ids)
+        if ui_screen_ids:
+            json.loads(ui_screen_ids)
+    except (json.JSONDecodeError, TypeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"参数 JSON 解析失败: {e}",
+        ) from e
+    return asset_ids, req_file_ids
+
+
+def _collect_parsed_cases(assets) -> list[dict[str, Any]]:
+    """把历史资产的 `parsed_cases_json` 摊平为一个用例列表。"""
+    all_cases: list[dict[str, Any]] = []
+    for asset in assets:
+        if asset.parsed_cases_json:
+            all_cases.extend(asset.parsed_cases_json)
+    return all_cases
+
+
+def _build_system_cases(system_cases_query) -> list[dict[str, Any]]:
+    """把系统用例 ORM 记录转换为分类输入结构。"""
+    return [
+        {
+            "case_id": sc.id,
+            "title": sc.title,
+            "module": sc.module,
+            "precondition": sc.precondition,
+            "steps": sc.steps_json or [],
+            "expected_result": sc.expected_result,
+            "priority": sc.priority,
+        }
+        for sc in system_cases_query
+    ]
+
+
+async def _load_requirement_keywords(db: Session, req_file_ids: list[int] | None, project_id: int) -> list[str]:
+    """按需求文件名切词得到匹配关键词。"""
+    if not req_file_ids:
+        return []
+    from app.models.project import ProjectFile
+
+    req_files_result = await _execute(
+        db,
+        select(ProjectFile).where(
+            ProjectFile.id.in_(req_file_ids),
+            ProjectFile.project_id == project_id,
+        ),
+    )
+    requirement_keywords: list[str] = []
+    for rf in req_files_result.scalars().all():
+        if rf.original_filename:
+            name = os.path.splitext(rf.original_filename)[0]
+            requirement_keywords.extend(name.replace("_", " ").replace("-", " ").split())
+    return requirement_keywords
+
+
 @router.post("/align")
 async def align_history_assets(
     project_id: int = Form(...),
@@ -170,21 +239,9 @@ async def align_history_assets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    import json
-
-    try:
-        asset_ids = json.loads(history_asset_ids)
-        req_file_ids = json.loads(requirement_file_ids) if requirement_file_ids else None
-        # test_point_ids / ui_screen_ids 目前仅做入参 JSON 合法性校验，暂未参与筛选
-        if test_point_ids:
-            json.loads(test_point_ids)
-        if ui_screen_ids:
-            json.loads(ui_screen_ids)
-    except (json.JSONDecodeError, TypeError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"参数 JSON 解析失败: {e}",
-        ) from e
+    asset_ids, req_file_ids = _parse_align_params(
+        history_asset_ids, requirement_file_ids, test_point_ids, ui_screen_ids
+    )
 
     project_result = await _execute(
         db, select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
@@ -209,10 +266,7 @@ async def align_history_assets(
             detail=f"以下历史资产不存在或不属于当前项目: {sorted(missing)}",
         )
 
-    all_cases: list[dict[str, Any]] = []
-    for asset in assets:
-        if asset.parsed_cases_json:
-            all_cases.extend(asset.parsed_cases_json)
+    all_cases = _collect_parsed_cases(assets)
 
     system_cases_result = await _execute(
         db,
@@ -221,37 +275,9 @@ async def align_history_assets(
             TestCase.is_deleted.is_(False),
         ),
     )
-    system_cases_query = system_cases_result.scalars().all()
-    system_cases: list[dict[str, Any]] = []
-    for sc in system_cases_query:
-        system_cases.append(
-            {
-                "case_id": sc.id,
-                "title": sc.title,
-                "module": sc.module,
-                "precondition": sc.precondition,
-                "steps": sc.steps_json or [],
-                "expected_result": sc.expected_result,
-                "priority": sc.priority,
-            }
-        )
+    system_cases = _build_system_cases(system_cases_result.scalars().all())
 
-    requirement_keywords: list[str] = []
-    if req_file_ids:
-        from app.models.project import ProjectFile
-
-        req_files_result = await _execute(
-            db,
-            select(ProjectFile).where(
-                ProjectFile.id.in_(req_file_ids),
-                ProjectFile.project_id == project_id,
-            ),
-        )
-        req_files = req_files_result.scalars().all()
-        for rf in req_files:
-            if rf.original_filename:
-                name = os.path.splitext(rf.original_filename)[0]
-                requirement_keywords.extend(name.replace("_", " ").replace("-", " ").split())
+    requirement_keywords = await _load_requirement_keywords(db, req_file_ids, project_id)
 
     classification_items = _classify_history_cases(all_cases, system_cases, requirement_keywords)
 
@@ -275,8 +301,6 @@ async def import_system_cases(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    import json
-
     try:
         parsed_case_ids = json.loads(case_ids)
     except (json.JSONDecodeError, TypeError) as e:
