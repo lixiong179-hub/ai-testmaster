@@ -68,7 +68,8 @@ APP = "app"
 # → 89（B4g：_execute_select 12 + _execute_input 12 + _build_healed_selector 12）
 # → 88（B4i：_execute_single_step 14，单文件单处）
 # → 87（B4j：smart_locate_with_ai_fallback 14，单文件单处）
-TOTAL_BUDGET = 87
+# → 84（B4k/B4l/B4m：execute_test_case 13 + _build_dependency_graph 12 + _execute_single_api_call 11；B4 结批）
+TOTAL_BUDGET = 84
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

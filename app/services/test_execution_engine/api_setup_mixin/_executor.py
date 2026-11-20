@@ -65,46 +65,17 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
         api_call: dict[str, Any],
         call_index: int,
     ) -> bool:
+        """执行单个 API 前置调用：安全校验 → 请求 → 断言/提取。"""
         method = (api_call.get("method") or "GET").upper()
         url = api_call.get("url", "")
-        body = api_call.get("body") or api_call.get("data") or api_call.get("json")
-        headers = api_call.get("headers", {})
-        extract = api_call.get("extract", {})
-        assert_config = api_call.get("assert") or api_call.get("expected", {})
 
         if not await self._is_safe_url(url):
             logger.warning(f"API调用{call_index}URL不安全(内网/保留地址): {url}")
             return False
 
-        if body and isinstance(body, dict):
-            body = self._substitute_api_vars(body)
-
+        request_kwargs = self._build_api_request_kwargs(method, api_call)
         try:
-            request_kwargs: dict[str, Any] = {}
-            if body and method in ("POST", "PUT", "PATCH"):
-                request_kwargs["json"] = body
-            if headers:
-                request_kwargs["headers"] = headers
-
             response = await client.request(method, url, **request_kwargs)
-
-            if assert_config:
-                expected_status = assert_config.get("status_code")
-                if expected_status and response.status_code != expected_status:
-                    logger.warning(
-                        f"API调用{call_index}断言失败: "
-                        f"期望状态码 {expected_status}, "
-                        f"实际 {response.status_code}, "
-                        f"响应: {response.text[:200]}"
-                    )
-                    return False
-
-            if extract:
-                self._extract_api_vars(response, extract)
-
-            logger.info(f"API调用{call_index}成功: {method} {url} -> {response.status_code}")
-            return True
-
         except httpx.TimeoutException:
             logger.warning(f"API调用{call_index}超时: {method} {url}")
             return False
@@ -114,3 +85,47 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
         except Exception as e:
             logger.warning(f"API调用{call_index}异常: {e}")
             return False
+
+        return self._handle_api_response(response, api_call, method, url, call_index)
+
+    def _build_api_request_kwargs(self, method: str, api_call: dict[str, Any]) -> dict[str, Any]:
+        """组装请求参数：body 仅对写方法装载为 json，headers 原样透传。"""
+        body = api_call.get("body") or api_call.get("data") or api_call.get("json")
+        if body and isinstance(body, dict):
+            body = self._substitute_api_vars(body)
+
+        request_kwargs: dict[str, Any] = {}
+        if body and method in ("POST", "PUT", "PATCH"):
+            request_kwargs["json"] = body
+        headers = api_call.get("headers", {})
+        if headers:
+            request_kwargs["headers"] = headers
+        return request_kwargs
+
+    def _handle_api_response(
+        self,
+        response: httpx.Response,
+        api_call: dict[str, Any],
+        method: str,
+        url: str,
+        call_index: int,
+    ) -> bool:
+        """状态码断言 → 变量提取 → 成功日志。"""
+        assert_config = api_call.get("assert") or api_call.get("expected", {})
+        if assert_config:
+            expected_status = assert_config.get("status_code")
+            if expected_status and response.status_code != expected_status:
+                logger.warning(
+                    f"API调用{call_index}断言失败: "
+                    f"期望状态码 {expected_status}, "
+                    f"实际 {response.status_code}, "
+                    f"响应: {response.text[:200]}"
+                )
+                return False
+
+        extract = api_call.get("extract", {})
+        if extract:
+            self._extract_api_vars(response, extract)
+
+        logger.info(f"API调用{call_index}成功: {method} {url} -> {response.status_code}")
+        return True
