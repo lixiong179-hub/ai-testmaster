@@ -87,58 +87,93 @@ class AIRecognitionMixin:
     async def smart_locate_with_ai_fallback(
         self, action_description: str, test_data: dict[str, str] | None = None, max_retries: int = 3
     ) -> dict[str, Any] | None:
+        """三级降级定位：预定义选择器 → ElementLocatorService → AI 识别（可重试）。"""
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
 
         action_text = self._substitute_parameters_in_action(action_description, test_data or {})
-
         logger.info(f"智能元素定位开始: {action_text}")
 
-        selector = self._get_element_selector(action_text)
-        if selector:
-            try:
-                element_info = await self._locate_with_selector(selector)
-                if element_info:
-                    logger.info("策略1成功: 预定义选择器")
-                    return element_info
-            except Exception as e:
-                logger.warning(f"策略1失败: 预定义选择器 - {e}")
-
-        if self.locator_service:
-            try:
-                page_title = await self.browser.execute_javascript("document.title")
-                element_info = await self.locator_service.smart_locate_element(
-                    action_description=action_text, page_title=page_title
-                )
-                if element_info:
-                    logger.info("策略2成功: ElementLocatorService")
-                    return element_info
-            except Exception as e:
-                logger.warning(f"策略2失败: ElementLocatorService - {e}")
-
-        if self.enable_ai_recognition and self.vision_model:
-            for attempt in range(max_retries):
-                try:
-                    screenshot = await self.browser.take_screenshot()
-                    element_info = await self.recognize_element_with_ai(screenshot, action_text)
-                    if element_info:
-                        logger.info(f"策略3成功: AI识别 (尝试 {attempt + 1}/{max_retries})")
-                        element_attrs = await self._get_element_attributes_from_coords(
-                            element_info.get("x", 0),
-                            element_info.get("y", 0),
-                            element_info.get("width", 0),
-                            element_info.get("height", 0),
-                        )
-                        if element_attrs:
-                            css_selector = self._build_css_selector_from_attrs(element_attrs)
-                            if css_selector:
-                                element_info["css_selector"] = css_selector
-                        return element_info
-                except Exception as e:
-                    logger.warning(f"策略3尝试 {attempt + 1} 失败: {e}")
+        element_info = await self._locate_by_predefined_selector(action_text)
+        if not element_info:
+            element_info = await self._locate_by_service(action_text)
+        if not element_info:
+            element_info = await self._locate_by_ai(action_text, max_retries)
+        if element_info:
+            return element_info
 
         logger.warning("所有定位策略失败，无法定位元素")
         return None
+
+    async def _locate_by_predefined_selector(self, action_text: str) -> dict[str, Any] | None:
+        """策略1：选择器注册表命中的预定义选择器。"""
+        selector = self._get_element_selector(action_text)
+        if not selector:
+            return None
+        try:
+            element_info = await self._locate_with_selector(selector)
+        except Exception as e:
+            logger.warning(f"策略1失败: 预定义选择器 - {e}")
+            return None
+        if element_info:
+            logger.info("策略1成功: 预定义选择器")
+        return element_info
+
+    async def _locate_by_service(self, action_text: str) -> dict[str, Any] | None:
+        """策略2：ElementLocatorService 按页面标题 + 动作描述定位。"""
+        if not self.locator_service:
+            return None
+        try:
+            page_title = await self.browser.execute_javascript("document.title")
+            element_info = await self.locator_service.smart_locate_element(
+                action_description=action_text, page_title=page_title
+            )
+        except Exception as e:
+            logger.warning(f"策略2失败: ElementLocatorService - {e}")
+            return None
+        if element_info:
+            logger.info("策略2成功: ElementLocatorService")
+        return element_info
+
+    async def _locate_by_ai(self, action_text: str, max_retries: int) -> dict[str, Any] | None:
+        """策略3：视觉识别（按 max_retries 重试），成功时补全 CSS 选择器。"""
+        if not (self.enable_ai_recognition and self.vision_model):
+            return None
+        for attempt in range(max_retries):
+            element_info = await self._try_ai_locate_once(action_text, attempt, max_retries)
+            if element_info:
+                return element_info
+        return None
+
+    async def _try_ai_locate_once(
+        self, action_text: str, attempt: int, max_retries: int
+    ) -> dict[str, Any] | None:
+        """单次 AI 识别；异常只记日志并返回 None，交由下一轮重试。"""
+        try:
+            screenshot = await self.browser.take_screenshot()
+            element_info = await self.recognize_element_with_ai(screenshot, action_text)
+            if not element_info:
+                return None
+            logger.info(f"策略3成功: AI识别 (尝试 {attempt + 1}/{max_retries})")
+            await self._enrich_element_with_css(element_info)
+            return element_info
+        except Exception as e:
+            logger.warning(f"策略3尝试 {attempt + 1} 失败: {e}")
+            return None
+
+    async def _enrich_element_with_css(self, element_info: dict[str, Any]) -> None:
+        """按识别坐标回查元素属性并补写 `css_selector`（回查失败保持原样）。"""
+        element_attrs = await self._get_element_attributes_from_coords(
+            element_info.get("x", 0),
+            element_info.get("y", 0),
+            element_info.get("width", 0),
+            element_info.get("height", 0),
+        )
+        if not element_attrs:
+            return
+        css_selector = self._build_css_selector_from_attrs(element_attrs)
+        if css_selector:
+            element_info["css_selector"] = css_selector
 
     def _get_element_selector(self, action_text: str) -> str | None:
         if not hasattr(self, "_selector_registry"):

@@ -66,7 +66,9 @@ APP = "app"
 # → 93（B4e：_execute_captcha 18，单文件单处）
 # → 92（B4f：_execute_with_self_healing 19，单文件单处）
 # → 89（B4g：_execute_select 12 + _execute_input 12 + _build_healed_selector 12）
-TOTAL_BUDGET = 89
+# → 88（B4i：_execute_single_step 14，单文件单处）
+# → 87（B4j：smart_locate_with_ai_fallback 14，单文件单处）
+TOTAL_BUDGET = 87
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
