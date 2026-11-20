@@ -214,6 +214,49 @@ class TestExecuteNavigate:
         await executor._execute_navigate({"text": "访问 https://example.com"})
         executor.browser.navigate.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_navigate_relative_path_uses_base_url(self):
+        executor = _ConcreteExecutor()
+        executor.browser = MagicMock()
+        executor.browser.navigate = AsyncMock()
+        executor.precondition_service = MagicMock()
+        executor.precondition_service.test_object_info = MagicMock(url="https://example.com/app/")
+        await executor._execute_navigate({"text": "打开 /home"})
+        executor.browser.navigate.assert_called_once_with(
+            "https://example.com/app/home", wait_until="networkidle"
+        )
+
+    @pytest.mark.asyncio
+    async def test_navigate_relative_path_without_base_url_raises(self):
+        executor = _ConcreteExecutor()
+        executor.browser = MagicMock()
+        executor.browser.navigate = AsyncMock()
+        executor.precondition_service = None
+        with pytest.raises(StepExecutionError, match="需要base_url"):
+            await executor._execute_navigate({"text": "打开 /home"})
+
+    @pytest.mark.asyncio
+    async def test_navigate_menu_click_by_css_selector(self):
+        executor = _ConcreteExecutor()
+        page = MagicMock()
+        page.click = AsyncMock()
+        page.wait_for_load_state = AsyncMock()
+        executor.browser = MagicMock()
+        executor.browser.active_page = page
+        await executor._execute_navigate({"text": "打开菜单", "target_element": "#menu"})
+        page.click.assert_called_once_with("#menu")
+        page.wait_for_load_state.assert_called_once_with("networkidle")
+
+    @pytest.mark.asyncio
+    async def test_navigate_menu_click_failure_wrapped(self):
+        executor = _ConcreteExecutor()
+        page = MagicMock()
+        page.click = AsyncMock(side_effect=RuntimeError("gone"))
+        executor.browser = MagicMock()
+        executor.browser.active_page = page
+        with pytest.raises(StepExecutionError, match="点击导航菜单项失败"):
+            await executor._execute_navigate({"text": "打开菜单", "target_element": "#menu"})
+
 
 class TestExecuteRefresh:
     @pytest.mark.asyncio
