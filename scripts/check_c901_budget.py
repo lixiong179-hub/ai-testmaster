@@ -63,7 +63,9 @@ APP = "app"
 # → 100（B4b：action_executor_basic_mixin 4 处 17/15/14/11，单文件）
 # → 98（B4c：step_executor_mixin 2 处 16/14，单文件）
 # → 94（B4d：precondition_mixin 3 处 18/11/11 + _step_helpers_mixin 16）
-TOTAL_BUDGET = 94
+# → 93（B4e：_execute_captcha 18，单文件单处）
+# → 92（B4f：_execute_with_self_healing 19，单文件单处）
+TOTAL_BUDGET = 92
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

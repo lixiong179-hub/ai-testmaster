@@ -17,7 +17,8 @@
 """
 
 import asyncio
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, NoReturn
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
@@ -55,6 +56,25 @@ _LOCATOR_ERROR_KEYWORDS = (
 )
 
 
+def _is_locator_error(error: Exception) -> bool:
+    """错误信息是否命中定位类关键词（未命中直接原样抛出）。"""
+    error_str = str(error).lower()
+    return any(kw in error_str for kw in _LOCATOR_ERROR_KEYWORDS)
+
+
+@dataclass(slots=True)
+class _HealAttempt:
+    """一次自愈处置的上下文，避免阶段方法间长参数透传。"""
+
+    step: Any
+    locator_record: ElementLocator | None
+    old_selector: str | None
+    failure_type: str
+    strategy: str
+    primary_error: Exception
+    started_at: float
+
+
 class SelfHealingExecuteMixin(SelfHealingPolicyMixin):
     async def _execute_with_self_healing(
         self,
@@ -76,148 +96,224 @@ class SelfHealingExecuteMixin(SelfHealingPolicyMixin):
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
 
-        old_selector = None
-        if locator_record:
-            best = locator_record.get_best_locator()
-            if best:
-                old_selector = best.get("value")
-
+        old_selector = self._resolve_old_selector(locator_record)
         try:
             await self._execute_action_directly(action_type, action_info, locator_record, step_test_data)
-            if locator_record and old_selector:
-                ElementLocator.atomic_record_success(self.db, locator_record.id, locator_record.version)
-            return
+            self._record_locator_success(locator_record, old_selector)
         except Exception as primary_error:
-            error_str = str(primary_error).lower()
-            if not any(kw in error_str for kw in _LOCATOR_ERROR_KEYWORDS):
-                raise
-
-            if not self._is_self_healing_enabled(step, locator_record):
-                logger.info(f"定位器失效但自愈未启用（全局或项目级） | 旧选择器: {old_selector}")
-                raise
-
-            analysis = FailureAnalyzer().analyze(
-                primary_error,
-                await self._capture_dom_snapshot(),
+            await self._handle_locator_failure(
+                step,
+                locator_record,
+                action_type,
+                action_info,
+                step_test_data,
                 old_selector,
-            )
-            failure_type = analysis.failure_type.value
-            strategy = analysis.suggested_strategy
-            heal_started = asyncio.get_running_loop().time()
-            self._self_healing_attempts += 1
-            record_attempt()
-            logger.info(
-                f"定位器失效，失败分类={failure_type} 建议策略={strategy} | "
-                f"旧选择器: {old_selector} | 步骤ID: {getattr(step, 'id', None)}"
+                primary_error,
             )
 
-            if strategy == "retry":
-                if await self._retry_after_locator_failure(
-                    action_type, action_info, locator_record, step_test_data, old_selector
-                ):
-                    duration = asyncio.get_running_loop().time() - heal_started
-                    self._self_healing_successes += 1
-                    self._self_healing_total_duration += duration
-                    record_success(0, duration)
-                    logger.info("load_delay 重试成功，跳过 AI 自愈")
-                    return
-                logger.info("load_delay 重试仍失败，升级为 AI 自愈")
+    async def _handle_locator_failure(
+        self,
+        step,
+        locator_record: ElementLocator | None,
+        action_type: ActionType,
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None,
+        old_selector: str | None,
+        primary_error: Exception,
+    ) -> None:
+        """定位类失败处置：分类 → 灰度闸门 → 策略路由（retry / skip）→ AI 自愈。"""
+        if not _is_locator_error(primary_error):
+            raise primary_error
 
-            if strategy == "skip":
-                duration = asyncio.get_running_loop().time() - heal_started
-                self._self_healing_total_duration += duration
-                self._audit_healing_decision(
-                    step=step,
-                    locator_record=locator_record,
-                    old_selector=old_selector,
-                    new_selector=None,
-                    failure_type=failure_type,
-                    strategy="skip",
-                    confidence=None,
-                    token_cost=0,
-                )
-                record_failure(failure_type, duration)
-                logger.warning(f"环境噪声类失败，跳过自愈 | 失败类型: {failure_type} | 错误: {primary_error}")
-                raise primary_error
+        if not self._is_self_healing_enabled(step, locator_record):
+            logger.info(f"定位器失效但自愈未启用（全局或项目级） | 旧选择器: {old_selector}")
+            raise primary_error
 
-            nl_description = await self._get_nl_description(getattr(step, "id", None))
-            if not nl_description:
-                nl_description = action_info.get("text", "")
+        analysis = FailureAnalyzer().analyze(
+            primary_error,
+            await self._capture_dom_snapshot(),
+            old_selector,
+        )
+        attempt = _HealAttempt(
+            step=step,
+            locator_record=locator_record,
+            old_selector=old_selector,
+            failure_type=analysis.failure_type.value,
+            strategy=analysis.suggested_strategy,
+            primary_error=primary_error,
+            started_at=asyncio.get_running_loop().time(),
+        )
+        self._self_healing_attempts += 1
+        record_attempt()
+        logger.info(
+            f"定位器失效，失败分类={attempt.failure_type} 建议策略={attempt.strategy} | "
+            f"旧选择器: {old_selector} | 步骤ID: {getattr(step, 'id', None)}"
+        )
 
-            token_estimate = estimate_token_cost(nl_description)
-            guard = self._get_token_guard()
-            if guard.check_single_call(token_estimate) or guard.is_daily_budget_exhausted():
-                duration = asyncio.get_running_loop().time() - heal_started
-                self._self_healing_total_duration += duration
-                self._audit_healing_decision(
-                    step=step,
-                    locator_record=locator_record,
-                    old_selector=old_selector,
-                    new_selector=None,
-                    failure_type=failure_type,
-                    strategy="ai_heal",
-                    confidence=None,
-                    token_cost=0,
-                )
-                record_failure(failure_type, duration)
-                logger.warning(f"Token 预算熔断，跳过 AI 自愈 | 预估: {token_estimate} | 失败类型: {failure_type}")
-                raise primary_error
+        if attempt.strategy == "retry":
+            retried = await self._retry_after_locator_failure(
+                action_type, action_info, locator_record, step_test_data, old_selector
+            )
+            if retried:
+                self._finish_retry_success(attempt)
+                return
+            logger.info("load_delay 重试仍失败，升级为 AI 自愈")
 
-            logger.info(f"启动AI自愈 | 步骤描述: {nl_description} | 失败类型: {failure_type}")
-            try:
-                heal_output = await self._ai_self_heal_action(nl_description, action_type, action_info, step_test_data)
-            except Exception as heal_error:
-                duration = asyncio.get_running_loop().time() - heal_started
-                self._self_healing_total_duration += duration
-                self._audit_healing_decision(
-                    step=step,
-                    locator_record=locator_record,
-                    old_selector=old_selector,
-                    new_selector=None,
-                    failure_type=failure_type,
-                    strategy="ai_heal",
-                    confidence=None,
-                    token_cost=0,
-                )
-                record_failure(failure_type, duration)
-                logger.error(f"自愈失败，AI无法解析步骤 | 步骤描述: {nl_description} | 自愈错误: {heal_error}")
-                raise primary_error
-
-            selector, confidence, token_cost, heal_strategy = self._normalize_heal_result(heal_output)
-            low_confidence = confidence is not None and confidence < self._healing_confidence_threshold()
-
-            if selector and locator_record and not low_confidence:
-                await self._update_locator_after_healing(locator_record.id, selector, old_selector)
-            elif low_confidence:
-                logger.warning(f"自愈置信度 {confidence} 低于阈值，跳过定位器回写 | 新选择器: {selector}")
-
-            duration = asyncio.get_running_loop().time() - heal_started
-            self._self_healing_total_duration += duration
-            self._audit_healing_decision(
-                step=step,
-                locator_record=locator_record,
-                old_selector=old_selector,
-                new_selector=selector,
-                failure_type=failure_type,
-                strategy=heal_strategy,
-                confidence=confidence,
-                token_cost=token_cost,
-                low_confidence=low_confidence,
+        if attempt.strategy == "skip":
+            self._audit_and_raise(
+                attempt,
+                strategy="skip",
+                log_message=f"环境噪声类失败，跳过自愈 | 失败类型: {attempt.failure_type} | 错误: {primary_error}",
             )
 
-            if not selector:
-                record_failure(failure_type, duration)
-                logger.error(f"AI 自愈未产出可用选择器 | 步骤描述: {nl_description}")
-                raise primary_error
+        await self._run_ai_heal(attempt, action_type, action_info, step_test_data)
 
-            self._self_healing_successes += 1
-            if token_cost:
-                try:
-                    guard.consume(token_cost)
-                except Exception:
-                    logger.debug("自愈 Token 消耗累计失败", exc_info=True)
-            record_success(token_cost, duration)
-            logger.info(
-                f"自愈成功 | 策略: {heal_strategy} | 新选择器: {selector} | 置信度: {confidence} | Token: {token_cost}"
+    async def _run_ai_heal(
+        self,
+        attempt: _HealAttempt,
+        action_type: ActionType,
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None,
+    ) -> None:
+        """AI 自愈：Token 预算双控 → 调用 → 置信度门控回写 → 审计与埋点。"""
+        nl_description = await self._get_nl_description(getattr(attempt.step, "id", None))
+        if not nl_description:
+            nl_description = action_info.get("text", "")
+
+        token_estimate = estimate_token_cost(nl_description)
+        guard = self._get_token_guard()
+        if guard.check_single_call(token_estimate) or guard.is_daily_budget_exhausted():
+            self._audit_and_raise(
+                attempt,
+                strategy="ai_heal",
+                log_message=f"Token 预算熔断，跳过 AI 自愈 | 预估: {token_estimate} | 失败类型: {attempt.failure_type}",
             )
+
+        logger.info(f"启动AI自愈 | 步骤描述: {nl_description} | 失败类型: {attempt.failure_type}")
+        heal_output = await self._invoke_ai_heal(attempt, nl_description, action_type, action_info, step_test_data)
+
+        selector, confidence, token_cost, heal_strategy = self._normalize_heal_result(heal_output)
+        low_confidence = confidence is not None and confidence < self._healing_confidence_threshold()
+        await self._apply_heal_result(attempt, selector, confidence, low_confidence)
+
+        duration = self._elapsed(attempt.started_at)
+        self._self_healing_total_duration += duration
+        self._audit_healing_decision(
+            step=attempt.step,
+            locator_record=attempt.locator_record,
+            old_selector=attempt.old_selector,
+            new_selector=selector,
+            failure_type=attempt.failure_type,
+            strategy=heal_strategy,
+            confidence=confidence,
+            token_cost=token_cost,
+            low_confidence=low_confidence,
+        )
+
+        if not selector:
+            record_failure(attempt.failure_type, duration)
+            logger.error(f"AI 自愈未产出可用选择器 | 步骤描述: {nl_description}")
+            raise attempt.primary_error
+
+        self._self_healing_successes += 1
+        self._consume_heal_tokens(guard, token_cost)
+        record_success(token_cost, duration)
+        logger.info(
+            f"自愈成功 | 策略: {heal_strategy} | 新选择器: {selector} | 置信度: {confidence} | Token: {token_cost}"
+        )
+
+    async def _invoke_ai_heal(
+        self,
+        attempt: _HealAttempt,
+        nl_description: str,
+        action_type: ActionType,
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None,
+    ) -> Any:
+        """调用 AI 自愈；异常时按 ai_heal 策略审计后抛原始异常。"""
+        try:
+            return await self._ai_self_heal_action(nl_description, action_type, action_info, step_test_data)
+        except Exception as heal_error:
+            self._audit_and_raise(
+                attempt,
+                strategy="ai_heal",
+                log_message=f"自愈失败，AI无法解析步骤 | 步骤描述: {nl_description} | 自愈错误: {heal_error}",
+                level="error",
+            )
+
+    async def _apply_heal_result(
+        self,
+        attempt: _HealAttempt,
+        selector: str | None,
+        confidence: float | None,
+        low_confidence: bool,
+    ) -> None:
+        """置信度门控：达标且命中定位器才回写（含乐观锁）。"""
+        if selector and attempt.locator_record and not low_confidence:
+            await self._update_locator_after_healing(attempt.locator_record.id, selector, attempt.old_selector)
+        elif low_confidence:
+            logger.warning(f"自愈置信度 {confidence} 低于阈值，跳过定位器回写 | 新选择器: {selector}")
+
+    def _audit_and_raise(
+        self,
+        attempt: _HealAttempt,
+        *,
+        strategy: str,
+        log_message: str,
+        token_cost: int = 0,
+        level: str = "warning",
+    ) -> NoReturn:
+        """写审计 + 埋点后抛出原始异常，保证调用方语义与原实现一致。"""
+        duration = self._elapsed(attempt.started_at)
+        self._self_healing_total_duration += duration
+        self._audit_healing_decision(
+            step=attempt.step,
+            locator_record=attempt.locator_record,
+            old_selector=attempt.old_selector,
+            new_selector=None,
+            failure_type=attempt.failure_type,
+            strategy=strategy,
+            confidence=None,
+            token_cost=token_cost,
+        )
+        record_failure(attempt.failure_type, duration)
+        if level == "error":
+            logger.error(log_message)
+        else:
+            logger.warning(log_message)
+        raise attempt.primary_error
+
+    def _finish_retry_success(self, attempt: _HealAttempt) -> None:
+        """load_delay 重试成功：累计指标后返回，不再进入 AI 自愈。"""
+        duration = self._elapsed(attempt.started_at)
+        self._self_healing_successes += 1
+        self._self_healing_total_duration += duration
+        record_success(0, duration)
+        logger.info("load_delay 重试成功，跳过 AI 自愈")
+
+    @staticmethod
+    def _elapsed(started_at: float) -> float:
+        return asyncio.get_running_loop().time() - started_at
+
+    @staticmethod
+    def _resolve_old_selector(locator_record: ElementLocator | None) -> str | None:
+        """取定位器当前最优选择器值，作为自愈前后的对照基准。"""
+        if not locator_record:
+            return None
+        best = locator_record.get_best_locator()
+        return best.get("value") if best else None
+
+    def _record_locator_success(self, locator_record: ElementLocator | None, old_selector: str | None) -> None:
+        """直接执行成功即累加定位器命中次数（仅原选择器可用时）。"""
+        if locator_record and old_selector:
+            ElementLocator.atomic_record_success(self.db, locator_record.id, locator_record.version)
+
+    @staticmethod
+    def _consume_heal_tokens(guard, token_cost: int) -> None:
+        """回写 Token 消耗；失败只降级为 debug，不影响执行结果。"""
+        if not token_cost:
             return
+        try:
+            guard.consume(token_cost)
+        except Exception:
+            logger.debug("自愈 Token 消耗累计失败", exc_info=True)

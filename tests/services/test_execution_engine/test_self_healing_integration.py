@@ -701,3 +701,36 @@ class TestMetricsRecording:
 
         env_noise_after = _get_counter_value(SELF_HEAL_FAILURE_TYPE.labels(type="env_noise"))
         assert env_noise_after > env_noise_before
+
+
+# ============================================================================
+# 非定位类异常直通
+# ============================================================================
+
+
+class TestNonLocatorErrorBypass:
+    """非定位类异常不进自愈链路（拆分 `_execute_with_self_healing` 前的行为护栏）。"""
+
+    @pytest.mark.asyncio
+    async def test_non_locator_error_is_reraised_without_healing(self, db, seed_data, monkeypatch):
+        """断言错误（无定位关键词）→ 原异常直出，不计数、不审计、不进 AI。"""
+        monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
+
+        engine = _make_engine(db, browser=_make_mock_browser(dom_snapshot=""))
+        engine._execute_action_directly = AsyncMock(side_effect=ValueError("invalid argument"))
+        engine._ai_self_heal_action = AsyncMock(return_value=None)
+
+        attempts_before = _get_counter_value(SELF_HEAL_ATTEMPTS)
+        audits_before = _count_audits(db, seed_data["case"].id)
+
+        with pytest.raises(ValueError, match="invalid argument"):
+            await engine._execute_with_self_healing(
+                step=seed_data["step"],
+                locator_record=seed_data["locator"],
+                action_type=ActionType.CLICK,
+                action_info={"text": "点击登录按钮"},
+            )
+
+        engine._ai_self_heal_action.assert_not_called()
+        assert _get_counter_value(SELF_HEAL_ATTEMPTS) == attempts_before
+        assert _count_audits(db, seed_data["case"].id) == audits_before
