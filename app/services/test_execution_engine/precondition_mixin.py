@@ -17,6 +17,73 @@ from app.services.test_execution_engine.models import (
 )
 from app.utils.db_time import utcnow
 
+_INTERACTIVE_ACTIONS = (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT)
+
+# 显式 action_type 字符串 → 动作类型（未知值回落 CLICK）
+_PRECONDITION_ACTION_MAP: dict[str, ActionType] = {
+    "click": ActionType.CLICK,
+    "input": ActionType.INPUT,
+    "navigate": ActionType.NAVIGATE,
+    "verify": ActionType.VERIFY,
+    "wait": ActionType.WAIT,
+    "scroll": ActionType.SCROLL,
+    "hover": ActionType.HOVER,
+    "select": ActionType.SELECT,
+    "captcha": ActionType.CAPTCHA,
+    "verify_captcha": ActionType.VERIFY_CAPTCHA,
+    "refresh": ActionType.REFRESH,
+    "keypress": ActionType.KEYPRESS,
+    "keyboard": ActionType.KEYBOARD,
+}
+
+# 非交互动作分派表：(方法名, 是否传入 step.id)
+_PRECONDITION_HANDLERS: dict[ActionType, tuple[str, bool]] = {
+    ActionType.NAVIGATE: ("_execute_navigate", False),
+    ActionType.VERIFY: ("_execute_verify", True),
+    ActionType.WAIT: ("_execute_wait", False),
+    ActionType.SCROLL: ("_execute_scroll", False),
+    ActionType.CAPTCHA: ("_execute_captcha", True),
+    ActionType.VERIFY_CAPTCHA: ("_execute_captcha", True),
+    ActionType.REFRESH: ("_execute_refresh", False),
+    ActionType.KEYPRESS: ("_execute_keypress", False),
+    ActionType.KEYBOARD: ("_execute_keypress", False),
+}
+
+
+def _parse_env_configs(raw: Any) -> dict[str, Any] | None:
+    """解析 web_env_configs（dict / JSON 串 / 双层编码串），失败返回 None。"""
+    if not raw:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, str):
+            inner = json.loads(parsed)
+            if isinstance(inner, dict):
+                return inner
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+    return None
+
+
+def _pick_env_config(resolved: dict[str, Any], target_env: str) -> dict[str, Any]:
+    """取目标环境配置；缺失时回退首个可用环境，完全无配置返回空 dict。"""
+    env_config = resolved.get(target_env, {})
+    if env_config:
+        return env_config
+    available_envs = list(resolved.keys())
+    if not available_envs:
+        logger.warning("No usable web env config found; falling back to project default config")
+        return {}
+    fallback_env = available_envs[0]
+    logger.warning(f"Target env '{target_env}' not found; fallback to '{fallback_env}'")
+    return resolved.get(fallback_env, {})
+
 
 class PreconditionMixin:
     async def _check_precondition_status(self) -> bool:
@@ -44,26 +111,37 @@ class PreconditionMixin:
 
         logger.info(f"Executing precondition target_env={target_env}, skip_init={skip_init}")
 
-        if self.precondition_service.is_browser_ready:
-            login_valid = await self._check_precondition_status()
-            if login_valid:
-                info = getattr(self.precondition_service, "test_object_info", None)
-                browser = getattr(self.precondition_service, "browser_controller", None)
-                if info and getattr(info, "url", None) and browser:
-                    try:
-                        await browser.navigate(info.url)
-                        self.browser = browser
-                        if self.locator_service:
-                            self.locator_service.browser = browser
-                    except Exception as e:
-                        logger.warning(f"Failed to reset page before case; rebuilding precondition: {e}")
-                    else:
-                        logger.info("Reused logged-in browser session for case")
-                        return
+        if self.precondition_service.is_browser_ready and await self._try_reuse_browser_session():
+            return
 
+        await self._rebuild_web_precondition(project_id, target_env, skip_init)
+
+    async def _try_reuse_browser_session(self) -> bool:
+        """登录态有效时复用浏览器；返回是否可直接复用。"""
+        login_valid = await self._check_precondition_status()
+        if not login_valid:
             logger.info("Browser exists but login state is invalid; rebuilding web precondition")
             await self.precondition_service.cleanup()
+            return False
 
+        info = getattr(self.precondition_service, "test_object_info", None)
+        browser = getattr(self.precondition_service, "browser_controller", None)
+        if not (info and getattr(info, "url", None) and browser):
+            return False
+
+        try:
+            await browser.navigate(info.url)
+            self.browser = browser
+            if self.locator_service:
+                self.locator_service.browser = browser
+        except Exception as e:
+            logger.warning(f"Failed to reset page before case; rebuilding precondition: {e}")
+            return False
+
+        logger.info("Reused logged-in browser session for case")
+        return True
+
+    async def _rebuild_web_precondition(self, project_id: int, target_env: str, skip_init: bool) -> None:
         from app.models.project import Project
 
         project = self.db.query(Project).filter(Project.id == project_id).first()
@@ -91,39 +169,10 @@ class PreconditionMixin:
         logger.info("Precondition execution completed")
 
     def _resolve_web_env_config(self, project, target_env: str) -> dict[str, Any]:
-        raw_web_cfg = getattr(project, "web_env_configs", None)
-        resolved_web_cfg = None
-
-        if raw_web_cfg:
-            if isinstance(raw_web_cfg, dict):
-                resolved_web_cfg = raw_web_cfg
-            elif isinstance(raw_web_cfg, str):
-                try:
-                    parsed = json.loads(raw_web_cfg)
-                    if isinstance(parsed, dict):
-                        resolved_web_cfg = parsed
-                    elif isinstance(parsed, str):
-                        inner = json.loads(parsed)
-                        if isinstance(inner, dict):
-                            resolved_web_cfg = inner
-                except (json.JSONDecodeError, ValueError, TypeError):
-                    pass
-
-        if not resolved_web_cfg:
+        resolved = _parse_env_configs(getattr(project, "web_env_configs", None))
+        if not resolved:
             return {}
-
-        env_config = resolved_web_cfg.get(target_env, {})
-        if env_config:
-            return env_config
-
-        available_envs = list(resolved_web_cfg.keys())
-        if available_envs:
-            fallback_env = available_envs[0]
-            logger.warning(f"Target env '{target_env}' not found; fallback to '{fallback_env}'")
-            return resolved_web_cfg.get(fallback_env, {})
-
-        logger.warning("No usable web env config found; falling back to project default config")
-        return {}
+        return _pick_env_config(resolved, target_env)
 
     async def _execute_precondition_step(self, step) -> StepExecutionResult:
         logger.info(f"Executing precondition step {step.step_number}: {step.action[:50]}...")
@@ -137,93 +186,22 @@ class PreconditionMixin:
         )
 
         try:
-            if hasattr(step, "action_type") and step.action_type:
-                action_type_str = step.action_type.lower()
-                action_type_map = {
-                    "click": ActionType.CLICK,
-                    "input": ActionType.INPUT,
-                    "navigate": ActionType.NAVIGATE,
-                    "verify": ActionType.VERIFY,
-                    "wait": ActionType.WAIT,
-                    "scroll": ActionType.SCROLL,
-                    "hover": ActionType.HOVER,
-                    "select": ActionType.SELECT,
-                    "captcha": ActionType.CAPTCHA,
-                    "verify_captcha": ActionType.VERIFY_CAPTCHA,
-                    "refresh": ActionType.REFRESH,
-                    "keypress": ActionType.KEYPRESS,
-                    "keyboard": ActionType.KEYBOARD,
-                }
-                action_type = action_type_map.get(action_type_str, ActionType.CLICK)
-                action_info = {"type": action_type, "text": step.action}
-            else:
-                action_info = self._parse_step_action(step.action)
-                action_type = action_info.get("type", ActionType.CLICK)
-
-            if action_type == ActionType.INPUT and hasattr(step, "input_value") and step.input_value:
-                action_info["input_value"] = step.input_value
-
-            locator_record = None
-            if self.locator_service and step.id:
-                locator_record = (
-                    self.db.query(ElementLocator).filter(ElementLocator.precondition_step_id == step.id).first()
-                )
-
-            if action_type == ActionType.NAVIGATE:
-                await self._execute_navigate(action_info)
-            elif action_type in (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT):
-                if locator_record:
-                    await self._execute_action_directly(action_type, action_info, locator_record)
-                else:
-                    element_info = await self.smart_locate_with_ai_fallback(step.action)
-                    if element_info:
-                        temp_locator = ElementLocator(
-                            css_selector=element_info.get("css_selector"),
-                            ai_coordinate=element_info,
-                        )
-                        await self._execute_action_directly(action_type, action_info, temp_locator)
-                    else:
-                        raise StepExecutionError(
-                            f"Precondition step {step.step_number}: unable to locate element - {step.action}"
-                        )
-            elif action_type == ActionType.VERIFY:
-                await self._execute_verify(action_info, step.id)
-            elif action_type == ActionType.WAIT:
-                await self._execute_wait(action_info)
-            elif action_type == ActionType.SCROLL:
-                await self._execute_scroll(action_info)
-            elif action_type in (ActionType.CAPTCHA, ActionType.VERIFY_CAPTCHA):
-                await self._execute_captcha(action_info, step.id)
-            elif action_type == ActionType.REFRESH:
-                await self._execute_refresh(action_info)
-            elif action_type in (ActionType.KEYPRESS, ActionType.KEYBOARD):
-                await self._execute_keypress(action_info)
-            else:
-                await self._execute_click(action_info, step.id)
+            action_type, action_info = self._resolve_precondition_action(step)
+            locator_record = self._load_precondition_locator(step)
+            await self._dispatch_precondition_action(step, action_type, action_info, locator_record)
 
             await asyncio.sleep(2)
 
             if self.browser:
                 result.screenshot = await self.browser.take_screenshot()
 
-            end_time = utcnow()
-            duration = int((end_time - start_time).total_seconds() * 1000)
-
-            result.status = ExecutionStatus.PASSED
-            result.end_time = end_time
-            result.duration_ms = duration
+            self._finish_precondition_result(result, start_time, ExecutionStatus.PASSED)
             result.ai_analysis = f"Precondition step action: {step.action}"
 
             logger.info(f"Precondition step {step.step_number} passed")
 
         except Exception as e:
-            end_time = utcnow()
-            duration = int((end_time - start_time).total_seconds() * 1000)
-
-            result.status = ExecutionStatus.FAILED
-            result.end_time = end_time
-            result.duration_ms = duration
-            result.error_message = str(e)
+            self._finish_precondition_result(result, start_time, ExecutionStatus.FAILED, str(e))
 
             if self.browser:
                 try:
@@ -234,6 +212,69 @@ class PreconditionMixin:
             logger.error(f"Precondition step {step.step_number} failed: {e}")
 
         return result
+
+    def _resolve_precondition_action(self, step) -> tuple[ActionType, dict[str, Any]]:
+        """优先用显式 action_type，否则从动作文本解析。"""
+        explicit_type = getattr(step, "action_type", None)
+        if explicit_type:
+            action_type = _PRECONDITION_ACTION_MAP.get(str(explicit_type).lower(), ActionType.CLICK)
+            return action_type, {"type": action_type, "text": step.action}
+        action_info = self._parse_step_action(step.action)
+        return action_info.get("type", ActionType.CLICK), action_info
+
+    def _load_precondition_locator(self, step):
+        if not (self.locator_service and step.id):
+            return None
+        return self.db.query(ElementLocator).filter(ElementLocator.precondition_step_id == step.id).first()
+
+    async def _dispatch_precondition_action(
+        self, step, action_type: ActionType, action_info: dict[str, Any], locator_record
+    ) -> None:
+        if action_type == ActionType.INPUT and getattr(step, "input_value", None):
+            action_info["input_value"] = step.input_value
+        if action_type in _INTERACTIVE_ACTIONS:
+            await self._dispatch_precondition_interactive(step, action_type, action_info, locator_record)
+            return
+        await self._dispatch_precondition_simple(step, action_type, action_info)
+
+    async def _dispatch_precondition_interactive(
+        self, step, action_type: ActionType, action_info: dict[str, Any], locator_record
+    ) -> None:
+        """已缓存定位直接执行，否则 AI 识别后构造临时定位执行。"""
+        if locator_record:
+            await self._execute_action_directly(action_type, action_info, locator_record)
+            return
+
+        element_info = await self.smart_locate_with_ai_fallback(step.action)
+        if not element_info:
+            raise StepExecutionError(f"Precondition step {step.step_number}: unable to locate element - {step.action}")
+        temp_locator = ElementLocator(
+            css_selector=element_info.get("css_selector"),
+            ai_coordinate=element_info,
+        )
+        await self._execute_action_directly(action_type, action_info, temp_locator)
+
+    async def _dispatch_precondition_simple(self, step, action_type: ActionType, action_info: dict[str, Any]) -> None:
+        method_name, needs_step_id = _PRECONDITION_HANDLERS.get(action_type, ("_execute_click", True))
+        handler = getattr(self, method_name)
+        if needs_step_id:
+            await handler(action_info, step.id)
+        else:
+            await handler(action_info)
+
+    def _finish_precondition_result(
+        self,
+        result: StepExecutionResult,
+        start_time,
+        status: ExecutionStatus,
+        error_message: str | None = None,
+    ) -> None:
+        end_time = utcnow()
+        result.status = status
+        result.end_time = end_time
+        result.duration_ms = int((end_time - start_time).total_seconds() * 1000)
+        if error_message is not None:
+            result.error_message = error_message
 
     async def _save_realtime_locator(self, step: TestStep, element_info: dict[str, Any]) -> ElementLocator | None:
         if not self.locator_service or not self.browser:

@@ -15,6 +15,27 @@ from loguru import logger
 from app.models.test_case import TestStep
 from app.services.test_execution_engine.models import ActionType, StepExecutionResult
 
+_INTERACTIVE_STEP_ACTIONS = (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT)
+
+# 非交互动作分派表：动作类型 → (方法名, 入参模式)
+# info: (action_info) / info_id: (action_info, step.id) / info_step: (action_info, step)
+_STEP_HANDLER_SPECS: dict[ActionType, tuple[str, str]] = {
+    ActionType.NAVIGATE: ("_execute_navigate", "info"),
+    ActionType.VERIFY: ("_execute_verify", "info_id"),
+    ActionType.WAIT: ("_execute_wait", "info"),
+    ActionType.SCROLL: ("_execute_scroll", "info"),
+    ActionType.SWITCH_FRAME: ("_execute_switch_frame", "info_step"),
+    ActionType.SWITCH_WINDOW: ("_execute_switch_window", "info_step"),
+    ActionType.UPLOAD: ("_execute_upload", "info_step"),
+    ActionType.EXECUTE_SCRIPT: ("_execute_execute_script", "info_step"),
+    ActionType.SCREENSHOT: ("_execute_screenshot", "info"),
+    ActionType.CAPTCHA: ("_execute_captcha", "info_id"),
+    ActionType.VERIFY_CAPTCHA: ("_execute_captcha", "info_id"),
+    ActionType.REFRESH: ("_execute_refresh", "info"),
+    ActionType.KEYPRESS: ("_execute_keypress", "info"),
+    ActionType.KEYBOARD: ("_execute_keypress", "info"),
+}
+
 
 class StepHelpersMixin:
     """步骤执行辅助方法子 Mixin。
@@ -121,39 +142,45 @@ class StepHelpersMixin:
         direct_executed: bool,
     ) -> None:
         """分发步骤动作到对应的执行方法。"""
-        if action_type == ActionType.NAVIGATE:
-            await self._execute_navigate(action_info)
-        elif action_type in (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT):
-            if element_info and direct_executed:
-                pass
-            elif locator_record:
-                await self._execute_with_self_healing(step, locator_record, action_type, action_info, step_test_data)
-            else:
-                await self._execute_action_by_type(action_type, action_info, step, step_test_data)
-        elif action_type == ActionType.VERIFY:
-            await self._execute_verify(action_info, step.id)
-        elif action_type == ActionType.WAIT:
-            await self._execute_wait(action_info)
-        elif action_type == ActionType.SCROLL:
-            await self._execute_scroll(action_info)
-        elif action_type == ActionType.SWITCH_FRAME:
-            await self._execute_switch_frame(action_info, step)
-        elif action_type == ActionType.SWITCH_WINDOW:
-            await self._execute_switch_window(action_info, step)
-        elif action_type == ActionType.UPLOAD:
-            await self._execute_upload(action_info, step)
-        elif action_type == ActionType.EXECUTE_SCRIPT:
-            await self._execute_execute_script(action_info, step)
-        elif action_type == ActionType.SCREENSHOT:
-            await self._execute_screenshot(action_info)
-        elif action_type in (ActionType.CAPTCHA, ActionType.VERIFY_CAPTCHA):
-            await self._execute_captcha(action_info, step.id)
-        elif action_type == ActionType.REFRESH:
-            await self._execute_refresh(action_info)
-        elif action_type in (ActionType.KEYPRESS, ActionType.KEYBOARD):
-            await self._execute_keypress(action_info)
+        if action_type in _INTERACTIVE_STEP_ACTIONS:
+            await self._dispatch_interactive_step_action(
+                step, action_type, action_info, step_test_data, locator_record, element_info, direct_executed
+            )
+            return
+        await self._dispatch_simple_step_action(step, action_type, action_info, step_test_data)
+
+    async def _dispatch_interactive_step_action(
+        self,
+        step,
+        action_type: ActionType,
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str],
+        locator_record,
+        element_info,
+        direct_executed: bool,
+    ) -> None:
+        """交互类动作：直执行过则跳过，有定位走自愈执行，否则按类型执行。"""
+        if element_info and direct_executed:
+            return
+        if locator_record:
+            await self._execute_with_self_healing(step, locator_record, action_type, action_info, step_test_data)
+            return
+        await self._execute_action_by_type(action_type, action_info, step, step_test_data)
+
+    async def _dispatch_simple_step_action(
+        self, step, action_type: ActionType, action_info: dict[str, Any], step_test_data: dict[str, str]
+    ) -> None:
+        """非交互类动作：按分派表调用，未知类型兜底点击。"""
+        method_name, mode = _STEP_HANDLER_SPECS.get(action_type, ("_execute_click", "info_id_data"))
+        handler = getattr(self, method_name)
+        if mode == "info":
+            await handler(action_info)
+        elif mode == "info_id":
+            await handler(action_info, step.id)
+        elif mode == "info_step":
+            await handler(action_info, step)
         else:
-            await self._execute_click(action_info, step.id, step_test_data)
+            await handler(action_info, step.id, step_test_data)
 
     def _finalize_step_result(self, result: StepExecutionResult, start_time) -> StepExecutionResult:
         """完成步骤结果的时间记录。"""

@@ -62,7 +62,8 @@ APP = "app"
 # → 104（B4a：execute_test_task 39 + _aggregate_defect_evidence 11，单文件两处）
 # → 100（B4b：action_executor_basic_mixin 4 处 17/15/14/11，单文件）
 # → 98（B4c：step_executor_mixin 2 处 16/14，单文件）
-TOTAL_BUDGET = 98
+# → 94（B4d：precondition_mixin 3 处 18/11/11 + _step_helpers_mixin 16）
+TOTAL_BUDGET = 94
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
