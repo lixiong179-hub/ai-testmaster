@@ -20,6 +20,9 @@ from app.services.test_execution_engine.action_executor_input_click_mixin import
     ActionExecutorInputClickMixin,
 )
 from app.services.test_execution_engine.models import StepExecutionError
+from app.services.test_execution_engine.self_healing_utils_mixin import (
+    SelfHealingUtilsMixin,
+)
 
 
 class _SelectInputHarness(ActionExecutorInputClickMixin, ActionExecutorHoverSelectMixin):
@@ -180,4 +183,35 @@ class TestExecuteInput:
             await engine._execute_input({"text": "输入用户名"}, 1)
 
 
+class TestBuildHealedSelector:
+    """拆分 `_build_healed_selector` 的优先级护栏（既有 26 例之外的边界）。"""
 
+    @pytest.fixture
+    def mixin(self) -> SelfHealingUtilsMixin:
+        return SelfHealingUtilsMixin()
+
+    def test_id_wins_over_other_attributes(self, mixin):
+        attrs = {"id": "login-btn", "name": "user", "placeholder": "请输入", "tag": "input"}
+        assert mixin._build_healed_selector(attrs) == "#login-btn"
+
+    def test_invalid_id_falls_through_to_name(self, mixin):
+        attrs = {"id": "!!!", "name": "user_name"}
+        assert mixin._build_healed_selector(attrs) == "[name='user_name']"
+
+    def test_placeholder_truncated_to_ten_chars(self, mixin):
+        attrs = {"placeholder": "enter username here"}
+        assert mixin._build_healed_selector(attrs) == "[placeholder*='enteruser']"
+
+    def test_non_ascii_placeholder_falls_through_to_none(self, mixin):
+        """中文 placeholder 被 CSS 标识符清洗清空 -> 不生成选择器（与原实现一致）。"""
+        assert mixin._build_healed_selector({"placeholder": "请输入手机号码"}) is None
+
+    def test_class_without_tag_returns_class_selector(self, mixin):
+        attrs = {"class": "btn btn-primary extra"}
+        assert mixin._build_healed_selector(attrs) == ".btn.btn-primary"
+
+    def test_tag_only(self, mixin):
+        assert mixin._build_healed_selector({"tag": "textarea"}) == "textarea"
+
+    def test_empty_attributes_return_none(self, mixin):
+        assert mixin._build_healed_selector({}) is None

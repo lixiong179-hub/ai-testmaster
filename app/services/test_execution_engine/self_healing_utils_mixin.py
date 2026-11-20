@@ -59,44 +59,47 @@ class SelfHealingUtilsMixin:
 
         优先级: id > name > placeholder > class组合 > tag+type
         """
-        elem_id = element_attrs.get("id")
-        if elem_id:
-            safe_id = self._sanitize_css_identifier(elem_id)
-            if safe_id:
-                return f"#{safe_id}"
+        for builder in (self._selector_from_id, self._selector_from_name, self._selector_from_placeholder):
+            selector = builder(element_attrs)
+            if selector:
+                return selector
+        return self._selector_from_class_or_tag(element_attrs)
 
-        elem_name = element_attrs.get("name")
-        if elem_name:
-            safe_name = self._sanitize_css_identifier(elem_name)
-            if safe_name:
-                return f"[name='{safe_name}']"
+    def _safe_attr_value(self, element_attrs: dict[str, Any], key: str) -> str:
+        """取属性并做 CSS 标识符清洗，空值返回空串。"""
+        value = element_attrs.get(key)
+        return self._sanitize_css_identifier(value) if value else ""
 
+    def _selector_from_id(self, element_attrs: dict[str, Any]) -> str | None:
+        safe_id = self._safe_attr_value(element_attrs, "id")
+        return f"#{safe_id}" if safe_id else None
+
+    def _selector_from_name(self, element_attrs: dict[str, Any]) -> str | None:
+        safe_name = self._safe_attr_value(element_attrs, "name")
+        return f"[name='{safe_name}']" if safe_name else None
+
+    def _selector_from_placeholder(self, element_attrs: dict[str, Any]) -> str | None:
         placeholder = element_attrs.get("placeholder")
-        if placeholder:
-            truncated = placeholder[:10].replace("'", "")
-            safe_ph = self._sanitize_css_identifier(truncated)
-            if safe_ph:
-                return f"[placeholder*='{safe_ph}']"
+        if not placeholder:
+            return None
+        safe_ph = self._sanitize_css_identifier(placeholder[:10].replace("'", ""))
+        return f"[placeholder*='{safe_ph}']" if safe_ph else None
 
-        elem_class = element_attrs.get("class")
-        tag = self._sanitize_css_identifier(element_attrs.get("tag", ""))
-        elem_type = self._sanitize_css_identifier(element_attrs.get("type", ""))
+    def _selector_from_class_or_tag(self, element_attrs: dict[str, Any]) -> str | None:
+        """末级兜底：class 组合（至多 2 个）> tag+type > 单独 tag。"""
+        tag = self._safe_attr_value(element_attrs, "tag")
+        classes = [
+            self._sanitize_css_identifier(cls) for cls in (element_attrs.get("class") or "").split()[:2]
+        ]
+        classes = [cls for cls in classes if cls]
+        if classes:
+            class_selector = "." + ".".join(classes)
+            return f"{tag}{class_selector}" if tag else class_selector
 
-        if elem_class:
-            classes = [self._sanitize_css_identifier(c) for c in elem_class.split()[:2]]
-            classes = [c for c in classes if c]
-            if classes:
-                class_selector = "." + ".".join(classes)
-                if tag:
-                    return f"{tag}{class_selector}"
-                return class_selector
-
+        elem_type = self._safe_attr_value(element_attrs, "type")
         if tag and elem_type:
             return f"{tag}[type='{elem_type}']"
-        if tag:
-            return tag
-
-        return None
+        return tag or None
 
     async def _update_locator_after_healing(
         self, locator_record_id: int, new_selector: str, old_selector: str | None = None
