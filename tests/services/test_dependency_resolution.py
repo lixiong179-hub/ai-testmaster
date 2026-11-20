@@ -172,6 +172,35 @@ class TestBuildDependencyGraph:
         graph = mixin._build_dependency_graph(cases)
         assert graph[1] == set()
 
+    def test_duplicate_title_dependency_links_all_duplicates(self):
+        """重名标题依赖无法唯一确定 → 挂到全部同名用例（排除自身）。"""
+        mixin = _StubMixin()
+        cases = [
+            _StubCase(1, "重名用例"),
+            _StubCase(2, "重名用例"),
+            _StubCase(3, "分支用例", depends_on="重名用例"),
+        ]
+        graph = mixin._build_dependency_graph(cases)
+        assert mixin._duplicate_dependency_titles == {"重名用例"}
+        assert graph[3] == {1, 2}
+        assert 1 not in graph[1] and 2 not in graph[2]
+
+    def test_duplicate_title_excluded_from_title_mapping(self):
+        """重名标题不进标题映射，快照/依赖解析因此保持歧义安全。"""
+        mixin = _StubMixin()
+        cases = [_StubCase(1, "重名用例"), _StubCase(2, "重名用例"), _StubCase(3, "唯一用例")]
+        mixin._build_dependency_graph(cases)
+        assert "重名用例" not in mixin._title_to_case_id
+        assert mixin._title_to_case_id["唯一用例"] == 3
+        assert mixin._title_to_case_no["唯一用例"] == "TC-003"
+
+    def test_dependency_by_case_no(self):
+        """depends_on 填用例编号时按 case_no 建边。"""
+        mixin = _StubMixin()
+        cases = [_StubCase(1, "主干用例", case_no="TC-100"), _StubCase(2, "分支用例", depends_on="TC-100")]
+        graph = mixin._build_dependency_graph(cases)
+        assert graph[2] == {1}
+
 
 class TestTopologicalSort:
     def test_main_first_then_dependents(self):

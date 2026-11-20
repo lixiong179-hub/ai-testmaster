@@ -22,46 +22,78 @@ class _DependencyGraphMixin:
         self._title_to_case_no: dict[str, str] = {}
 
     def _build_dependency_graph(self, cases: list[TestCase]) -> dict[int, set[int]]:
+        """构建依赖图：标题 / 用例编号两种解析口径，重名标题降级为「挂全部同名」。"""
         title_counts = Counter(case.title for case in cases if case.title)
+        self._duplicate_dependency_titles = {title for title, count in title_counts.items() if count > 1}
+
+        title_to_ids = self._collect_ids_by_title(cases)
+        case_no_to_id = self._collect_ids_by_case_no(cases)
+        title_to_id = self._build_unambiguous_title_index(cases)
+
+        graph: dict[int, set[int]] = {case.id: set() for case in cases}
+        for case in cases:
+            self._add_dependency_edges(case, graph, title_to_ids, title_to_id, case_no_to_id)
+        return graph
+
+    @staticmethod
+    def _collect_ids_by_title(cases: list[TestCase]) -> dict[str, list[int]]:
+        """标题 → 用例 ID 列表（重名标题保留全部，供歧义降级使用）。"""
         title_to_ids: dict[str, list[int]] = {}
-        case_no_to_id: dict[str, int] = {}
         for case in cases:
             if case.title:
                 title_to_ids.setdefault(case.title, []).append(case.id)
+        return title_to_ids
+
+    @staticmethod
+    def _collect_ids_by_case_no(cases: list[TestCase]) -> dict[str, int]:
+        """用例编号 → 用例 ID。"""
+        case_no_to_id: dict[str, int] = {}
+        for case in cases:
             if getattr(case, "case_no", None):
                 case_no_to_id[case.case_no] = case.id
+        return case_no_to_id
 
-        self._duplicate_dependency_titles = {title for title, count in title_counts.items() if count > 1}
+    def _build_unambiguous_title_index(self, cases: list[TestCase]) -> dict[str, int]:
+        """唯一标题索引（重名标题跳过并告警），同时刷新快照解析所需的标题映射。"""
         self._title_to_case_id = {}
         self._title_to_case_no = {}
         title_to_id: dict[str, int] = {}
         for case in cases:
-            if case.title:
-                if case.title in self._duplicate_dependency_titles:
-                    logger.warning(f"duplicate test case title '{case.title}'; dependency by title is ambiguous")
-                    continue
-                title_to_id[case.title] = case.id
-                self._title_to_case_id[case.title] = case.id
-                self._title_to_case_no[case.title] = case.case_no or f"TC-{case.id:03d}"
+            if not case.title:
+                continue
+            if case.title in self._duplicate_dependency_titles:
+                logger.warning(f"duplicate test case title '{case.title}'; dependency by title is ambiguous")
+                continue
+            title_to_id[case.title] = case.id
+            self._title_to_case_id[case.title] = case.id
+            self._title_to_case_no[case.title] = case.case_no or f"TC-{case.id:03d}"
+        return title_to_id
 
-        graph: dict[int, set[int]] = {case.id: set() for case in cases}
-        for case in cases:
-            depends_on_title = getattr(case, "depends_on", None)
-            if depends_on_title in self._duplicate_dependency_titles:
-                logger.warning(
-                    f"case {case.case_no} dependency '{depends_on_title}' is ambiguous; "
-                    "falling back to navigation instead of title snapshot"
-                )
-                graph[case.id].update(dep_id for dep_id in title_to_ids.get(depends_on_title, []) if dep_id != case.id)
-            elif depends_on_title and depends_on_title in title_to_id:
-                dep_id = title_to_id[depends_on_title]
-                graph[case.id].add(dep_id)
-            elif depends_on_title and depends_on_title in case_no_to_id:
-                graph[case.id].add(case_no_to_id[depends_on_title])
-            elif depends_on_title:
-                logger.warning(f"case {case.case_no} dependency '{depends_on_title}' is not in current case list")
+    def _add_dependency_edges(
+        self,
+        case: TestCase,
+        graph: dict[int, set[int]],
+        title_to_ids: dict[str, list[int]],
+        title_to_id: dict[str, int],
+        case_no_to_id: dict[str, int],
+    ) -> None:
+        """为单个用例补依赖边：重名标题挂全部同名，其次标题，再次用例编号。"""
+        depends_on_title = getattr(case, "depends_on", None)
+        if not depends_on_title:
+            return
 
-        return graph
+        if depends_on_title in self._duplicate_dependency_titles:
+            logger.warning(
+                f"case {case.case_no} dependency '{depends_on_title}' is ambiguous; "
+                "falling back to navigation instead of title snapshot"
+            )
+            graph[case.id].update(dep_id for dep_id in title_to_ids.get(depends_on_title, []) if dep_id != case.id)
+        elif depends_on_title in title_to_id:
+            graph[case.id].add(title_to_id[depends_on_title])
+        elif depends_on_title in case_no_to_id:
+            graph[case.id].add(case_no_to_id[depends_on_title])
+        else:
+            logger.warning(f"case {case.case_no} dependency '{depends_on_title}' is not in current case list")
 
     def _topological_sort_cases(self, cases: list[TestCase], graph: dict[int, set[int]]) -> list[TestCase]:
         case_map = {case.id: case for case in cases}
