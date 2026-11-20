@@ -130,75 +130,102 @@ class _ExecutorMixin(_HelpersMixin):
         step_result: StepExecutionResult,
         execution_mode: str = "smart",
     ) -> StepExecutionResult:
+        """单个步骤执行：无定位动作直通，其余走「定位 → 动作分派」两段。"""
         step_result.start_time = utcnow()
 
-        action = step_data.get("action", "")
-        expected_result = step_data.get("expected_result", "")
-        input_value = step_data.get("input_value", "")
-        target_element = step_data.get("target_element", "")
-
         try:
-            if action_type.value == "navigate":
-                await self._execute_navigate({"type": action_type, "text": action})
+            completed = await self._dispatch_stateless_action(step_data, action_type)
+            if not completed:
+                completed = await self._dispatch_located_action(step_data, action_type, step_result, execution_mode)
+            if completed:
                 step_result.status = ExecutionStatus.PASSED
-                return step_result
-            if action_type.value == "wait":
-                await self._execute_wait({"type": action_type, "text": action})
-                step_result.status = ExecutionStatus.PASSED
-                return step_result
-            if action_type.value == "scroll":
-                await self._execute_scroll({"type": action_type, "text": action})
-                step_result.status = ExecutionStatus.PASSED
-                return step_result
-            if action_type.value == "verify":
-                await self._execute_verify({"type": action_type, "text": action, "expected_result": expected_result})
-                step_result.status = ExecutionStatus.PASSED
-                return step_result
-            if action_type.value == "refresh":
-                await self._execute_refresh({"type": action_type, "text": action})
-                step_result.status = ExecutionStatus.PASSED
-                return step_result
-
-            if self.locator_service:
-                element_info = await self.locator_service.locate_element(
-                    description=action,
-                    target_element=target_element,
-                    execution_mode=execution_mode,
-                )
-
-                if element_info is None:
-                    step_result.status = ExecutionStatus.FAILED
-                    step_result.error_message = f"元素定位失败: {action}"
-                    step_result.failure_category = FailureCategory.LOCATOR_FAILURE
-                    return step_result
-
-                step_result.element_info = element_info
-
-                if action_type.value in ("click", "double_click", "right_click"):
-                    await self._execute_click_action(element_info, action_type)
-                elif action_type.value == "input" and input_value:
-                    await self._execute_input_action(element_info, input_value)
-                elif action_type.value == "hover":
-                    await self._execute_hover_action(element_info)
-                elif action_type.value == "select":
-                    await self._execute_select_action(element_info, input_value)
-                else:
-                    await self._execute_generic_action(action, element_info, step_data)
-
-            step_result.status = ExecutionStatus.PASSED
-
         except Exception as e:
             step_result.status = ExecutionStatus.FAILED
             step_result.error_message = str(e)
             raise StepExecutionError(str(e)) from e
-
         finally:
-            step_result.end_time = utcnow()
-            if step_result.start_time:
-                delta = step_result.end_time - step_result.start_time
-                step_result.duration_ms = int(delta.total_seconds() * 1000)
+            self._finalize_step_timing(step_result)
 
         return step_result
+
+    async def _dispatch_stateless_action(self, step_data: dict[str, Any], action_type: Any) -> bool:
+        """无需元素定位的动作（导航/等待/滚动/验证/刷新）直通执行。"""
+        action = step_data.get("action", "")
+        handlers = {
+            "navigate": lambda: self._execute_navigate({"type": action_type, "text": action}),
+            "wait": lambda: self._execute_wait({"type": action_type, "text": action}),
+            "scroll": lambda: self._execute_scroll({"type": action_type, "text": action}),
+            "verify": lambda: self._execute_verify(
+                {
+                    "type": action_type,
+                    "text": action,
+                    "expected_result": step_data.get("expected_result", ""),
+                }
+            ),
+            "refresh": lambda: self._execute_refresh({"type": action_type, "text": action}),
+        }
+        handler = handlers.get(action_type.value)
+        if handler is None:
+            return False
+        await handler()
+        return True
+
+    async def _dispatch_located_action(
+        self,
+        step_data: dict[str, Any],
+        action_type: Any,
+        step_result: StepExecutionResult,
+        execution_mode: str,
+    ) -> bool:
+        """需要元素定位的动作：定位失败短路为 LOCATOR_FAILURE，成功则分派具体动作。"""
+        if not self.locator_service:
+            return True
+
+        action = step_data.get("action", "")
+        element_info = await self.locator_service.locate_element(
+            description=action,
+            target_element=step_data.get("target_element", ""),
+            execution_mode=execution_mode,
+        )
+        if element_info is None:
+            step_result.status = ExecutionStatus.FAILED
+            step_result.error_message = f"元素定位失败: {action}"
+            step_result.failure_category = FailureCategory.LOCATOR_FAILURE
+            return False
+
+        step_result.element_info = element_info
+        await self._dispatch_element_action(action, element_info, step_data, action_type)
+        return True
+
+    async def _dispatch_element_action(
+        self,
+        action: str,
+        element_info: dict[str, Any],
+        step_data: dict[str, Any],
+        action_type: Any,
+    ) -> None:
+        """按动作类型分派到具体执行器；未识别类型走通用动作。"""
+        action_value = action_type.value
+        input_value = step_data.get("input_value", "")
+        if action_value in ("click", "double_click", "right_click"):
+            await self._execute_click_action(element_info, action_type)
+        elif action_value == "input" and input_value:
+            await self._execute_input_action(element_info, input_value)
+        elif action_value == "hover":
+            await self._execute_hover_action(element_info)
+        elif action_value == "select":
+            await self._execute_select_action(element_info, input_value)
+        else:
+            await self._execute_generic_action(action, element_info, step_data)
+
+    @staticmethod
+    def _finalize_step_timing(step_result: StepExecutionResult) -> None:
+        """无论成功失败都补齐结束时间与耗时。"""
+        step_result.end_time = utcnow()
+        if not step_result.start_time:
+            return
+        delta = step_result.end_time - step_result.start_time
+        step_result.duration_ms = int(delta.total_seconds() * 1000)
 
     async def _execute_click_action(self, element_info: dict, action_type: Any) -> None:
         if not self.browser or not getattr(self.browser, "_page", None):
