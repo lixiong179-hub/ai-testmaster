@@ -1,9 +1,11 @@
+import json
 from typing import Any
 
 from loguru import logger
 
 from app.models.test_case import TestCase
 from app.services.test_execution_engine.models import (
+    ActionType,
     ExecutionStatus,
     ExecutionError,
     StepExecutionError,
@@ -30,24 +32,14 @@ class _ExecutorMixin(_HelpersMixin):
 
         logger.info(f"开始执行测试用例: {test_case.case_no} - {test_case.title}")
 
-        if not skip_precondition and execution_mode not in ("mobile_realtime", "mobile_smart"):
-            try:
-                await self._execute_precondition(project_id=project_id)
-            except Exception as e:
-                result.status = ExecutionStatus.FAILED
-                result.error_message = f"Precondition failed: {e}"
-                result.failure_category = FailureCategory.PRECONDITION_FAILURE
-                return result
+        precondition_failure = await self._run_precondition_if_needed(project_id, skip_precondition, execution_mode)
+        if precondition_failure:
+            result.status = ExecutionStatus.FAILED
+            result.error_message = precondition_failure
+            result.failure_category = FailureCategory.PRECONDITION_FAILURE
+            return result
 
-        steps_json = test_case.steps_json
-        if isinstance(steps_json, str):
-            import json
-
-            try:
-                steps_json = json.loads(steps_json)
-            except (json.JSONDecodeError, TypeError):
-                steps_json = []
-
+        steps_json = self._normalize_steps_json(test_case.steps_json)
         if not steps_json:
             result.status = ExecutionStatus.PASSED
             result.error_message = "用例无步骤，自动通过"
@@ -56,64 +48,10 @@ class _ExecutorMixin(_HelpersMixin):
         result.total_steps = len(steps_json)
         self._step_results: list[StepExecutionResult] = []
 
-        for step_data in steps_json:
-            if not isinstance(step_data, dict):
-                continue
-
-            step_number = step_data.get("step") or step_data.get("step_number", 0)
-            action = step_data.get("action", "")
-            action_type_str = step_data.get("action_type", "click").lower()
-
-            from app.services.test_execution_engine.models import ActionType
-
-            try:
-                action_type = ActionType(action_type_str)
-            except ValueError:
-                action_type = ActionType.CLICK
-
-            step_result = StepExecutionResult(
-                step_number=step_number,
-                action_type=action_type,
-                description=action,
-            )
-
-            try:
-                step_result = await self._execute_single_step(
-                    step_data=step_data,
-                    action_type=action_type,
-                    step_result=step_result,
-                    execution_mode=execution_mode,
-                )
-
-                if step_result.status == ExecutionStatus.PASSED:
-                    result.passed_steps += 1
-                else:
-                    result.failed_steps += 1
-                    result.failure_category = step_result.failure_category
-
-            except StepExecutionError as e:
-                step_result.status = ExecutionStatus.FAILED
-                step_result.error_message = str(e)
-                result.failed_steps += 1
-                result.failure_category = self._infer_failure_category(e)
-                self._step_results.append(step_result)
-                break
-            except Exception as e:
-                step_result.status = ExecutionStatus.ERROR
-                step_result.error_message = str(e)
-                result.failed_steps += 1
-                result.failure_category = FailureCategory.ENVIRONMENT_ERROR
-                self._step_results.append(step_result)
-                break
-
-            self._step_results.append(step_result)
+        await self._run_case_steps(steps_json, result, execution_mode)
 
         result.steps = self._step_results
-
-        if result.failed_steps == 0:
-            result.status = ExecutionStatus.PASSED
-        else:
-            result.status = ExecutionStatus.FAILED
+        result.status = ExecutionStatus.PASSED if result.failed_steps == 0 else ExecutionStatus.FAILED
 
         logger.info(
             f"用例执行完成: {test_case.case_no}, "
@@ -122,6 +60,94 @@ class _ExecutorMixin(_HelpersMixin):
         )
 
         return result
+
+    async def _run_precondition_if_needed(
+        self, project_id: int, skip_precondition: bool, execution_mode: str
+    ) -> str | None:
+        """按需执行前置条件；失败返回错误文案（mobile 模式与 skip 旗标均不执行）。"""
+        if skip_precondition or execution_mode in ("mobile_realtime", "mobile_smart"):
+            return None
+        try:
+            await self._execute_precondition(project_id=project_id)
+        except Exception as e:
+            return f"Precondition failed: {e}"
+        return None
+
+    @staticmethod
+    def _normalize_steps_json(raw_steps: Any) -> list[dict[str, Any]]:
+        """步骤归一：JSON 串解析失败按「无步骤」处理。"""
+        if not isinstance(raw_steps, str):
+            return raw_steps
+        try:
+            return json.loads(raw_steps)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    async def _run_case_steps(self, steps_json: list[dict[str, Any]], result: Any, execution_mode: str) -> None:
+        """顺序执行步骤；两类异常均中断后续步骤并记录失败。"""
+        for step_data in steps_json:
+            if not isinstance(step_data, dict):
+                continue
+
+            step_result = self._build_step_result(step_data)
+            try:
+                step_result = await self._execute_single_step(
+                    step_data=step_data,
+                    action_type=step_result.action_type,
+                    step_result=step_result,
+                    execution_mode=execution_mode,
+                )
+            except StepExecutionError as e:
+                self._record_step_interruption(
+                    result, step_result, e, ExecutionStatus.FAILED, self._infer_failure_category(e)
+                )
+                break
+            except Exception as e:
+                self._record_step_interruption(
+                    result, step_result, e, ExecutionStatus.ERROR, FailureCategory.ENVIRONMENT_ERROR
+                )
+                break
+
+            self._record_step_outcome(result, step_result)
+
+    @staticmethod
+    def _build_step_result(step_data: dict[str, Any]) -> StepExecutionResult:
+        """按步骤字典构造结果对象；未知动作类型回退 click。"""
+        step_number = step_data.get("step") or step_data.get("step_number", 0)
+        action_type_str = str(step_data.get("action_type", "click")).lower()
+        try:
+            action_type = ActionType(action_type_str)
+        except ValueError:
+            action_type = ActionType.CLICK
+        return StepExecutionResult(
+            step_number=step_number,
+            action_type=action_type,
+            description=step_data.get("action", ""),
+        )
+
+    def _record_step_outcome(self, result: Any, step_result: StepExecutionResult) -> None:
+        """累计通过/失败计数并归档步骤结果。"""
+        if step_result.status == ExecutionStatus.PASSED:
+            result.passed_steps += 1
+        else:
+            result.failed_steps += 1
+            result.failure_category = step_result.failure_category
+        self._step_results.append(step_result)
+
+    def _record_step_interruption(
+        self,
+        result: Any,
+        step_result: StepExecutionResult,
+        error: Exception,
+        status: ExecutionStatus,
+        failure_category: FailureCategory,
+    ) -> None:
+        """异常中断：标记步骤状态与根因后归档。"""
+        step_result.status = status
+        step_result.error_message = str(error)
+        result.failed_steps += 1
+        result.failure_category = failure_category
+        self._step_results.append(step_result)
 
     async def _execute_single_step(
         self,
