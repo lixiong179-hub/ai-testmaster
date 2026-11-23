@@ -14,12 +14,15 @@ import pytest
 import json
 import os
 from datetime import datetime
+from uuid import uuid4
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base
 from app.models.project import Project
 from app.models.requirement_link import RequirementLink
+from app.models.user import User
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "mysql+pymysql://root:test1234@localhost:3306/ai_testmaster")
@@ -43,8 +46,26 @@ def db_session():
 
 
 @pytest.fixture
-def test_project(db_session) -> Project:
-    project = Project(name=f"{_TEST_PREFIX}密码加密测试", description="测试密码加密", user_id=1)
+def seed_user(db_session) -> User:
+    """自建用户：projects.user_id 有外键约束，硬编码 1 在全新库上会 1452 失败。"""
+    token = uuid4().hex[:12]
+    user = User(
+        username=f"{_TEST_PREFIX}{token}",
+        email=f"{_TEST_PREFIX}{token}@example.com",
+        password_hash="not-a-real-hash",
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture
+def test_project(db_session, seed_user) -> Project:
+    project = Project(
+        name=f"{_TEST_PREFIX}密码加密测试",
+        description="测试密码加密",
+        user_id=seed_user.id,
+    )
     db_session.add(project)
     db_session.flush()
     return project
@@ -104,8 +125,12 @@ class TestRequirementLinkAuthConfigEncryption:
     """RequirementLink.auth_config JSON加密测试"""
 
     @pytest.fixture
-    def test_project_for_link(self, db_session) -> Project:
-        project = Project(name=f"{_TEST_PREFIX}链接测试", description="测试链接", user_id=1)
+    def test_project_for_link(self, db_session, seed_user) -> Project:
+        project = Project(
+            name=f"{_TEST_PREFIX}链接测试",
+            description="测试链接",
+            user_id=seed_user.id,
+        )
         db_session.add(project)
         db_session.flush()
         return project
@@ -119,7 +144,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/api",
             auth_type="basic",
             auth_config={"username": "admin", "password": "secret123"},
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -136,7 +161,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/api",
             auth_type="bearer",
             auth_config={"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"},
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -152,7 +177,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/proto",
             auth_type="api_key",
             auth_config={"api_key": "sk-abc123xyz789"},
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -168,7 +193,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/api",
             auth_type="cookie",
             auth_config={"name": "session_id", "value": "abc123def456", "domain": ".example.com"},
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -186,7 +211,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/public",
             auth_type="none",
             auth_config={},
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -202,7 +227,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/proto",
             auth_type="none",
             auth_config=None,
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
@@ -227,7 +252,7 @@ class TestRequirementLinkAuthConfigEncryption:
                     "refresh": "https://auth.example.com/oauth/refresh",
                 },
             },
-            created_by=1,
+            created_by=test_project_for_link.user_id,
         )
         db_session.add(link)
         db_session.commit()
