@@ -26,7 +26,7 @@ JWT令牌工具模块
     - get_password_hash: 生成密码的bcrypt哈希
 
 依赖：
-    - python-jose[cryptography]: JWT编解码
+    - PyJWT: JWT编解码（原 python-jose 依赖的 ecdsa 存在无修复版本的安全公告，已移除）
     - passlib[bcrypt]: 密码哈希与验证
     - app.core.config.settings: JWT密钥、算法、过期时间配置
     - app.core.exception.AuthenticationError: 认证异常
@@ -35,7 +35,7 @@ JWT令牌工具模块
 import uuid
 from datetime import datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -159,7 +159,7 @@ def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         raise AuthenticationError("Token无效") from e
 
 
