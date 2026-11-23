@@ -30,71 +30,81 @@ def _run_consistency_check(
         (consistency_check_dict, artifact_confidence) 二元组。
     """
     tasks_artifact = ctx.get_artifact("generation_tasks")
-
-    expected_count = 0
-    deprecation_suggestions: list = []
-    deprecation_suggestions_count = 0
-
-    if tasks_artifact:
-        generation_tasks = tasks_artifact.get("generation_tasks", [])
-        deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
-        deprecation_suggestions_count = len(deprecation_suggestions)
-        expected_count = sum(1 for t in generation_tasks if t.get("task_type") in ("create", "modify", "locator_fix"))
-
+    expected_count, deprecation_suggestions = _extract_task_counts(tasks_artifact)
     persisted_count = len(persisted_ids)
 
-    consistency_check = {
+    consistency_check: dict[str, Any] = {
         "expected_count": expected_count,
         "persisted_count": persisted_count,
-        "deprecation_suggestions_count": deprecation_suggestions_count,
+        "deprecation_suggestions_count": len(deprecation_suggestions),
         "is_consistent": True,
         "warning": None,
     }
 
-    # 验证 deprecation 对应的旧用例状态
     if deprecation_suggestions:
-        from app.models.test_case import TestCase as _TC
+        consistency_check["deprecation_verification"] = _verify_deprecation_cases(ctx, deprecation_suggestions)
 
-        deprecation_check: dict = {
-            "total": len(deprecation_suggestions),
-            "verified": 0,
-            "not_found": 0,
-            "already_deprecated": 0,
-        }
-        # 批量查询：收集 case_id 后一次 .in_() 查询，避免循环内 N+1 查询
-        check_items = deprecation_suggestions[:20]
-        case_ids_to_check = [ds.get("case_id") for ds in check_items if ds.get("case_id") is not None]
-        old_cases_map: dict[int, _TC] = {}
-        if case_ids_to_check:
-            old_cases = ctx.db.query(_TC).filter(_TC.id.in_(case_ids_to_check)).all()
-            old_cases_map = {c.id: c for c in old_cases}
+    return consistency_check, _apply_ratio_check(consistency_check, expected_count, persisted_count)
 
-        for ds in check_items:
-            case_id = ds.get("case_id")
-            if case_id:
-                old_case = old_cases_map.get(case_id)
-                if old_case is None:
-                    deprecation_check["not_found"] += 1
-                elif old_case.lifecycle_status == "deprecated":
-                    deprecation_check["already_deprecated"] += 1
-                deprecation_check["verified"] += 1
-        consistency_check["deprecation_verification"] = deprecation_check
-        if deprecation_check["not_found"] > 0:
-            logger.warning(
-                "deprecation 验证: {} 条旧用例未找到",
-                deprecation_check["not_found"],
-            )
 
-    artifact_confidence_val = 1.0
+def _extract_task_counts(tasks_artifact: dict[str, Any] | None) -> tuple[int, list]:
+    """从 generation_tasks 产物取预期数量与 deprecation 建议列表。"""
+    if not tasks_artifact:
+        return 0, []
+    generation_tasks = tasks_artifact.get("generation_tasks", [])
+    deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
+    expected_count = sum(1 for t in generation_tasks if t.get("task_type") in ("create", "modify", "locator_fix"))
+    return expected_count, deprecation_suggestions
 
-    if expected_count > 0:
-        ratio = persisted_count / expected_count if expected_count > 0 else 1.0
-        if ratio < 0.8 or ratio > 1.2:
-            consistency_check["is_consistent"] = False
-            consistency_check["warning"] = (
-                f"持久化数量 ({persisted_count}) 与预期 ({expected_count}) 差异较大，比率: {ratio:.2f}"
-            )
-            logger.warning("一致性校验失败: {}", consistency_check["warning"])
-            artifact_confidence_val = min(artifact_confidence_val, 0.7)
 
-    return consistency_check, artifact_confidence_val
+def _tally_deprecation_case(
+    deprecation_check: dict[str, int], item: dict[str, Any], old_cases_map: dict[int, Any]
+) -> None:
+    """单条 deprecation 建议的校验计数（未带 case_id 的建议直接跳过）。"""
+    case_id = item.get("case_id")
+    if not case_id:
+        return
+    old_case = old_cases_map.get(case_id)
+    if old_case is None:
+        deprecation_check["not_found"] += 1
+    elif old_case.lifecycle_status == "deprecated":
+        deprecation_check["already_deprecated"] += 1
+    deprecation_check["verified"] += 1
+
+
+def _verify_deprecation_cases(ctx: PipelineContext, deprecation_suggestions: list) -> dict[str, int]:
+    """校验 deprecation 对应旧用例状态；限前 20 条并单次 .in_() 批量查询。"""
+    from app.models.test_case import TestCase as _TC
+
+    check_items = deprecation_suggestions[:20]
+    case_ids_to_check = [ds.get("case_id") for ds in check_items if ds.get("case_id") is not None]
+
+    old_cases_map: dict[int, _TC] = {}
+    if case_ids_to_check:
+        old_cases = ctx.db.query(_TC).filter(_TC.id.in_(case_ids_to_check)).all()
+        old_cases_map = {c.id: c for c in old_cases}
+
+    deprecation_check = {"total": len(deprecation_suggestions), "verified": 0, "not_found": 0, "already_deprecated": 0}
+    for item in check_items:
+        _tally_deprecation_case(deprecation_check, item, old_cases_map)
+
+    if deprecation_check["not_found"] > 0:
+        logger.warning("deprecation 验证: {} 条旧用例未找到", deprecation_check["not_found"])
+    return deprecation_check
+
+
+def _apply_ratio_check(consistency_check: dict[str, Any], expected_count: int, persisted_count: int) -> float:
+    """比率超出 [0.8, 1.2] 时标记不一致并把置信度降到 0.7。"""
+    if expected_count <= 0:
+        return 1.0
+
+    ratio = persisted_count / expected_count
+    if 0.8 <= ratio <= 1.2:
+        return 1.0
+
+    consistency_check["is_consistent"] = False
+    consistency_check["warning"] = (
+        f"持久化数量 ({persisted_count}) 与预期 ({expected_count}) 差异较大，比率: {ratio:.2f}"
+    )
+    logger.warning("一致性校验失败: {}", consistency_check["warning"])
+    return 0.7

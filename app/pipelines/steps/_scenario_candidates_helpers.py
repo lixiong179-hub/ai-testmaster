@@ -39,44 +39,71 @@ def _extract_ui(raw_signals: dict[str, Any]) -> str:
     return "\n\n".join(parts) if parts else "（无 UI 规格）"
 
 
+def _dump_text(value: Any) -> str:
+    """优先 JSON 序列化（中文不转义），失败降级为 str。"""
+    try:
+        return json.dumps(value, ensure_ascii=False, indent=2)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _extract_parsed_inferred(inferred: Any) -> dict[str, Any]:
+    """取 inferred.parsed，非 dict 结构统一返回空字典。"""
+    if not inferred or not isinstance(inferred, dict):
+        return {}
+    parsed = inferred.get("parsed") or {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _format_capability(cap: dict[str, Any]) -> str:
+    """单条能力行：低置信度加 ⚠️ 与「待确认」标记。"""
+    name = cap.get("name") or cap.get("key") or "未知能力"
+    confidence = cap.get("confidence")
+    is_numeric = isinstance(confidence, (int, float))
+    if is_numeric and confidence < _CONFIDENCE_THRESHOLD:
+        return f"- ⚠️{name}(置信度{confidence:.1f},待确认)"
+    suffix = f"(置信度{confidence:.1f})" if is_numeric else ""
+    return f"- {name}{suffix}"
+
+
+def _render_capabilities(capabilities: Any) -> str:
+    """渲染至多 10 条能力清单，非 dict 条目跳过。"""
+    lines: list[str] = []
+    for cap in capabilities[:10]:
+        if isinstance(cap, dict):
+            lines.append(_format_capability(cap))
+    return "\n".join(lines)
+
+
+def _render_parsed_inferred(parsed: dict[str, Any]) -> list[str]:
+    """把 parsed 反推结果渲染为摘要 / 变更摘要 / 能力三段文本。"""
+    parts: list[str] = []
+
+    summary = parsed.get("analysis_summary") or parsed.get("summary")
+    if summary:
+        parts.append(f"反推摘要: {str(summary)[:1000]}")
+
+    change_summary = parsed.get("change_summary")
+    if change_summary:
+        parts.append(f"变更摘要: {_dump_text(change_summary)[:1500]}")
+
+    capabilities = parsed.get("inferred_capabilities") or parsed.get("capabilities") or []
+    cap_text = _render_capabilities(capabilities)
+    if cap_text:
+        parts.append("反推能力:\n" + cap_text)
+
+    return parts
+
+
 def _extract_inferred(inferred: Any, raw_signals: dict[str, Any] | None = None) -> str:
-    parts = []
+    parts: list[str] = []
     raw_signals = raw_signals or {}
 
     change_notes = raw_signals.get("change_notes", "")
     if change_notes:
         parts.append(f"变更说明: {str(change_notes)[:1000]}")
 
-    if inferred and isinstance(inferred, dict):
-        parsed = inferred.get("parsed") or {}
-        if isinstance(parsed, dict):
-            summary = parsed.get("analysis_summary") or parsed.get("summary")
-            if summary:
-                parts.append(f"反推摘要: {str(summary)[:1000]}")
-
-            change_summary = parsed.get("change_summary")
-            if change_summary:
-                try:
-                    text = json.dumps(change_summary, ensure_ascii=False, indent=2)
-                except (TypeError, ValueError):
-                    text = str(change_summary)
-                parts.append(f"变更摘要: {text[:1500]}")
-
-            capabilities = parsed.get("inferred_capabilities") or parsed.get("capabilities") or []
-            if capabilities:
-                cap_lines = []
-                for cap in capabilities[:10]:
-                    if not isinstance(cap, dict):
-                        continue
-                    name = cap.get("name") or cap.get("key") or "未知能力"
-                    conf = cap.get("confidence")
-                    if isinstance(conf, (int, float)) and conf < _CONFIDENCE_THRESHOLD:
-                        cap_lines.append(f"- ⚠️{name}(置信度{conf:.1f},待确认)")
-                    else:
-                        conf_str = f"(置信度{conf:.1f})" if isinstance(conf, (int, float)) else ""
-                        cap_lines.append(f"- {name}{conf_str}")
-                if cap_lines:
-                    parts.append("反推能力:\n" + "\n".join(cap_lines))
+    parts.extend(_render_parsed_inferred(_extract_parsed_inferred(inferred)))
 
     return "\n\n".join(parts) if parts else "（无反推摘要/变更线索）"
 

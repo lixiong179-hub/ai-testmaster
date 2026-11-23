@@ -71,7 +71,8 @@ APP = "app"
 # → 84（B4k/B4l/B4m：execute_test_case 13 + _build_dependency_graph 12 + _execute_single_api_call 11；B4 结批）
 # → 82（B5a：QualityGate.execute 18；B5b：_analyze_complexity 19）
 # → 79（B5c：_filter_prd_by_testpoint 14 + _filter_ui_specs_by_testpoint 12 + _score_steps 15）
-TOTAL_BUDGET = 79
+# → 76（B5d：_run_consistency_check 11 + _classify_case_type_local 11 + _extract_inferred 12）
+TOTAL_BUDGET = 76
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

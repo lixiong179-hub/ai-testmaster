@@ -25,6 +25,12 @@ def _build_tp_from_task(task: dict[str, Any] | None) -> dict[str, Any] | None:
     return None
 
 
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "boundary": ["boundary", "边界"],
+    "negative": ["negative", "exception", "异常", "abnormal"],
+    "positive": ["positive", "正向", "normal", "happy"],
+}
+
 _TYPE_KEYWORDS_LOCAL: dict[str, list[str]] = {
     "positive": ["正向", "正常", "主流程", "happy", "成功提交", "完整流程", "正确输入", "常规"],
     "boundary": [
@@ -68,33 +74,38 @@ _TYPE_KEYWORDS_LOCAL: dict[str, list[str]] = {
 }
 
 
+def _match_type_by_keywords(text: str, keyword_map: dict[str, list[str]]) -> str | None:
+    """按关键词表顺序返回首个命中的用例类型。"""
+    for type_name, keywords in keyword_map.items():
+        if any(kw in text for kw in keywords):
+            return type_name
+    return None
+
+
+def _collect_steps_text(steps: Any) -> str:
+    """拼接步骤动作与预期结果文本（小写），非 list 视为无步骤。"""
+    if not isinstance(steps, list):
+        return ""
+    steps_text = ""
+    for step in steps:
+        if isinstance(step, dict):
+            steps_text += f"{step.get('action', '')} {step.get('expected_result', '')}".lower()
+    return steps_text
+
+
 def _classify_case_type_local(case: dict[str, Any]) -> str:
-    cat = (case.get("case_category") or case.get("case_type") or "").lower()
-    for type_name in ("boundary", "negative", "positive"):
-        kw_map = {
-            "boundary": ["boundary", "边界"],
-            "negative": ["negative", "exception", "异常", "abnormal"],
-            "positive": ["positive", "正向", "normal", "happy"],
-        }
-        if any(k in cat for k in kw_map[type_name]):
-            return type_name
-    title = (case.get("title") or "").lower()
-    for type_name, keywords in _TYPE_KEYWORDS_LOCAL.items():
-        if any(kw in title for kw in keywords):
-            return type_name
+    """用例类型判定：category 关键词 → 标题关键词 → 步骤关键词 → 默认 positive。"""
+    category_text = (case.get("case_category") or case.get("case_type") or "").lower()
+    matched = _match_type_by_keywords(category_text, _CATEGORY_KEYWORDS)
+    if matched:
+        return matched
 
-    steps = case.get("steps", [])
-    if isinstance(steps, list):
-        steps_text = ""
-        for step in steps:
-            if isinstance(step, dict):
-                steps_text += (step.get("action", "") + " " + step.get("expected_result", "")).lower()
-        if steps_text:
-            for type_name, keywords in _TYPE_KEYWORDS_LOCAL.items():
-                if any(kw in steps_text for kw in keywords):
-                    return type_name
+    title_matched = _match_type_by_keywords((case.get("title") or "").lower(), _TYPE_KEYWORDS_LOCAL)
+    if title_matched:
+        return title_matched
 
-    return "positive"
+    matched = _match_type_by_keywords(_collect_steps_text(case.get("steps", [])), _TYPE_KEYWORDS_LOCAL)
+    return matched or "positive"
 
 
 def _compute_module_coverage(
