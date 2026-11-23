@@ -9,8 +9,10 @@ AI客户端JSON解析单元测试
 - 各种格式错误的JSON修复能力
 """
 
-import pytest
 import json
+import os
+
+import pytest
 
 from app.utils.ai_client_parser import (
     clean_json_string,
@@ -197,6 +199,10 @@ class TestExtractValue:
         assert result is None
 
 
+@pytest.mark.skipif(
+    not os.getenv("DEEPSEEK_API_KEY"),
+    reason="未配置 DEEPSEEK_API_KEY，CI 无真实密钥，跳过 AI 客户端集成用例",
+)
 class TestAiClientIntegration:
     def test_client_initialization(self, ai_client):
         assert ai_client is not None

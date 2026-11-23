@@ -40,6 +40,16 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      redis:
+        # 限流 / 缓存 / SSE 用例依赖真实 Redis；缺失时会 ConnectionRefused (6379) 批量失败
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
       OPENBLAS_NUM_THREADS: 1
       OMP_NUM_THREADS: 1
@@ -86,6 +96,19 @@ jobs:
             alembic upgrade head
           DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test \
             alembic upgrade head
+      - name: Seed default user
+        # 部分遗留用例硬编码 user_id=1 / created_by=1（projects_ibfk_2 等外键），
+        # CI 库为空会 1452；这里在两库各补一条 id=1 的占位用户。
+        env:
+          MYSQL_PWD: test_root_pw
+        run: |
+          for db in ai_testmaster ai_testmaster_test; do
+            mysql -h 127.0.0.1 -P 3306 -u root "$db" -e "
+              INSERT INTO users (id, username, email, password_hash, is_active, is_superuser,
+                                 failed_login_attempts, create_time, update_time)
+              VALUES (1, 'seed_user', 'seed_user@example.com', 'x', 1, 0, 0, NOW(), NOW())
+              ON DUPLICATE KEY UPDATE id = id;" || true
+          done
       - name: Migration history validation
         env:
           DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
@@ -140,6 +163,16 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      redis:
+        # 限流 / 缓存 / SSE 用例依赖真实 Redis；缺失时会 ConnectionRefused (6379) 批量失败
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     env:
       OPENBLAS_NUM_THREADS: 1
       OMP_NUM_THREADS: 1
@@ -169,6 +202,18 @@ jobs:
             alembic upgrade head
           DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test \
             alembic upgrade head
+      - name: Seed default user
+        # 同 backend-test：补齐 id=1 占位用户，避免遗留用例 1452
+        env:
+          MYSQL_PWD: test_root_pw
+        run: |
+          for db in ai_testmaster ai_testmaster_test; do
+            mysql -h 127.0.0.1 -P 3306 -u root "$db" -e "
+              INSERT INTO users (id, username, email, password_hash, is_active, is_superuser,
+                                 failed_login_attempts, create_time, update_time)
+              VALUES (1, 'seed_user', 'seed_user@example.com', 'x', 1, 0, 0, NOW(), NOW())
+              ON DUPLICATE KEY UPDATE id = id;" || true
+          done
       - name: Backend pytest (shard ${{ matrix.group }}/4)
         env:
           DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
