@@ -149,6 +149,11 @@ jobs:
   # 避免「代码合入但 compose 语法/服务缺失」的回归。运行时扩容（--scale）在 K4 人工验收。
   compose-config:
     runs-on: ubuntu-latest
+    env:
+      # docker-compose.yml 用 `${VAR:?}` 强制必填；CI 无 .env，这里只提供校验用占位值，
+      # 不参与任何实际启动，避免「compose 校验永远因缺环境变量而红」。
+      MYSQL_ROOT_PASSWORD: ci-placeholder-root
+      MYSQL_PASSWORD: ci-placeholder-user
     steps:
       - uses: actions/checkout@v4
       - name: Validate docker-compose.yml
