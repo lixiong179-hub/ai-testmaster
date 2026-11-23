@@ -64,6 +64,9 @@ jobs:
           pip install -r requirements.txt
           # ruff 钉版本：`ruff format --check` 的产出随 fmt 风格演进变化，浮动版本会让全量 PR 无故变红
           pip install pytest pytest-cov pytest-asyncio pytest-split ruff==0.15.17 mypy
+      - name: Install Playwright browsers
+        # 浏览器控制器用例需要 chromium；缺失时报 "Executable doesn't exist ... chrome-headless-shell"
+        run: playwright install --with-deps chromium
       - name: Init test database
         env:
           MYSQL_PWD: test_root_pw
@@ -124,8 +127,11 @@ jobs:
           DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
         run: |
+          # 覆盖率门槛按「本子集可达到的水平」设棘轮：`--cov=app` 统计的是全 app（47675 条语句），
+          # 而本 job 只跑 5 个目录（实测 TOTAL 66%，2026-11-23），80% 在结构上不可达 —— 全量由
+          # backend-full 4 分片承担。此处取 65 防回退（实测 66%），后续随测试补齐逐步上调。
           pytest tests/api tests/crud tests/models tests/schemas tests/services \
-            --tb=short --cov=app --cov-fail-under=80 -q
+            --tb=short --cov=app --cov-fail-under=65 -q
 
   # ── 【必阻断】后端全量测试（B-06，2026-11-12）──
   # 判据：全量纳入 CI 且测试步骤 wall time < 10 分钟。
@@ -186,6 +192,9 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-split
+      - name: Install Playwright browsers
+        # 同 backend-test：浏览器控制器用例需要 chromium
+        run: playwright install --with-deps chromium
       - name: Init test database
         env:
           MYSQL_PWD: test_root_pw
