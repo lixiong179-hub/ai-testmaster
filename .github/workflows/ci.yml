@@ -21,7 +21,9 @@ jobs:
   #    勾选清单见《架构优化执行计划清单》R5-3 条目「🤝 人工项」表。
   # 【必阻断】backend-test：
   backend-test:
-    runs-on: ubuntu-latest
+    # 钉 24.04：`ubuntu-latest` 已滚动到 26.04，而 Playwright 尚不支持
+    # `chromium on ubuntu26.04-x64`，`playwright install` 会直接失败（B-05 修复）
+    runs-on: ubuntu-24.04
     services:
       mysql:
         image: mysql:8.0
@@ -146,7 +148,8 @@ jobs:
   #   全部走同一事务 fixture（大改测试基建），故本波采用「同库 + 分片串行」。
   backend-full:
     name: backend-full (shard ${{ matrix.group }}/4)
-    runs-on: ubuntu-latest
+    # 同 backend-test：钉 24.04 以规避 Playwright 不支持 ubuntu26.04 的浏览器安装
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
