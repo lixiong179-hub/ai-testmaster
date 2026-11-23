@@ -27,7 +27,10 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: test_root_pw
-          MYSQL_DATABASE: ai_testmaster_test
+          # 应用库（与本地 .env 语义一致）；测试库由 Init 步骤创建 —— 多个用例用
+          # `settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test")` 推导测试库，
+          # 若 DATABASE_URL 直接指向 _test 会拼出 `..._test_test`（1049 Unknown database）
+          MYSQL_DATABASE: ai_testmaster
           MYSQL_USER: test_user
           MYSQL_PASSWORD: test_pw
         ports:
@@ -51,6 +54,15 @@ jobs:
           pip install -r requirements.txt
           # ruff 钉版本：`ruff format --check` 的产出随 fmt 风格演进变化，浮动版本会让全量 PR 无故变红
           pip install pytest pytest-cov pytest-asyncio pytest-split ruff==0.15.17 mypy
+      - name: Init test database
+        env:
+          MYSQL_PWD: test_root_pw
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -e "
+            CREATE DATABASE IF NOT EXISTS ai_testmaster_test
+              CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            GRANT ALL PRIVILEGES ON ai_testmaster_test.* TO 'test_user'@'%';
+            FLUSH PRIVILEGES;"
       - name: Ruff lint
         run: ruff check app
       - name: Ruff format check
@@ -67,12 +79,16 @@ jobs:
         # 白名单只减不增，任何端点/服务新增 async_get_db 即失败（预算见 scripts/check_async_session_convergence.py）
         run: python scripts/check_async_session_convergence.py
       - name: Alembic migrations
-        env:
-          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
-        run: alembic upgrade head
+        # 应用库与测试库都要建到 head：部分遗留用例直连应用库（PrimarySessionLocal），
+        # 测试库供 conftest / TEST_DATABASE_URL 使用。
+        run: |
+          DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster \
+            alembic upgrade head
+          DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test \
+            alembic upgrade head
       - name: Migration history validation
         env:
-          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
         run: |
           python scripts/verify_migrations.py --check-downgrade
@@ -82,7 +98,7 @@ jobs:
       # 目录排除项说明：tests/regression 由 pr-regression.yml（快速）+ daily-regression.yml（全量）承担。
       - name: Backend pytest
         env:
-          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
         run: |
           pytest tests/api tests/crud tests/models tests/schemas tests/services \
@@ -111,7 +127,10 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: test_root_pw
-          MYSQL_DATABASE: ai_testmaster_test
+          # 应用库（与本地 .env 语义一致）；测试库由 Init 步骤创建 —— 多个用例用
+          # `settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test")` 推导测试库，
+          # 若 DATABASE_URL 直接指向 _test 会拼出 `..._test_test`（1049 Unknown database）
+          MYSQL_DATABASE: ai_testmaster
           MYSQL_USER: test_user
           MYSQL_PASSWORD: test_pw
         ports:
@@ -134,13 +153,25 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-split
-      - name: Alembic migrations
+      - name: Init test database
         env:
-          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
-        run: alembic upgrade head
+          MYSQL_PWD: test_root_pw
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root -e "
+            CREATE DATABASE IF NOT EXISTS ai_testmaster_test
+              CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+            GRANT ALL PRIVILEGES ON ai_testmaster_test.* TO 'test_user'@'%';
+            FLUSH PRIVILEGES;"
+      - name: Alembic migrations
+        # 应用库与测试库都要建到 head（见 backend-test 同名步骤说明）
+        run: |
+          DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster \
+            alembic upgrade head
+          DATABASE_URL=mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test \
+            alembic upgrade head
       - name: Backend pytest (shard ${{ matrix.group }}/4)
         env:
-          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
         run: |
           pytest tests -q --tb=short \
