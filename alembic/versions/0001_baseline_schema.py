@@ -1,22 +1,22 @@
-"""baseline schema：以当前 ORM 元数据一次性建立全量结构（G-8 前置：迁移链可空库构建）
+"""baseline schema：以当前 ORM 元数据一次性建立全量结构
 
-背景：历史迁移链只包含「增量变更」，`users` / `projects` / `iterations` / `test_cases` /
-`test_points` / `test_steps` / `test_results` / `test_tasks` / `test_reports` /
-`test_case_versions` / `project_files` / `bugs` 等 13 张核心表从未由任何迁移创建，
-schema 历史上由 `Base.metadata.create_all` 建立 → `alembic upgrade head` 在空库必然失败
-（e.g. `Table 'project_files' doesn't exist`）。
+背景：历史迁移链只包含「增量变更」，`users` / `projects` / `test_cases` / `project_files` 等
+13 张核心表从未由任何迁移创建，schema 历史上由 `Base.metadata.create_all` 建立，
+导致 `alembic upgrade head` 在空库必然失败（`Table 'project_files' doesn't exist`）。
 
 处置（2026-11-23，方案 A：squash）：
-- 本文件为**唯一基线**，`revision` **沿用原 head id** `20260912_merge_test_tasks_heads`，
-  因此已处于该版本的环境 `alembic upgrade head` 为 no-op，无需手工 `stamp`；
-- 原 81 条历史迁移已整体归档到 `alembic/versions_archive/`（保留 git 历史，不再在执行路径上）；
-- 后续所有结构变更请在 `alembic/versions/` 新建增量迁移（`down_revision` 指向本基线或其后续）。
+- 本文件为唯一基线，`revision` 沿用原 head id `20260912_merge_test_tasks_heads`，
+  已处于该版本的环境 `alembic upgrade head` 为 no-op，无需手工 `stamp`；
+- 原 81 条历史迁移归档在 `alembic/versions_archive/`（保留 git 历史，不参与执行）；
+- 后续结构变更请新建增量迁移，`down_revision` 指向基线或其后续。
 
-注意：若某环境停在**更早**的旧 revision，需要先 `alembic stamp 20260912_merge_test_tasks_heads`。
+注意：停在更早旧 revision 的环境，直接 `alembic stamp` 会因旧 revision 已归档而报
+"Can't locate revision identified by ..."，需用 `alembic stamp --purge
+20260912_merge_test_tasks_heads`（先清空 alembic_version 再写入基线版本）。
 
 Revision ID: 20260912_merge_test_tasks_heads
 Revises: None
-Create Date: 2026-11-23 14:17:00.086289
+Create Date: 2026-11-23 15:40:00.000000
 """
 
 from __future__ import annotations
@@ -394,6 +394,38 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("user_id", "role_id"),
     )
     op.create_table(
+        "agent_sessions",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="Agent会话主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID"),
+        sa.Column(
+            "agent_type",
+            sa.String(length=64),
+            nullable=False,
+            comment="Agent类型: test_generation/failure_analysis/visual_validation/locator_healing",
+        ),
+        sa.Column(
+            "status",
+            sa.String(length=32),
+            nullable=False,
+            comment="会话状态: running/completed/failed/cancelled/loop_detected/circuit_open/token_exhausted",
+        ),
+        sa.Column("started_at", sa.DateTime(), nullable=False, comment="会话开始时间（UTC）"),
+        sa.Column("completed_at", sa.DateTime(), nullable=True, comment="会话完成时间（UTC，含 failed/cancelled）"),
+        sa.Column("token_cost", sa.Integer(), nullable=False, comment="累计Token消耗"),
+        sa.Column("iteration_count", sa.Integer(), nullable=False, comment="已执行迭代轮数"),
+        sa.Column("loop_detected", sa.Boolean(), nullable=False, comment="是否触发循环检测熔断"),
+        sa.Column("created_by", sa.Integer(), nullable=True, comment="创建者用户ID"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="记录创建时间（UTC）"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, comment="记录更新时间（UTC）"),
+        sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_project_agent", "agent_sessions", ["project_id", "agent_type"], unique=False)
+    op.create_index("idx_status_started", "agent_sessions", ["status", "started_at"], unique=False)
+    op.create_index(op.f("ix_agent_sessions_created_by"), "agent_sessions", ["created_by"], unique=False)
+    op.create_index(op.f("ix_agent_sessions_project_id"), "agent_sessions", ["project_id"], unique=False)
+    op.create_table(
         "generation_batches",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("batch_no", sa.String(length=40), nullable=False, comment="人类可读批次号，例如GB202606010001"),
@@ -497,6 +529,22 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_project_flow_data_id"), "project_flow_data", ["id"], unique=False)
     op.create_index(op.f("ix_project_flow_data_project_id"), "project_flow_data", ["project_id"], unique=True)
+    op.create_table(
+        "project_members",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="成员记录主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID"),
+        sa.Column("user_id", sa.Integer(), nullable=False, comment="用户ID"),
+        sa.Column("role", sa.String(length=20), nullable=False, comment="成员角色: owner/admin/member/viewer"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="创建时间（UTC）"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, comment="更新时间（UTC）"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("project_id", "user_id", name="uq_project_member"),
+    )
+    op.create_index("ix_project_member_role", "project_members", ["project_id", "role"], unique=False)
+    op.create_index(op.f("ix_project_members_project_id"), "project_members", ["project_id"], unique=False)
+    op.create_index(op.f("ix_project_members_user_id"), "project_members", ["user_id"], unique=False)
     op.create_table(
         "quality_rule_configs",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False, comment="主键ID"),
@@ -653,6 +701,51 @@ def upgrade() -> None:
     op.create_index(op.f("ix_test_tasks_status"), "test_tasks", ["status"], unique=False)
     op.create_index(op.f("ix_test_tasks_tenant_id"), "test_tasks", ["tenant_id"], unique=False)
     op.create_index(op.f("ix_test_tasks_update_time"), "test_tasks", ["update_time"], unique=False)
+    op.create_table(
+        "agent_audits",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="审计记录主键ID"),
+        sa.Column("session_id", sa.BigInteger(), nullable=False, comment="会话ID"),
+        sa.Column("iteration", sa.Integer(), nullable=False, comment="触发审计的迭代轮次"),
+        sa.Column(
+            "action_type",
+            sa.String(length=64),
+            nullable=False,
+            comment="动作类型: tool_call/create_test_case/update_locator/rollback_*",
+        ),
+        sa.Column("action_detail", mysql.JSON(), nullable=False, comment="动作详情（JSON，含工具名/参数/结果/资源ID）"),
+        sa.Column(
+            "decision_confidence",
+            sa.Numeric(precision=5, scale=2),
+            nullable=True,
+            comment="决策置信度（0.00-1.00），NULL 表示无需置信度",
+        ),
+        sa.Column("human_approved", sa.Integer(), nullable=False, comment="审批状态: 0=待审批, 1=已批准, 2=已拒绝"),
+        sa.Column("approved_by", sa.Integer(), nullable=True, comment="审批人用户ID"),
+        sa.Column("approved_at", sa.DateTime(), nullable=True, comment="审批时间（UTC）"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="审计记录创建时间（UTC）"),
+        sa.ForeignKeyConstraint(["approved_by"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["session_id"], ["agent_sessions.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_pending_approval", "agent_audits", ["human_approved", "created_at"], unique=False)
+    op.create_index("idx_session_iteration", "agent_audits", ["session_id", "iteration"], unique=False)
+    op.create_index(op.f("ix_agent_audits_session_id"), "agent_audits", ["session_id"], unique=False)
+    op.create_table(
+        "agent_messages",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="消息主键ID"),
+        sa.Column("session_id", sa.BigInteger(), nullable=False, comment="会话ID"),
+        sa.Column("role", sa.String(length=32), nullable=False, comment="消息角色: system/user/assistant/tool"),
+        sa.Column("content", mysql.JSON(), nullable=False, comment="消息内容（JSON，兼容文本/工具调用/多模态）"),
+        sa.Column("artifact_refs", mysql.JSON(), nullable=True, comment="引用的Artifacts列表（JSON数组）"),
+        sa.Column("tool_call_id", sa.String(length=128), nullable=True, comment="工具调用ID（仅role=tool时有值）"),
+        sa.Column("tool_name", sa.String(length=128), nullable=True, comment="工具名称（assistant触发工具调用时有值）"),
+        sa.Column("token_cost", sa.Integer(), nullable=False, comment="本条消息Token消耗"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="消息创建时间（UTC）"),
+        sa.ForeignKeyConstraint(["session_id"], ["agent_sessions.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_session_created", "agent_messages", ["session_id", "created_at"], unique=False)
+    op.create_index(op.f("ix_agent_messages_session_id"), "agent_messages", ["session_id"], unique=False)
     op.create_table(
         "api_cost_log",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -1389,6 +1482,32 @@ def upgrade() -> None:
     op.create_index(op.f("ix_test_case_versions_id"), "test_case_versions", ["id"], unique=False)
     op.create_index(op.f("ix_test_case_versions_test_case_id"), "test_case_versions", ["test_case_id"], unique=False)
     op.create_table(
+        "test_coverage_maps",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="覆盖率映射主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID（冗余存储，加速按项目过滤避免 JOIN）"),
+        sa.Column("test_case_id", sa.Integer(), nullable=False, comment="测试用例ID"),
+        sa.Column(
+            "file_path",
+            sa.String(length=512),
+            nullable=False,
+            comment="相对项目根目录的代码文件路径，如 app/services/foo.py",
+        ),
+        sa.Column("line_start", sa.Integer(), nullable=False, comment="覆盖起始行号（1-based，包含）"),
+        sa.Column("line_end", sa.Integer(), nullable=False, comment="覆盖结束行号（1-based，包含）"),
+        sa.Column(
+            "test_name", sa.String(length=256), nullable=False, comment="测试函数名，仅用于调试与日志，不参与业务逻辑"
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="记录创建时间（UTC）"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, comment="记录更新时间（UTC）"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["test_case_id"], ["test_cases.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_coverage_case", "test_coverage_maps", ["test_case_id"], unique=False)
+    op.create_index("idx_coverage_file", "test_coverage_maps", ["file_path"], unique=False)
+    op.create_index("idx_coverage_project_file", "test_coverage_maps", ["project_id", "file_path"], unique=False)
+    op.create_index("uq_case_file", "test_coverage_maps", ["test_case_id", "file_path"], unique=True)
+    op.create_table(
         "test_results",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("task_id", sa.Integer(), nullable=True, comment="任务ID"),
@@ -1486,6 +1605,44 @@ def upgrade() -> None:
     op.create_index(op.f("ix_video_records_execution_id"), "video_records", ["execution_id"], unique=False)
     op.create_index(op.f("ix_video_records_id"), "video_records", ["id"], unique=False)
     op.create_index(op.f("ix_video_records_task_id"), "video_records", ["task_id"], unique=False)
+    op.create_table(
+        "visual_baselines",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="基线主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID"),
+        sa.Column("test_case_id", sa.Integer(), nullable=True, comment="关联测试用例ID（可空，支持页面级基线）"),
+        sa.Column("name", sa.String(length=256), nullable=False, comment="基线名称，如 登录页-桌面端-1280x800"),
+        sa.Column("page_url", sa.String(length=1024), nullable=False, comment="被测页面URL"),
+        sa.Column("viewport_width", sa.Integer(), nullable=False, comment="视口宽度（像素）"),
+        sa.Column("viewport_height", sa.Integer(), nullable=False, comment="视口高度（像素）"),
+        sa.Column("image_key", sa.String(length=512), nullable=False, comment="基线截图在StorageBackend中的对象key"),
+        sa.Column("image_width", sa.Integer(), nullable=False, comment="截图宽度（像素）"),
+        sa.Column("image_height", sa.Integer(), nullable=False, comment="截图高度（像素）"),
+        sa.Column("match_level", sa.String(length=32), nullable=False, comment="对比模式: strict/layout/ignore_colors"),
+        sa.Column(
+            "dom_snapshot_key", sa.String(length=512), nullable=True, comment="DOM快照存储key，用于Layout Match Level"
+        ),
+        sa.Column("status", sa.String(length=32), nullable=False, comment="基线状态: active/archived/superseded"),
+        sa.Column("version", sa.Integer(), nullable=False, comment="基线版本号，每次更新递增"),
+        sa.Column("created_by", sa.Integer(), nullable=True, comment="创建者用户ID"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="创建时间（UTC）"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, comment="更新时间（UTC）"),
+        sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["test_case_id"], ["test_cases.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        "idx_baseline_project_page",
+        "visual_baselines",
+        ["project_id", "page_url", "viewport_width", "viewport_height"],
+        unique=False,
+        mysql_length={"page_url": 255},
+    )
+    op.create_index("idx_baseline_project_status", "visual_baselines", ["project_id", "status"], unique=False)
+    op.create_index("idx_baseline_test_case", "visual_baselines", ["test_case_id"], unique=False)
+    op.create_index(op.f("ix_visual_baselines_created_by"), "visual_baselines", ["created_by"], unique=False)
+    op.create_index(op.f("ix_visual_baselines_project_id"), "visual_baselines", ["project_id"], unique=False)
+    op.create_index(op.f("ix_visual_baselines_test_case_id"), "visual_baselines", ["test_case_id"], unique=False)
     op.create_table(
         "bugs",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -1692,6 +1849,111 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_test_data_id"), "test_data", ["id"], unique=False)
     op.create_table(
+        "visual_diffs",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="Diff主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID"),
+        sa.Column("baseline_id", sa.BigInteger(), nullable=False, comment="对比的基线ID"),
+        sa.Column("test_case_id", sa.Integer(), nullable=True, comment="关联测试用例ID"),
+        sa.Column("test_result_id", sa.Integer(), nullable=True, comment="关联测试结果ID"),
+        sa.Column(
+            "current_image_key", sa.String(length=512), nullable=False, comment="当前截图在StorageBackend中的对象key"
+        ),
+        sa.Column(
+            "diff_image_key", sa.String(length=512), nullable=True, comment="差异图存储key（高亮差异区域的叠加图）"
+        ),
+        sa.Column("diff_percentage", sa.Float(), nullable=False, comment="差异百分比（0.0-100.0）"),
+        sa.Column("diff_pixel_count", sa.Integer(), nullable=False, comment="差异像素数"),
+        sa.Column("total_pixel_count", sa.Integer(), nullable=False, comment="总像素数（用于计算百分比）"),
+        sa.Column(
+            "match_level", sa.String(length=32), nullable=False, comment="使用的对比模式: strict/layout/ignore_colors"
+        ),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, comment="审批状态: pending/approved/rejected/auto_approved"
+        ),
+        sa.Column(
+            "llm_analysis", sa.Text(), nullable=True, comment="LLM语义分析结果（JSON字符串，含分类/置信度/建议）"
+        ),
+        sa.Column("llm_token_cost", sa.Integer(), nullable=False, comment="LLM Token消耗"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="创建时间（UTC）"),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, comment="更新时间（UTC）"),
+        sa.ForeignKeyConstraint(["baseline_id"], ["visual_baselines.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["test_case_id"], ["test_cases.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["test_result_id"], ["test_results.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_diff_baseline", "visual_diffs", ["baseline_id"], unique=False)
+    op.create_index("idx_diff_case_result", "visual_diffs", ["test_case_id", "test_result_id"], unique=False)
+    op.create_index("idx_diff_project_status", "visual_diffs", ["project_id", "status"], unique=False)
+    op.create_index(op.f("ix_visual_diffs_project_id"), "visual_diffs", ["project_id"], unique=False)
+    op.create_index(op.f("ix_visual_diffs_test_case_id"), "visual_diffs", ["test_case_id"], unique=False)
+    op.create_table(
+        "baseline_approvals",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="审批主键ID"),
+        sa.Column("project_id", sa.Integer(), nullable=False, comment="项目ID"),
+        sa.Column("diff_id", sa.BigInteger(), nullable=False, comment="关联的Diff ID"),
+        sa.Column("baseline_id", sa.BigInteger(), nullable=False, comment="关联的基线ID"),
+        sa.Column("action", sa.String(length=32), nullable=False, comment="审批动作: approve/reject/update_baseline"),
+        sa.Column("comment", sa.Text(), nullable=True, comment="审批意见"),
+        sa.Column("reviewer_id", sa.Integer(), nullable=True, comment="审批人用户ID"),
+        sa.Column("reviewed_at", sa.DateTime(), nullable=False, comment="审批时间（UTC）"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="创建时间（UTC）"),
+        sa.ForeignKeyConstraint(["baseline_id"], ["visual_baselines.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["diff_id"], ["visual_diffs.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["reviewer_id"], ["users.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_approval_baseline", "baseline_approvals", ["baseline_id"], unique=False)
+    op.create_index("idx_approval_diff", "baseline_approvals", ["diff_id"], unique=False)
+    op.create_index("idx_approval_project_time", "baseline_approvals", ["project_id", "reviewed_at"], unique=False)
+    op.create_index(op.f("ix_baseline_approvals_project_id"), "baseline_approvals", ["project_id"], unique=False)
+    op.create_index(op.f("ix_baseline_approvals_reviewer_id"), "baseline_approvals", ["reviewer_id"], unique=False)
+    op.create_table(
+        "self_healing_audits",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False, comment="自愈审计记录主键ID"),
+        sa.Column("test_case_id", sa.Integer(), nullable=False, comment="触发自愈的测试用例ID"),
+        sa.Column("step_index", sa.Integer(), nullable=False, comment="触发自愈的步骤序号（0-based）"),
+        sa.Column(
+            "locator_id",
+            sa.Integer(),
+            nullable=True,
+            comment="关联的元素定位器ID（外键关联，定位器删除时置 NULL 保留审计记录）",
+        ),
+        sa.Column("old_selector", sa.String(length=512), nullable=True, comment="自愈前选择器（CSS/XPath 等）"),
+        sa.Column("new_selector", sa.String(length=512), nullable=True, comment="自愈后选择器（CSS/XPath 等）"),
+        sa.Column(
+            "failure_type",
+            sa.String(length=32),
+            nullable=False,
+            comment="失败原因: element_gone/dom_changed/load_delay/env_noise",
+        ),
+        sa.Column(
+            "strategy",
+            sa.String(length=32),
+            nullable=False,
+            comment="自愈策略: mcp/vision/stagehand/rollback/retry/skip",
+        ),
+        sa.Column(
+            "confidence",
+            sa.Numeric(precision=5, scale=2),
+            nullable=True,
+            comment="自愈决策置信度（0.00-1.00），NULL 表示策略无需置信度",
+        ),
+        sa.Column("token_cost", sa.Integer(), nullable=False, comment="本次自愈消耗的LLM Token数（非AI策略为0）"),
+        sa.Column("low_confidence", sa.Boolean(), nullable=False, comment="是否低于置信度阈值（人工复核标记）"),
+        sa.Column("created_at", sa.DateTime(), nullable=True, comment="记录创建时间（UTC）"),
+        sa.ForeignKeyConstraint(["locator_id"], ["element_locators.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["test_case_id"],
+            ["test_cases.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_case_step", "self_healing_audits", ["test_case_id", "step_index"], unique=False)
+    op.create_index(op.f("ix_self_healing_audits_locator_id"), "self_healing_audits", ["locator_id"], unique=False)
+    op.create_index(op.f("ix_self_healing_audits_test_case_id"), "self_healing_audits", ["test_case_id"], unique=False)
+    op.create_table(
         "test_case_data",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("test_case_id", sa.Integer(), nullable=False, comment="测试用例ID"),
@@ -1709,11 +1971,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """回滚基线：按逆依赖顺序删除全部表。
+    """回滚基线：清空当前库中的全部业务表。
 
-    MySQL 下逐个 DROP INDEX 会被外键约束阻塞（1553），故整体交给元数据 drop_all，
-    由 SQLAlchemy 计算逆依赖顺序；upgrade 侧仍是显式 DDL（结构快照，不随模型漂移）。
+    不用 `Base.metadata.drop_all`：库中可能存在未被当前进程注册的模型表
+    （如 `user_sessions`），它们对 `users` 的外键会让 DROP TABLE 报 3730。
+    这里按 information_schema 枚举 + 关闭外键检查的方式整体清理，保证可逆。
     """
-    from app.db.database import Base
+    from sqlalchemy import text
 
-    Base.metadata.drop_all(bind=op.get_bind())
+    bind = op.get_bind()
+    bind.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+    rows = bind.execute(
+        text("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
+    ).fetchall()
+    for (table_name,) in rows:
+        if table_name == "alembic_version":
+            continue
+        bind.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+    bind.execute(text("SET FOREIGN_KEY_CHECKS = 1"))

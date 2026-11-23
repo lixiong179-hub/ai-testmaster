@@ -32,6 +32,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.db.database import Base
 
 # 必须在导入config之前导入所有模型，否则autogenerate无法检测到模型变更
+# 说明：下方逐个 import 的清单会与运行时漂移（如 visual_baseline 由
+# app/api/v1/endpoints/visual_ai.py 触发注册，长期不在清单中 → autogenerate 漏表）。
+# 这里额外导入 app.main，保证 Base.metadata 与运行时完全一致。
+import app.main  # noqa: F401,E402
 from app.models import user
 from app.models import project
 from app.models import test_data
@@ -74,8 +78,18 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    """从应用配置获取数据库URL"""
+    """数据库 URL：优先显式注入的 Config，其次回落到应用配置。
+
+    此前无条件取 `settings.DATABASE_URL`，导致 `Config.set_main_option("sqlalchemy.url", X)`
+    被忽略 —— `scripts/verify_migrations.py` 与 `tests/migrations/test_alembic_rollback.py`
+    以为在操作测试库，实际迁移改的是应用库（表现为「downgrade 后测试库版本号仍为空/异常」）。
+    alembic.ini 中的 `sqlalchemy.url` 只是占位符（`driver://user:pass@...`），需排除。
+    """
+    configured = config.get_main_option("sqlalchemy.url") or ""
+    if configured and not configured.startswith("driver://"):
+        return configured
     from app.core.config import settings
+
     return settings.DATABASE_URL
 
 
