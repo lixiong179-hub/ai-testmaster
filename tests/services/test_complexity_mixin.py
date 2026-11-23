@@ -126,3 +126,16 @@ class TestComplexityMixin:
         ]
         result = self.mixin._analyze_complexity(steps, [])
         assert result.action_variety >= 4
+
+    def test_first_matched_keyword_wins(self):
+        """关键词按固定优先级首次命中：含「点击」的动作不会被判成验证码。"""
+        steps = [self._make_step("点击验证码输入框")]
+        result = self.mixin._analyze_complexity(steps, [])
+        assert result.has_captcha is False
+        assert result.action_variety == 1
+
+    def test_unmatched_action_counts_no_variety(self):
+        steps = [self._make_step("执行一段无法归类的动作")]
+        result = self.mixin._analyze_complexity(steps, [])
+        assert result.action_variety == 0
+        assert result.step_count == 1
