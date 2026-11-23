@@ -106,9 +106,7 @@ class QualityGate(PipelineStep):
         # 避免在评分循环内对每条用例重复查询 IterationInput 表（N+1）
         user_confirmed = _check_user_confirmed(ctx.db, ctx.iteration_id)
 
-        scores = self._score_generated_cases(
-            generated_cases, ctx, signals, inferred, aligned, analyzer, user_confirmed
-        )
+        scores = self._score_generated_cases(generated_cases, ctx, signals, inferred, aligned, analyzer, user_confirmed)
         self._regenerate_d_grade(ctx, generated_cases, scores, signals, inferred, aligned, analyzer)
         payload, avg_score = self._build_quality_payload(ctx, cases_artifact, signals, scores)
 

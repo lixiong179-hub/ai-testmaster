@@ -63,9 +63,7 @@ def _step_is_complete(step: dict[str, Any]) -> bool:
     return has_action and has_expected
 
 
-def _collect_step_signals(
-    steps: list[Any], case_type: str
-) -> tuple[int, list[int], float, float]:
+def _collect_step_signals(steps: list[Any], case_type: str) -> tuple[int, list[int], float, float]:
     """汇总步骤信号：完整步数、序号列表、不确定性与人工判断扣分。"""
     complete_count = 0
     step_numbers: list[int] = []

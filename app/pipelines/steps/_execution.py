@@ -129,17 +129,13 @@ def _execute_task_based(
     return generated_cases, failed_count
 
 
-def _resolve_aligned_testpoints(
-    aligned: dict[str, Any] | None, signals: dict[str, Any] | None
-) -> list[dict[str, Any]]:
+def _resolve_aligned_testpoints(aligned: dict[str, Any] | None, signals: dict[str, Any] | None) -> list[dict[str, Any]]:
     """优先用对齐产物；缺失时把原始测试点包装成「无 UI 输入」的对齐结构。"""
     if aligned:
         return aligned.get("aligned_testpoints", [])
 
     raw_tps = signals.get("test_points", []) if signals else []
-    return [
-        {"test_point": tp, "ui_match": None, "alignment_status": "no_ui_input"} for tp in raw_tps if tp is not None
-    ]
+    return [{"test_point": tp, "ui_match": None, "alignment_status": "no_ui_input"} for tp in raw_tps if tp is not None]
 
 
 def _request_case_response(

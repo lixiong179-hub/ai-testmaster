@@ -222,9 +222,7 @@ class TestExecuteNavigate:
         executor.precondition_service = MagicMock()
         executor.precondition_service.test_object_info = MagicMock(url="https://example.com/app/")
         await executor._execute_navigate({"text": "打开 /home"})
-        executor.browser.navigate.assert_called_once_with(
-            "https://example.com/app/home", wait_until="networkidle"
-        )
+        executor.browser.navigate.assert_called_once_with("https://example.com/app/home", wait_until="networkidle")
 
     @pytest.mark.asyncio
     async def test_navigate_relative_path_without_base_url_raises(self):

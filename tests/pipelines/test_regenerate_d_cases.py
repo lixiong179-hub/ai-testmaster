@@ -141,7 +141,9 @@ class TestRegeneration:
 
     def test_analyzer_exception_falls_back_to_prior(self, monkeypatch):
         monkeypatch.setattr(case_generation, "_parse_case_response", lambda content: [{"title": "新用例"}])
-        monkeypatch.setattr(_regeneration, "_compute_analyzer_score", lambda analyzer, case: (_ for _ in ()).throw(RuntimeError("x")))
+        monkeypatch.setattr(
+            _regeneration, "_compute_analyzer_score", lambda analyzer, case: (_ for _ in ()).throw(RuntimeError("x"))
+        )
         ctx = SimpleNamespace(ai_client=_client(), iteration_id=1, db=None)
         d_entry = _entry(d_cases=[{"title": "D用例", "prior_quality_grade": "D"}])
         scores: list[dict] = []

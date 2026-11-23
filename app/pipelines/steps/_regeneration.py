@@ -125,9 +125,7 @@ def _score_regenerated_case(
     per_case_adj: float,
 ) -> dict[str, Any]:
     """给单条重生成用例打分并返回评分条目（同步回写用例字典）。"""
-    score, grade, breakdown = _resolve_regenerated_score(
-        ctx, regen_case, tp, signals, inferred, aligned, analyzer
-    )
+    score, grade, breakdown = _resolve_regenerated_score(ctx, regen_case, tp, signals, inferred, aligned, analyzer)
 
     if per_case_adj != 0.0:
         score = max(0.0, min(100.0, round(score + per_case_adj, 2)))
@@ -221,11 +219,7 @@ def _regenerate_single_entry(
     per_case_adj = _compute_regeneration_adjustment(new_case_data, _check_type_coverage)
 
     for regen_case in regen_cases:
-        scores.append(
-            _score_regenerated_case(
-                ctx, regen_case, tp, signals, inferred, aligned, analyzer, per_case_adj
-            )
-        )
+        scores.append(_score_regenerated_case(ctx, regen_case, tp, signals, inferred, aligned, analyzer, per_case_adj))
 
     _drop_stale_scores(scores, d_entry["d_score_idxs"])
 
