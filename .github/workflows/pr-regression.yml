@@ -61,10 +61,11 @@ jobs:
           DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
         run: |
+          # 不设 --cov-fail-under：本 job 只跑 2 个场景文件（实测 41%），覆盖率门槛由
+          # backend-test 的 `--cov=app --cov-fail-under=80` 承担，此处仅保留覆盖率产物用于观察。
           pytest tests/regression/test_scenario_1.py tests/regression/test_scenario_2.py \
             -v --tb=short -m "regression and scenario_fast" \
-            --cov=app.pipelines --cov=app.services \
-            --cov-fail-under=50
+            --cov=app.pipelines --cov=app.services
 
       - name: Upload test results
         if: always()
