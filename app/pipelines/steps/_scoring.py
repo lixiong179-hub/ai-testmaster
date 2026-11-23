@@ -56,67 +56,84 @@ def _extract_step_number(step: dict) -> int | None:
     return None
 
 
-def _score_steps(steps: Any, case_type: str = "") -> float:
-    if not steps:
-        return 0.0
+def _step_is_complete(step: dict[str, Any]) -> bool:
+    """步骤是否同时具备动作与预期结果。"""
+    has_action = bool(step.get("action") or step.get("description"))
+    has_expected = bool(step.get("expected_result") or step.get("expected"))
+    return has_action and has_expected
 
-    if isinstance(steps, list):
-        count = len(steps)
-    elif isinstance(steps, str):
-        return 5.0
-    else:
-        return 5.0
 
-    if count <= 0:
-        return 0.0
-    if count == 1:
-        return 5.0
-
+def _collect_step_signals(
+    steps: list[Any], case_type: str
+) -> tuple[int, list[int], float, float]:
+    """汇总步骤信号：完整步数、序号列表、不确定性与人工判断扣分。"""
     complete_count = 0
     step_numbers: list[int] = []
     uncertainty_deduction = 0.0
     manual_judgment_deduction = 0.0
 
-    for s in steps:
-        if isinstance(s, dict):
-            has_action = bool(s.get("action") or s.get("description"))
-            has_expected = bool(s.get("expected_result") or s.get("expected"))
-            if has_action and has_expected:
-                complete_count += 1
-            num = _extract_step_number(s)
-            if num is not None:
-                step_numbers.append(num)
-            action_text = s.get("action") or s.get("description") or ""
-            if STEP_UNCERTAINTY_PATTERN.search(action_text):
-                uncertainty_deduction += 3.0
-            if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action_text):
-                manual_judgment_deduction += 5.0
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        if _step_is_complete(step):
+            complete_count += 1
+        number = _extract_step_number(step)
+        if number is not None:
+            step_numbers.append(number)
+        action_text = step.get("action") or step.get("description") or ""
+        if STEP_UNCERTAINTY_PATTERN.search(action_text):
+            uncertainty_deduction += 3.0
+        if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action_text):
+            manual_judgment_deduction += 5.0
 
-    completeness_ratio = complete_count / count if count > 0 else 0.0
+    return complete_count, step_numbers, uncertainty_deduction, manual_judgment_deduction
 
-    score = round(10.0 + 10.0 * completeness_ratio, 1) if count == 2 else round(15.0 + 10.0 * completeness_ratio, 1)
 
-    if count > 7:
-        excess = count - 7
-        step_count_deduction = min(excess * 1.5, 6.0)
-        score = max(0.0, score - step_count_deduction)
+def _base_step_score(count: int, completeness_ratio: float) -> float:
+    """步骤完整性基线分：2 步与多步起点不同。"""
+    base = 10.0 if count == 2 else 15.0
+    return round(base + 10.0 * completeness_ratio, 1)
 
-    if step_numbers and len(step_numbers) >= 2:
-        sorted_nums = sorted(set(step_numbers))
-        max_num = sorted_nums[-1]
-        expected_total = max_num
-        actual_total = len(sorted_nums)
-        missing_count = expected_total - actual_total
-        if missing_count > 0:
-            deduction = min(missing_count, 5)
-            score = max(0.0, score - deduction)
 
-    uncertainty_deduction = min(uncertainty_deduction, 6.0)
-    score = max(0.0, score - uncertainty_deduction)
+def _apply_step_count_deduction(score: float, count: int) -> float:
+    """超过 7 步时按每步 1.5 分扣减，封顶 6 分。"""
+    if count <= 7:
+        return score
+    return max(0.0, score - min((count - 7) * 1.5, 6.0))
 
-    manual_judgment_deduction = min(manual_judgment_deduction, 10.0)
-    score = max(0.0, score - manual_judgment_deduction)
 
+def _apply_numbering_deduction(score: float, step_numbers: list[int]) -> float:
+    """序号不连续（最大序号 > 唯一序号数）时按缺口扣分，封顶 5 分。"""
+    if len(step_numbers) < 2:
+        return score
+    unique_numbers = sorted(set(step_numbers))
+    missing_count = unique_numbers[-1] - len(unique_numbers)
+    if missing_count <= 0:
+        return score
+    return max(0.0, score - min(missing_count, 5))
+
+
+def _score_steps(steps: Any, case_type: str = "") -> float:
+    if not steps:
+        return 0.0
+    if not isinstance(steps, list):
+        return 5.0
+
+    count = len(steps)
+    if count <= 0:
+        return 0.0
+    if count == 1:
+        return 5.0
+
+    complete_count, step_numbers, uncertainty_deduction, manual_judgment_deduction = _collect_step_signals(
+        steps, case_type
+    )
+
+    score = _base_step_score(count, complete_count / count)
+    score = _apply_step_count_deduction(score, count)
+    score = _apply_numbering_deduction(score, step_numbers)
+    score = max(0.0, score - min(uncertainty_deduction, 6.0))
+    score = max(0.0, score - min(manual_judgment_deduction, 10.0))
     return score
 
 
