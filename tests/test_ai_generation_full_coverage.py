@@ -1532,14 +1532,18 @@ class TestGenerateTestCaseFunctionBranches:
         result = generate_test_case("\u7b80\u5355\u63cf\u8ff0\u6d4b\u8bd5\u7528\u4f8b")
         assert isinstance(result, dict)
 
-    @patch("app.utils.ai_client_enhanced.generate_test_case_enhanced")
+    @patch("app.utils.ai_client_enhanced._basic.generate_test_case_enhanced")
     def test_dict_input_with_context(self, mock_enhanced):
-        mock_enhanced.return_value = {
-            "title": "\u589e\u5f3a\u6d4b\u8bd5",
-            "precondition": "\u524d\u7f6e",
-            "steps": [],
-            "expected_result": "\u7ed3\u679c",
-        }
+        # 补丁必须打在 `_basic` 模块的符号上：`_basic.generate_test_case` 用的是模块内
+        # `from ... import` 绑定，打在包属性上不会生效，会真实请求 AI 接口（CI 无密钥即 401）
+        mock_enhanced.return_value = [
+            {
+                "title": "\u589e\u5f3a\u6d4b\u8bd5",
+                "precondition": "\u524d\u7f6e",
+                "steps": [],
+                "expected_result": "\u7ed3\u679c",
+            }
+        ]
         result = generate_test_case(
             {"point": "\u6d4b\u8bd5\u70b9", "module": "\u6a21\u5757", "function": "\u529f\u80fd", "priority": 1},
             context={"requirement_content": "\u9700\u6c42"},

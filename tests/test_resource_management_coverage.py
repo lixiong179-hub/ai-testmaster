@@ -38,6 +38,10 @@ from app.api.v1.endpoints.file_export import (
 )
 
 
+# 穿越攻击的落点探针：构造上保证「本来不存在」，才验证得出「解压没有写出去」
+_TRAVERSAL_PROBE_NAME = "zip_traversal_probe_should_not_exist.txt"
+
+
 class TestZIPPathTraversalVulnerability:
     """ZIP路径穿越漏洞防护测试"""
 
@@ -61,10 +65,15 @@ class TestZIPPathTraversalVulnerability:
         return buffer.getvalue()
 
     def _create_path_traversal_zip(self) -> bytes:
-        """创建包含路径穿越攻击的ZIP文件"""
+        """创建包含路径穿越攻击的ZIP文件
+
+        落点用「必然不存在」的探针文件名，而不是 `../../../etc/passwd`：
+        后者在 Linux 上本就是系统文件，`assert not exists` 恒假（CI 必红），
+        无法反映穿越是否真的被拦截。
+        """
         buffer = BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr("../../../etc/passwd", b"hacked:0:0:root:/root:/bin/bash")
+            zf.writestr(f"../../../{_TRAVERSAL_PROBE_NAME}", b"hacked:0:0:root:/root:/bin/bash")
         return buffer.getvalue()
 
     def _create_absolute_path_zip(self) -> bytes:
@@ -98,8 +107,8 @@ class TestZIPPathTraversalVulnerability:
         assert len(failed) > 0, "路径穿越文件应该被拒绝"
         assert any("非法字符" in str(f) for f in failed), "应检测到非法路径"
 
-        etc_passwd_path = os.path.join(project_upload_dir, "..", "..", "..", "etc", "passwd")
-        assert not os.path.exists(etc_passwd_path), "不应该创建穿越路径的文件"
+        escaped_path = os.path.join(project_upload_dir, "..", "..", "..", _TRAVERSAL_PROBE_NAME)
+        assert not os.path.exists(escaped_path), "不应该创建穿越路径的文件"
 
     def test_absolute_path_zip_creates_no_files(self, db_session, test_project):
         """测试绝对路径ZIP文件被正确拒绝"""
