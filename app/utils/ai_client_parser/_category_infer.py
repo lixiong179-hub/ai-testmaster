@@ -105,45 +105,70 @@ TEST_CATEGORY_CHECK_KEYWORDS: tuple[str, ...] = (
 )
 
 
-def infer_test_category(steps: list[dict]) -> tuple[str, str]:
-    has_api = has_manual = has_performance = has_security = has_ui = has_check = False
+UI_ACTION_TYPES: tuple[str, ...] = (
+    "click",
+    "input",
+    "navigate",
+    "scroll",
+    "hover",
+    "select",
+    "captcha",
+    "refresh",
+    "keypress",
+)
+
+
+def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(kw in text for kw in keywords)
+
+
+def _step_flags(step: dict) -> dict[str, bool]:
+    """单步骤的类别信号：动作/预期拼接后按关键词族判定，UI 另看 action_type。"""
+    action = step.get("action", "")
+    action_type = step.get("action_type", "")
+    combined = f"{action} {step.get('expected_result', '')}"
+    return {
+        "api": _contains_any(combined, TEST_CATEGORY_API_KEYWORDS),
+        "manual": _contains_any(combined, TEST_CATEGORY_MANUAL_KEYWORDS),
+        "performance": _contains_any(combined, TEST_CATEGORY_PERFORMANCE_KEYWORDS),
+        "security": _contains_any(combined, TEST_CATEGORY_SECURITY_KEYWORDS),
+        "ui": _contains_any(action, TEST_CATEGORY_UI_KEYWORDS) or action_type in UI_ACTION_TYPES,
+        "check": _contains_any(action, TEST_CATEGORY_CHECK_KEYWORDS),
+    }
+
+
+def _merge_flags(steps: list[dict]) -> dict[str, bool]:
+    """多步骤信号取并集（空列表 → 全 False）。"""
+    merged: dict[str, bool] = {
+        "api": False,
+        "manual": False,
+        "performance": False,
+        "security": False,
+        "ui": False,
+        "check": False,
+    }
     for step in steps:
-        action = step.get("action", "")
-        action_type = step.get("action_type", "")
-        expected = step.get("expected_result", "")
-        combined = f"{action} {expected}"
-        if any(kw in combined for kw in TEST_CATEGORY_API_KEYWORDS):
-            has_api = True
-        if any(kw in combined for kw in TEST_CATEGORY_MANUAL_KEYWORDS):
-            has_manual = True
-        if any(kw in combined for kw in TEST_CATEGORY_PERFORMANCE_KEYWORDS):
-            has_performance = True
-        if any(kw in combined for kw in TEST_CATEGORY_SECURITY_KEYWORDS):
-            has_security = True
-        if any(kw in action for kw in TEST_CATEGORY_UI_KEYWORDS) or action_type in [
-            "click",
-            "input",
-            "navigate",
-            "scroll",
-            "hover",
-            "select",
-            "captcha",
-            "refresh",
-            "keypress",
-        ]:
-            has_ui = True
-        if any(kw in action for kw in TEST_CATEGORY_CHECK_KEYWORDS):
-            has_check = True
-    if has_security:
-        return ("security", "security")
-    elif has_performance:
-        return ("performance", "performance")
-    elif has_api:
-        return ("api_automation", "api_automation")
-    elif has_manual or (has_check and not has_ui):
-        return ("manual", "manual")
-    else:
-        return ("ui_automation", "ui_automation")
+        for key, value in _step_flags(step).items():
+            merged[key] = merged[key] or value
+    return merged
+
+
+def _resolve_category(flags: dict[str, bool]) -> str:
+    """优先级：安全 > 性能 > 接口 > 手工（含「只检查不操作」）> UI。"""
+    if flags["security"]:
+        return "security"
+    if flags["performance"]:
+        return "performance"
+    if flags["api"]:
+        return "api_automation"
+    if flags["manual"] or (flags["check"] and not flags["ui"]):
+        return "manual"
+    return "ui_automation"
+
+
+def infer_test_category(steps: list[dict]) -> tuple[str, str]:
+    category = _resolve_category(_merge_flags(steps))
+    return category, category
 
 
 ACTION_TYPE_KEYWORDS_INPUT: tuple[str, ...] = (
@@ -237,30 +262,29 @@ ACTION_TYPE_KEYWORDS_CAPTCHA: tuple[str, ...] = (
 )
 
 
+# 有序匹配表：先命中先用（顺序即优先级，勿按字母序重排）
+ACTION_TYPE_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("input", ACTION_TYPE_KEYWORDS_INPUT),
+    ("click", ACTION_TYPE_KEYWORDS_CLICK),
+    ("navigate", ACTION_TYPE_KEYWORDS_NAVIGATE),
+    ("verify", ACTION_TYPE_KEYWORDS_VERIFY),
+    ("wait", ACTION_TYPE_KEYWORDS_WAIT),
+    ("scroll", ACTION_TYPE_KEYWORDS_SCROLL),
+    ("hover", ACTION_TYPE_KEYWORDS_HOVER),
+    ("select", ACTION_TYPE_KEYWORDS_SELECT),
+    ("refresh", ACTION_TYPE_KEYWORDS_REFRESH),
+    ("keypress", ACTION_TYPE_KEYWORDS_KEYPRESS),
+    ("captcha", ACTION_TYPE_KEYWORDS_CAPTCHA),
+)
+
+DEFAULT_ACTION_TYPE = "click"
+
+
 def infer_action_type(action: str) -> str:
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_INPUT):
-        return "input"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_CLICK):
-        return "click"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_NAVIGATE):
-        return "navigate"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_VERIFY):
-        return "verify"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_WAIT):
-        return "wait"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_SCROLL):
-        return "scroll"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_HOVER):
-        return "hover"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_SELECT):
-        return "select"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_REFRESH):
-        return "refresh"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_KEYPRESS):
-        return "keypress"
-    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_CAPTCHA):
-        return "captcha"
-    return "click"
+    for action_type, keywords in ACTION_TYPE_RULES:
+        if _contains_any(action, keywords):
+            return action_type
+    return DEFAULT_ACTION_TYPE
 
 
 def extract_input_value_from_expected(expected: str) -> tuple:

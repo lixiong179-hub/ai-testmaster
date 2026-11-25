@@ -84,7 +84,9 @@ APP = "app"
 #          _find_similar_cases 12 / fit_transform 12 / _classify_steps 11）
 # → 47（B5k：export_to_functional_excel 15 / apply_normalization 13 / validate_excel_format 13 /
 #          import_functional_excel 12 / export_to_excel 11；B5 结批）
-TOTAL_BUDGET = 47
+# → 43（B6a：_extract_json_candidates 16 / _build_generation_prompt 11 /
+#          infer_test_category 12 / infer_action_type 12）
+TOTAL_BUDGET = 43
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

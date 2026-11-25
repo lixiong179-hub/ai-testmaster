@@ -103,45 +103,68 @@ def clean_json_string(json_str: str) -> str | None:
     return None
 
 
+class _JsonStringState:
+    """括号扫描时的字符串状态机：`feed` 返回 True 表示该字符已被字符串吞掉。"""
+
+    __slots__ = ("in_string", "escape")
+
+    def __init__(self) -> None:
+        self.in_string = False
+        self.escape = False
+
+    def feed(self, char: str) -> bool:
+        if not self.in_string:
+            if char == '"':
+                self.in_string = True
+                return True
+            return False
+        if self.escape:
+            self.escape = False
+        elif char == "\\":
+            self.escape = True
+        elif char == '"':
+            self.in_string = False
+        return True
+
+
+def _scan_bracket_spans(raw: str, open_char: str, close_char: str) -> list[tuple[int, int]]:
+    """扫描同层括号配对区间（跳过字符串内的括号）。"""
+    spans: list[tuple[int, int]] = []
+    stack: list[str] = []
+    start = None
+    state = _JsonStringState()
+    for index, char in enumerate(raw):
+        if state.feed(char):
+            continue
+        if char == open_char:
+            if not stack:
+                start = index
+            stack.append(char)
+        elif char == close_char and stack:
+            stack.pop()
+            if not stack and start is not None:
+                spans.append((start, index + 1))
+                start = None
+    return spans
+
+
+def _iter_fenced_blocks(raw: str):
+    """``` 包裹的代码块内容（去空白后非空才产出）。"""
+    for block in re.findall(r"```(?:json)?\s*([\s\S]*?)```", raw, flags=re.IGNORECASE):
+        text = block.strip()
+        if text:
+            yield text
+
+
 def _extract_json_candidates(raw: str):
-    fenced_blocks = re.findall(r"```(?:json)?\s*([\s\S]*?)```", raw, flags=re.IGNORECASE)
-    for block in fenced_blocks:
-        block = block.strip()
-        if block:
-            yield block
+    """按「代码块 → 原文 → 括号区间（大者优先）」顺序产出候选串。"""
+    yield from _iter_fenced_blocks(raw)
 
     stripped = raw.strip()
     if stripped:
         yield stripped
 
-    spans = []
-    for open_char, close_char in (("{", "}"), ("[", "]")):
-        stack = []
-        start = None
-        in_string = False
-        escape = False
-        for index, char in enumerate(raw):
-            if in_string:
-                if escape:
-                    escape = False
-                elif char == "\\":
-                    escape = True
-                elif char == '"':
-                    in_string = False
-                continue
-            if char == '"':
-                in_string = True
-                continue
-            if char == open_char:
-                if not stack:
-                    start = index
-                stack.append(char)
-            elif char == close_char and stack:
-                stack.pop()
-                if not stack and start is not None:
-                    spans.append((start, index + 1))
-                    start = None
-
+    spans = _scan_bracket_spans(raw, "{", "}") + _scan_bracket_spans(raw, "[", "]")
     for start, end in sorted(spans, key=lambda item: (item[1] - item[0], item[0]), reverse=True):
         yield raw[start:end]
 

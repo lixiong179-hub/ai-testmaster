@@ -72,35 +72,9 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
     if not has_ui:
         ui_desc = "无UI原型图解析结果"
     env_desc = build_project_env_info(project_config)
-    history_cases = context.get("history_cases", [])
-    history_cases_text = ""
-    if history_cases:
-        history_cases_text = "## 项目已有测试用例（覆盖摘要，仅供避重参考）\n\n"
-        history_cases_text += "以下为项目已有的测试用例摘要，仅供避免重复生成使用：\n"
-        history_cases_text += "- 这些用例已覆盖的场景无需重复生成\n"
-        history_cases_text += "- 请仅生成新场景的用例，不要改写或废弃已有用例\n"
-        history_cases_text += "- 已有用例的维护由保鲜建议流程单独处理\n\n"
-        for i, case in enumerate(history_cases, 1):
-            desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
-            history_cases_text += (
-                f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n"
-            )
-    test_points_text = ""
-    if test_points:
-        test_points_text = "## 测试点列表\n"
-        for i, tp in enumerate(test_points):
-            module = tp.get("module", "")
-            function = tp.get("function", "")
-            point = tp.get("point", "")
-            priority = tp.get("priority", 2)
-            test_points_text += f"{i + 1}. [{module} - {function}] {point} (优先级:{priority})\n"
-    extra_requirements_text = ""
-    if extra_requirements:
-        extra_requirements_text = f"""## 补充生成要求
-{extra_requirements}
-
----
-"""
+    history_cases_text = _build_history_cases_text(context.get("history_cases", []))
+    test_points_text = _build_test_points_text(test_points)
+    extra_requirements_text = _build_extra_requirements_text(extra_requirements)
     prompt = f"""你是一名高级测试工程师，请根据以下信息生成一个高质量的测试用例。
 
 {priority_rules}
@@ -169,29 +143,71 @@ def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
 5. **格式统一**：step字段为字符串类型；必须包含test_data字段（normal/boundary/abnormal三个空对象）
 """
 
-    case_type = context.get("case_type")
-    if case_type:
-        prompt += "\n## 用例类型约束\n"
-        if case_type == "ui_automation" and not has_ui:
-            prompt += (
-                "当前项目未提供UI原型图，ui_automation降级为草稿模式。\n"
-                '所有用例的 case_type 字段填写 "manual"，不得填写 "ui_automation"。\n'
-                "涉及UI交互的步骤必须标记【待确认UI】，不得编造按钮、输入框等页面元素。\n"
-                "优先生成基于需求、业务规则或人工验证视角的测试用例。\n"
-            )
-            case_type = "manual"
-        else:
-            prompt += f'所有用例的 case_type 字段必须统一为 "{case_type}"，不允许生成其他类型的用例。\n'
-            type_guidance = {
-                "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
-                "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",
-                "api_automation": "用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用",
-                "performance": "关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值",
-                "security": "关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点",
-            }
-            extra = type_guidance.get(case_type, "")
-            if extra:
-                prompt += f"{extra}\n"
-
+    prompt += _build_case_type_constraint(context.get("case_type"), has_ui)
     prompt += f"\n{get_automation_friendly_rules()}\n"
     return prompt, min_case_count
+
+
+HISTORY_CASES_HEADER = (
+    "## 项目已有测试用例（覆盖摘要，仅供避重参考）\n\n"
+    "以下为项目已有的测试用例摘要，仅供避免重复生成使用：\n"
+    "- 这些用例已覆盖的场景无需重复生成\n"
+    "- 请仅生成新场景的用例，不要改写或废弃已有用例\n"
+    "- 已有用例的维护由保鲜建议流程单独处理\n\n"
+)
+
+_CASE_TYPE_GUIDANCE: dict[str, str] = {
+    "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
+    "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",
+    "api_automation": "用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用",
+    "performance": "关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值",
+    "security": "关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点",
+}
+
+
+def _build_history_cases_text(history_cases: list[dict[str, Any]]) -> str:
+    """已有用例覆盖摘要（供避重）；无历史用例时返回空串。"""
+    if not history_cases:
+        return ""
+    lines = [HISTORY_CASES_HEADER]
+    for i, case in enumerate(history_cases, 1):
+        desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
+        lines.append(f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n")
+    return "".join(lines)
+
+
+def _build_test_points_text(test_points: list[dict[str, Any]]) -> str:
+    """测试点清单文本；无测试点时返回空串。"""
+    if not test_points:
+        return ""
+    lines = ["## 测试点列表\n"]
+    for i, tp in enumerate(test_points):
+        lines.append(
+            f"{i + 1}. [{tp.get('module', '')} - {tp.get('function', '')}] {tp.get('point', '')} "
+            f"(优先级:{tp.get('priority', 2)})\n"
+        )
+    return "".join(lines)
+
+
+def _build_extra_requirements_text(extra_requirements: str) -> str:
+    """补充要求段；为空时返回空串。"""
+    if not extra_requirements:
+        return ""
+    return f"## 补充生成要求\n{extra_requirements}\n\n---\n"
+
+
+def _build_case_type_constraint(case_type: str | None, has_ui: bool) -> str:
+    """用例类型约束段：ui_automation 在无 UI 原型时降级为 manual 草稿模式。"""
+    if not case_type:
+        return ""
+    if case_type == "ui_automation" and not has_ui:
+        return (
+            "\n## 用例类型约束\n"
+            "当前项目未提供UI原型图，ui_automation降级为草稿模式。\n"
+            '所有用例的 case_type 字段填写 "manual"，不得填写 "ui_automation"。\n'
+            "涉及UI交互的步骤必须标记【待确认UI】，不得编造按钮、输入框等页面元素。\n"
+            "优先生成基于需求、业务规则或人工验证视角的测试用例。\n"
+        )
+    text = f'\n## 用例类型约束\n所有用例的 case_type 字段必须统一为 "{case_type}"，不允许生成其他类型的用例。\n'
+    guidance = _CASE_TYPE_GUIDANCE.get(case_type, "")
+    return text + (f"{guidance}\n" if guidance else "")
