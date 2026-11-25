@@ -41,9 +41,7 @@ class ActionExecutorInputClickMixin:
         logger.error(f"无法定位输入元素: {text}")
         raise StepExecutionError(f"无法定位输入元素: {text}")
 
-    def _resolve_input_text(
-        self, text: str, action_info: dict[str, Any], step_test_data: dict[str, str] | None
-    ) -> str:
+    def _resolve_input_text(self, text: str, action_info: dict[str, Any], step_test_data: dict[str, str] | None) -> str:
         """确定输入值：显式参数 > 文本提取 > 测试数据字段匹配 > 测试数据首个值。"""
         input_text = action_info.get("input_value", "") or self._extract_input_text(text)
         if not step_test_data:
@@ -61,9 +59,7 @@ class ActionExecutorInputClickMixin:
             logger.info(f"使用测试数据第一个值: {input_text}")
         return input_text
 
-    async def _input_by_smart_locate(
-        self, text: str, input_text: str, step_test_data: dict[str, str] | None
-    ) -> bool:
+    async def _input_by_smart_locate(self, text: str, input_text: str, step_test_data: dict[str, str] | None) -> bool:
         """智能定位输入：CSS 填充优先，失败降级坐标 + 原生 setter 注入。"""
         try:
             element_info = await self.smart_locate_with_ai_fallback(text, step_test_data)

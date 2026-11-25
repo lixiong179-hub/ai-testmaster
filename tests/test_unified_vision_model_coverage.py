@@ -261,14 +261,19 @@ class TestUnifiedVisionModelWithoutAPIKey(unittest.TestCase):
     def test_recognize_elements_without_api_key(self):
         """测试没有API Key时返回空列表"""
         model = UnifiedVisionModel(model_type=VisionModelType.KIMI, api_key=None)
+        # 构造函数会回退到 env/settings 的密钥（本地 .env 有值 → 会真发请求）；
+        # 这里显式清空，保证用例命中「未配置」分支而不是依赖机器环境
+        model.api_key = None
         result = model.recognize_elements(screenshot=b"fake_data", description="test")
         self.assertEqual(result, [])
 
     def test_describe_screenshot_without_api_key(self):
         """测试没有API Key时返回提示信息"""
         model = UnifiedVisionModel(model_type=VisionModelType.KIMI, api_key=None)
+        model.api_key = None  # 同上：阻断 env/settings 回退
         result = model.describe_screenshot(screenshot=b"fake_data")
-        self.assertEqual(result, "无法描述页面内容")
+        # 实现已收敛为统一的「视觉模型未配置」提示（旧文案「无法描述页面内容」是请求失败兜底）
+        self.assertEqual(result, "视觉模型未配置")
 
 
 class TestParseElementRecognition(unittest.TestCase):

@@ -1,39 +1,45 @@
 # ==================== Core Framework ====================
 fastapi==0.135.1
+# 显式钉住 starlette：修复 PYSEC-2026-248/249/2280/2281（修复版本 1.3.0/1.3.1/1.1.0/1.1.0）
+# 此前被 prometheus-fastapi-instrumentator 7.x 的 `starlette<1.0.0` 上界压到 0.52.1（受影响）
+starlette==1.4.1
 uvicorn==0.41.0
 pydantic==2.12.5
-pydantic-settings==2.13.1
+pydantic-settings==2.14.2  # 修复 1 条公告
 # SSE 流式响应支持（mcp_server / visual_ai 等端点依赖）
 sse-starlette==2.1.3
 
 # ==================== Database ====================
 sqlalchemy==2.0.48
 pymysql==1.1.2          # 同步驱动（现有同步引擎使用）
-aiomysql==0.2.0         # 异步驱动（AsyncSession 渐进式迁移基础设施使用）
+aiomysql==0.3.0         # 异步驱动（AsyncSession 渐进式迁移基础设施使用）；0.3.0 修复 PYSEC-2026-1110
 alembic==1.18.4
 
 # ==================== Authentication & Security ====================
-python-jose==3.5.0
-cryptography==46.0.6
+# JWT 编解码改用 PyJWT：原 python-jose 强依赖 ecdsa，而 ecdsa 0.19.x 的
+# PYSEC-2026-1325（P-256 计时攻击）上游无修复版本，移除依赖是唯一根治方式。
+# 本仓库仅使用 HS256，PyJWT 的 encode/decode 签名与 python-jose 完全一致。
+PyJWT==2.15.1
+cryptography==50.0.0    # 修复 PYSEC-2026-36/3552/3553/3554
 bcrypt==4.1.2
 passlib==1.7.4
 pyotp==2.9.0
 qrcode==7.4.2
 # Phase 3 Task 5: OIDC SSO 适配（OAuth2/OIDC 标准流程 + IdP 配置）
-authlib==1.3.2
+authlib==1.9.1          # 修复 PYSEC-2026-188/4354/4355/4356/4357/4358/4359/4360/CVE-2026-96760/116672
 # Phase 3 Task 4: SAML 2.0 SSO SP 适配（Okta/Azure AD 兼容）
 python3-saml==1.16.0
 
 # ==================== File Handling ====================
-python-multipart==0.0.22
+python-multipart==0.0.31  # 修复 PYSEC-2026-3036/3038/3039/3040
 python-docx==1.1.0
 openpyxl==3.1.5
 pandas==2.2.2
-PyPDF2==3.0.1
+pypdf==7.1.1            # PyPDF2 已 EOL 且 GHSA-4vvm-4w3v-6mr8 无 PyPDF2 修复版本；代码本就 import pypdf
 
 # ==================== HTTP Clients ====================
 httpx==0.28.1
-requests==2.32.5
+requests==2.33.0        # 修复 2 条公告
 
 # ==================== AI ====================
 openai==2.33.0
@@ -48,7 +54,8 @@ APScheduler==3.10.4
 boto3==1.35.0
 
 # ==================== Monitoring ====================
-prometheus-fastapi-instrumentator==7.0.0
+# 8.x 才放开 starlette 上界（7.x 为 `starlette<1.0.0`，会把 starlette 压到受影响的 0.5x）
+prometheus-fastapi-instrumentator==8.1.0
 
 # ==================== Browser Automation ====================
 playwright==1.58.0
@@ -58,10 +65,10 @@ playwright-stealth==2.0.2
 numpy==2.2.6
 opencv-python-headless==4.13.0.92
 beautifulsoup4==4.14.3
-Pillow==11.0.0
+Pillow==13.0.0          # 修复 71 条 CVE-2026-1123xx 系列
 
 # ==================== PDF Generation ====================
-weasyprint==59.0
+weasyprint==70.0        # 修复 PYSEC-2026-2034/3412/3940/4311
 
 # ==================== Logging ====================
 loguru==0.7.3
@@ -71,10 +78,11 @@ python-dotenv==1.2.2
 email-validator==2.3.0
 
 # ==================== Testing ====================
-pytest==9.0.2
+pytest==9.0.3           # 修复 PYSEC-2026-1845
 pytest-asyncio==1.3.0
 pytest-cov==7.1.0
 pytest-split==0.11.0
+fakeredis==2.37.0       # 测试用 Redis 替身；CI 只装 requirements.txt，缺失会导致 4 个模块 collection error
 
 # ==================== Production Server (Linux only) ====================
 gunicorn==23.0.0

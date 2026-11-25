@@ -92,9 +92,7 @@ class TestScoringLoop:
 
     def test_coverage_gap_penalises_per_case(self, monkeypatch):
         _patch_prior(monkeypatch, score=80.0, grade="B")
-        ctx = _ctx(
-            {"generated_cases": _cases(case_data=[{"title": "A"}, {"title": "B"}], coverage_gap=["x", "y"])}
-        )
+        ctx = _ctx({"generated_cases": _cases(case_data=[{"title": "A"}, {"title": "B"}], coverage_gap=["x", "y"])})
 
         payload = qg.QualityGate().execute(ctx).artifact_payload
 

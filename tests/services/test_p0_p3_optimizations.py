@@ -55,6 +55,8 @@ class TestConfigSecurity:
             JWT_SECRET_KEY="test-secret-key",
             ENCRYPTION_KEY="test-enc-key",
             ENCRYPTION_SALT="test-salt",
+            # 显式指定，避免依赖本地 .env 的 CORS_ORIGINS（CI 无 .env 时默认是显式源列表）
+            CORS_ORIGINS="*",
         )
 
         assert s.CORS_ORIGINS == "*"

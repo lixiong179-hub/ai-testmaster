@@ -1,5 +1,9 @@
-import pytest
+import subprocess
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock, AsyncMock
+
+import pytest
+
 from app.utils.adb_controller._core import (
     AdbError,
     DeviceNotConnectedError,
@@ -13,6 +17,25 @@ from app.utils.adb_controller._input import _InputMixin
 
 class _ConcreteController(_DeviceMixin, _InputMixin, _AdbControllerBase):
     pass
+
+
+@contextmanager
+def _fake_adb_exec(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0, timeout: bool = False):
+    """同时替换 win32 分支（`subprocess.run`）与 posix 分支（`asyncio.create_subprocess_exec`）。
+
+    `_execute_command` 按 `sys.platform` 走两条实现，只 patch `subprocess.run` 时
+    Linux/CI 上会真实调用 adb（未安装 → FileNotFoundError），用例因此平台相关。
+    """
+    if timeout:
+        run_patch = patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="adb", timeout=1))
+        exec_patch = patch("asyncio.create_subprocess_exec", AsyncMock(side_effect=TimeoutError))
+    else:
+        run_patch = patch("subprocess.run", return_value=MagicMock(stdout=stdout, stderr=stderr, returncode=returncode))
+        proc = MagicMock(returncode=returncode)
+        proc.communicate = AsyncMock(return_value=(stdout, stderr))
+        exec_patch = patch("asyncio.create_subprocess_exec", AsyncMock(return_value=proc))
+    with run_patch, exec_patch:
+        yield
 
 
 class TestAdbErrors:
@@ -81,23 +104,21 @@ class TestAdbControllerBase:
     @pytest.mark.asyncio
     async def test_execute_command_timeout(self):
         ctrl = _AdbControllerBase(default_timeout=1)
-        with patch("subprocess.run", side_effect=__import__("subprocess").TimeoutExpired(cmd="adb", timeout=1)):
+        with _fake_adb_exec(timeout=True):
             with pytest.raises(AdbCommandTimeoutError):
                 await ctrl._execute_command("devices")
 
     @pytest.mark.asyncio
     async def test_execute_command_failure(self):
         ctrl = _AdbControllerBase()
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=1, stdout=b"", stderr=b"error")
+        with _fake_adb_exec(stderr=b"error", returncode=1):
             with pytest.raises(AdbError, match="ADB command failed"):
                 await ctrl._execute_command("devices", check=True)
 
     @pytest.mark.asyncio
     async def test_execute_command_success(self):
         ctrl = _AdbControllerBase()
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout=b"output", stderr=b"")
+        with _fake_adb_exec(stdout=b"output"):
             code, stdout, stderr = await ctrl._execute_command("devices")
             assert code == 0
             assert stdout == "output"

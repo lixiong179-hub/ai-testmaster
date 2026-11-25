@@ -97,9 +97,7 @@ async def test_precondition_skips_without_service():
 async def test_precondition_reuses_logged_in_session():
     stub = _Stub()
     stub.precondition_service = _mock_service()
-    stub.precondition_service.execute_web_precondition = AsyncMock(
-        return_value=MagicMock(_page=object())
-    )
+    stub.precondition_service.execute_web_precondition = AsyncMock(return_value=MagicMock(_page=object()))
 
     with patch(SLEEP_TARGET, new=AsyncMock()):
         await stub._execute_precondition(1)

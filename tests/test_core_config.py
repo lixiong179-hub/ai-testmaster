@@ -151,22 +151,29 @@ class TestEnsureSecretKeys:
             s._ensure_secret_keys()
 
     def test_prod_wildcard_cors_raises(self):
+        # 显式给出合法的 ENCRYPTION_KEY/SALT：否则会先命中密钥长度校验（本地 .env 有值、
+        # CI 无 .env 时默认空串），断言 CORS 的用例会因报错信息不同而失败
         s = Settings(
             DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
+            ENCRYPTION_KEY="k" * 32,
+            ENCRYPTION_SALT="s" * 32,
             CORS_ORIGINS="*",
         )
         with pytest.raises(ValueError, match="CORS_ORIGINS"):
             s._ensure_secret_keys()
 
     def test_prod_empty_cors_raises(self):
+        # 同上：固定加密密钥，保证断言落在 CORS 分支而非密钥长度校验
         s = Settings(
             DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
+            ENCRYPTION_KEY="k" * 32,
+            ENCRYPTION_SALT="s" * 32,
             CORS_ORIGINS="",
         )
         with pytest.raises(ValueError, match="CORS_ORIGINS"):

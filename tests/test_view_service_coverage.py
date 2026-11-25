@@ -8,6 +8,8 @@ import sys
 import os
 import unittest
 from datetime import datetime
+from uuid import uuid4
+
 import pytest
 
 # pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
@@ -21,6 +23,7 @@ from app.services.test_case_view_service import TestCaseViewService
 from app.models.project import Project
 from app.models.test_case import TestCase, TestStep
 from app.models.element_locator import ElementLocator
+from app.models.user import User
 
 
 class TestViewServiceCoverage(unittest.TestCase):
@@ -32,9 +35,23 @@ class TestViewServiceCoverage(unittest.TestCase):
         cls.db = PrimarySessionLocal()
         cls.service = TestCaseViewService(cls.db)
 
+        # 自建用户（而非写死 user_id=1）：全新库上 projects.user_id 有外键约束，
+        # 依赖「库里已存在 id=1」会让用例在干净环境集体 1452 失败。
+        token = uuid4().hex[:12]
+        cls.test_user = User(
+            username=f"view_cov_{token}",
+            email=f"view_cov_{token}@example.com",
+            password_hash="not-a-real-hash",
+        )
+        cls.db.add(cls.test_user)
+        cls.db.flush()
+
         # 创建测试项目
         cls.test_project = Project(
-            name=f"覆盖率测试项目_{int(datetime.now().timestamp())}", description="用于覆盖率测试", status=1, user_id=1
+            name=f"覆盖率测试项目_{int(datetime.now().timestamp())}",
+            description="用于覆盖率测试",
+            status=1,
+            user_id=cls.test_user.id,
         )
         cls.db.add(cls.test_project)
         cls.db.commit()
@@ -96,6 +113,7 @@ class TestViewServiceCoverage(unittest.TestCase):
         cls.db.query(TestStep).filter(TestStep.test_case_id == cls.test_case.id).delete(synchronize_session=False)
         cls.db.query(TestCase).filter(TestCase.id == cls.test_case.id).delete(synchronize_session=False)
         cls.db.query(Project).filter(Project.id == cls.test_project.id).delete(synchronize_session=False)
+        cls.db.query(User).filter(User.id == cls.test_user.id).delete(synchronize_session=False)
         cls.db.commit()
         cls.db.close()
         print("\n✅ 清理测试数据完成")

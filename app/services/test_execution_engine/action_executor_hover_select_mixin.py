@@ -149,9 +149,7 @@ class ActionExecutorHoverSelectMixin:
             logger.warning(f"CSS选择器选择失败: {e}")
             return False
 
-    async def _select_by_coordinate(
-        self, element_info: dict[str, Any], select_value: str, text: str
-    ) -> bool:
+    async def _select_by_coordinate(self, element_info: dict[str, Any], select_value: str, text: str) -> bool:
         """坐标方式选择：点击元素中心后在落点处查 SELECT 并选中匹配项。"""
         x = element_info.get("x", 0) + element_info.get("width", 0) // 2
         y = element_info.get("y", 0) + element_info.get("height", 0) // 2

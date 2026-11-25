@@ -145,9 +145,7 @@ class AIRecognitionMixin:
                 return element_info
         return None
 
-    async def _try_ai_locate_once(
-        self, action_text: str, attempt: int, max_retries: int
-    ) -> dict[str, Any] | None:
+    async def _try_ai_locate_once(self, action_text: str, attempt: int, max_retries: int) -> dict[str, Any] | None:
         """单次 AI 识别；异常只记日志并返回 None，交由下一轮重试。"""
         try:
             screenshot = await self.browser.take_screenshot()

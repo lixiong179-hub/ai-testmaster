@@ -12,12 +12,14 @@ os.chdir(project_root)
 
 import unittest
 from datetime import datetime
+from uuid import uuid4
 
 from app.models.element_locator import ElementLocator
 from app.db.database import PrimarySessionLocal
 from app.services.test_case_view_service import TestCaseViewService
 from app.models.project import Project
 from app.models.test_case import TestCase, TestStep
+from app.models.user import User
 
 
 class TestViewServiceIssues(unittest.TestCase):
@@ -28,8 +30,22 @@ class TestViewServiceIssues(unittest.TestCase):
         cls.db = PrimarySessionLocal()
         cls.service = TestCaseViewService(cls.db)
 
+        # 自建用户（而非写死 user_id=1）：全新库上 projects.user_id 有外键约束，
+        # 依赖「库里已存在 id=1」会让用例在干净环境集体 1452 失败。
+        token = uuid4().hex[:12]
+        cls.test_user = User(
+            username=f"view_issues_{token}",
+            email=f"view_issues_{token}@example.com",
+            password_hash="not-a-real-hash",
+        )
+        cls.db.add(cls.test_user)
+        cls.db.flush()
+
         cls.test_project = Project(
-            name=f"问题发现测试_{int(datetime.now().timestamp())}", description="测试潜在问题", status=1, user_id=1
+            name=f"问题发现测试_{int(datetime.now().timestamp())}",
+            description="测试潜在问题",
+            status=1,
+            user_id=cls.test_user.id,
         )
         cls.db.add(cls.test_project)
         cls.db.commit()
@@ -38,6 +54,7 @@ class TestViewServiceIssues(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.db.delete(cls.test_project)
+        cls.db.delete(cls.test_user)
         cls.db.commit()
         cls.db.close()
 

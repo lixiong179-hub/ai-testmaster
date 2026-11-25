@@ -130,7 +130,6 @@ scripts/cases_output.txt
 scripts/tablet70_generation_comparison.json
 scripts/delete_project_cases.py
 scripts/delete_recent_cases.py
-alembic/versions/alter_test_result_task_id_set_null.py
 e2e_hidden_bug_test.py
 start_all.py
 scripts/add_missing_columns.py

@@ -88,9 +88,7 @@ class SelfHealingUtilsMixin:
     def _selector_from_class_or_tag(self, element_attrs: dict[str, Any]) -> str | None:
         """末级兜底：class 组合（至多 2 个）> tag+type > 单独 tag。"""
         tag = self._safe_attr_value(element_attrs, "tag")
-        classes = [
-            self._sanitize_css_identifier(cls) for cls in (element_attrs.get("class") or "").split()[:2]
-        ]
+        classes = [self._sanitize_css_identifier(cls) for cls in (element_attrs.get("class") or "").split()[:2]]
         classes = [cls for cls in classes if cls]
         if classes:
             class_selector = "." + ".".join(classes)

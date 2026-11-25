@@ -10,8 +10,10 @@ AI客户端JSON解析增强单元测试
 - fix_common_json_issues() 通用修复
 """
 
-import pytest
 import json
+import os
+
+import pytest
 
 from app.utils.ai_client_parser import (
     clean_json_string,
@@ -422,6 +424,10 @@ class TestContentProtection:
 
 
 class TestAIClientInit:
+    @pytest.mark.skipif(
+        not os.getenv("DEEPSEEK_API_KEY"),
+        reason="未配置 DEEPSEEK_API_KEY（CI 无真实密钥），跳过密钥加载断言",
+    )
     def test_api_key_loaded(self, ai_client):
         assert ai_client.api_key is not None
         assert len(ai_client.api_key) > 0

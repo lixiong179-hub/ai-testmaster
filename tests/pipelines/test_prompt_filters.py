@@ -64,9 +64,7 @@ class TestFilterPrd:
         by_point = "订单详情规则。"
         content = "\n\n".join([filler, by_module, by_function, by_point])
 
-        result = _filter_prd_by_testpoint(
-            content, {"module": "支付模块", "function": "退款", "point": "订单详情"}
-        )
+        result = _filter_prd_by_testpoint(content, {"module": "支付模块", "function": "退款", "point": "订单详情"})
 
         assert by_module in result
         assert by_function in result

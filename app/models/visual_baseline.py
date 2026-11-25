@@ -57,7 +57,16 @@ class VisualBaseline(Base):
     __tablename__ = "visual_baselines"
     __table_args__ = (
         # 复合索引：按项目+页面+视口检索当前基线（测试执行主查询路径）
-        Index("idx_baseline_project_page", "project_id", "page_url", "viewport_width", "viewport_height"),
+        # page_url 为 VARCHAR(1024)，utf8mb4 下整列 4096 字节会超出 InnoDB 3072 字节索引上限
+        # （`Specified key was too long`，仅在全新库建表时暴露）；此处取 255 前缀，等值查询仍可命中
+        Index(
+            "idx_baseline_project_page",
+            "project_id",
+            "page_url",
+            "viewport_width",
+            "viewport_height",
+            mysql_length={"page_url": 255},
+        ),
         # 复合索引：按项目+状态检索活跃基线（基线管理页面）
         Index("idx_baseline_project_status", "project_id", "status"),
         # 复合索引：按用例维度检索基线
