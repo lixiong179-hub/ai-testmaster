@@ -5,12 +5,10 @@ from typing import Any, ClassVar
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 from app.pipelines.steps.testpoint_alignment._helpers import (
+    _align_test_points,
     _extract_inferred_capabilities,
     _extract_scenario_candidates,
-    _find_matching_screens,
-    _find_matching_capability,
-    _find_matching_scenario,
-    _build_no_match_note,
+    _detect_sources,
     _align_from_inferred_only,
     _compute_coverage,
     _compute_alignment_confidence,
@@ -78,56 +76,16 @@ class TestPointAlignment(PipelineStep):
         candidates = ctx.get_artifact("scenario_candidates")
         scenario_cands = _extract_scenario_candidates(candidates)
 
-        aligned = []
-        conflicts = []
-
-        sources = {
-            "ui": has_ui and len(ui_specs) > 0,
-            "inferred": len(inferred_caps) > 0,
-            "scenario": len(scenario_cands) > 0,
-        }
-        active_sources = [k for k, v in sources.items() if v]
-
-        for tp in test_points:
-            entry = {
-                "test_point": tp,
-                "ui_match": None,
-                "capability_match": None,
-                "scenario_match": None,
-                "alignment_status": "aligned",
-                "notes": "",
-            }
-
-            any_source_match = False
-
-            if sources["ui"]:
-                matched_screens = _find_matching_screens(tp, ui_specs)
-                if matched_screens:
-                    entry["ui_match"] = matched_screens[0]
-                    any_source_match = True
-
-            if sources["inferred"]:
-                matched_cap = _find_matching_capability(tp, inferred_caps)
-                if matched_cap:
-                    entry["capability_match"] = matched_cap
-                    any_source_match = True
-
-            if sources["scenario"]:
-                matched_scenario = _find_matching_scenario(tp, scenario_cands)
-                if matched_scenario:
-                    entry["scenario_match"] = matched_scenario
-                    any_source_match = True
-
-            if not any_source_match:
-                if has_ui or sources["inferred"] or sources["scenario"]:
-                    entry["alignment_status"] = "no_ui_match"
-                    entry["notes"] = _build_no_match_note(tp, active_sources)
-                    conflicts.append(entry)
-                else:
-                    entry["alignment_status"] = "no_sources"
-                    entry["notes"] = "无可对齐的源（无 UI / 反推能力 / 场景候选）"
-
-            aligned.append(entry)
+        sources, active_sources = _detect_sources(has_ui, ui_specs, inferred_caps, scenario_cands)
+        aligned, conflicts = _align_test_points(
+            test_points,
+            sources,
+            active_sources,
+            has_ui,
+            ui_specs,
+            inferred_caps,
+            scenario_cands,
+        )
 
         if not test_points and inferred_caps:
             aligned, conflicts = _align_from_inferred_only(inferred_caps)

@@ -132,6 +132,52 @@ class TestLoadUiFromInput:
         assert len(ui_desc) == 1
         assert len(ui_spec) == 0
 
+    def test_duplicate_screen_ids_deduped(self, db, testProject):
+        from app.models.ui_prototype import UIPrototypeScreen
+
+        screen = UIPrototypeScreen(
+            project_id=testProject.id,
+            prototype_name="proto",
+            screen_name="去重页面",
+            screen_order=0,
+            parse_status="completed",
+            summary="摘要",
+            ui_spec={"elements": []},
+        )
+        db.add(screen)
+        db.flush()
+
+        inp = _make_input(payload={"screen_ids": [screen.id, screen.id]})
+        ui_desc, _, _ = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
+        assert len(ui_desc) == 1
+
+    def test_with_prototype_project_id_payload(self, db, testProject):
+        from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
+
+        proto_project = UIPrototypeProject(project_id=testProject.id, name="原型项目A")
+        db.add(proto_project)
+        db.flush()
+
+        db.add(
+            UIPrototypeScreen(
+                project_id=testProject.id,
+                prototype_name="原型项目A",
+                prototype_project_id=proto_project.id,
+                screen_name="原型页面",
+                screen_order=0,
+                parse_status="completed",
+                summary="原型摘要",
+                ui_spec={"elements": [{"type": "input", "text": "用户名"}]},
+            )
+        )
+        db.flush()
+
+        inp = _make_input(payload={"prototype_project_id": proto_project.id})
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
+        assert [d["screen_name"] for d in ui_desc] == ["原型页面"]
+        assert len(ui_spec) == 1
+        assert fids == []
+
     def test_with_file_id_fallback(self, db, testProject):
         from app.models.ui_prototype import UIPrototypeScreen
         from app.models.project import ProjectFile

@@ -156,6 +156,88 @@ def _build_no_match_note(tp: dict[str, Any], active_sources: list[str]) -> str:
     return f"测试点 '{tp_point}' 未在 {'/'.join(labels)} 中找到匹配"
 
 
+def _detect_sources(
+    has_ui: bool,
+    ui_specs: list[dict[str, Any]],
+    inferred_caps: list[dict[str, Any]],
+    scenario_cands: list[dict[str, Any]],
+) -> tuple[dict[str, bool], list[str]]:
+    """三路对齐源是否可用 → (sources 字典, 可用源列表)。"""
+    sources = {
+        "ui": has_ui and len(ui_specs) > 0,
+        "inferred": len(inferred_caps) > 0,
+        "scenario": len(scenario_cands) > 0,
+    }
+    return sources, [name for name, enabled in sources.items() if enabled]
+
+
+def _probe_matches(
+    tp: dict[str, Any],
+    sources: dict[str, bool],
+    ui_specs: list[dict[str, Any]],
+    inferred_caps: list[dict[str, Any]],
+    scenario_cands: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """单测试点在可用源上各取最佳匹配（未启用/未命中即为 None）。"""
+    matches: dict[str, Any] = {"ui_match": None, "capability_match": None, "scenario_match": None}
+    if sources["ui"]:
+        screens = _find_matching_screens(tp, ui_specs)
+        if screens:
+            matches["ui_match"] = screens[0]
+    if sources["inferred"]:
+        capability = _find_matching_capability(tp, inferred_caps)
+        if capability:
+            matches["capability_match"] = capability
+    if sources["scenario"]:
+        scenario = _find_matching_scenario(tp, scenario_cands)
+        if scenario:
+            matches["scenario_match"] = scenario
+    return matches
+
+
+def _classify_unmatched(
+    entry: dict[str, Any],
+    tp: dict[str, Any],
+    has_ui: bool,
+    sources: dict[str, bool],
+    active_sources: list[str],
+) -> bool:
+    """全部源都未命中时定状态；返回是否计入 conflicts。"""
+    if has_ui or sources["inferred"] or sources["scenario"]:
+        entry["alignment_status"] = "no_ui_match"
+        entry["notes"] = _build_no_match_note(tp, active_sources)
+        return True
+    entry["alignment_status"] = "no_sources"
+    entry["notes"] = "无可对齐的源（无 UI / 反推能力 / 场景候选）"
+    return False
+
+
+def _align_test_points(
+    test_points: list[dict[str, Any]],
+    sources: dict[str, bool],
+    active_sources: list[str],
+    has_ui: bool,
+    ui_specs: list[dict[str, Any]],
+    inferred_caps: list[dict[str, Any]],
+    scenario_cands: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """逐测试点对齐 → (aligned, conflicts)。"""
+    aligned: list[dict[str, Any]] = []
+    conflicts: list[dict[str, Any]] = []
+    for tp in test_points:
+        matches = _probe_matches(tp, sources, ui_specs, inferred_caps, scenario_cands)
+        entry: dict[str, Any] = {
+            "test_point": tp,
+            **matches,
+            "alignment_status": "aligned",
+            "notes": "",
+        }
+        if not any(matches.values()) and _classify_unmatched(entry, tp, has_ui, sources, active_sources):
+            conflicts.append(entry)
+        aligned.append(entry)
+    return aligned, conflicts
+
+
 def _align_from_inferred_only(
     inferred_caps: list[dict[str, Any]],
 ) -> tuple:

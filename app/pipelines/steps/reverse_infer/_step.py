@@ -4,8 +4,7 @@ from typing import Any
 from app.pipelines.steps.reverse_infer._helpers import (
     _hash_dict,
     _clamp_float,
-    _build_ui_text,
-    _build_fingerprint_text,
+    _build_prompts,
     _parse_infer_response,
     _validate_new_project_output,
     _validate_old_project_output,
@@ -14,14 +13,6 @@ from app.pipelines.steps.reverse_infer._helpers import (
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
-from app.pipelines.steps.reverse_infer_prompts import (
-    _SYSTEM_NEW_PROJECT,
-    _SYSTEM_OLD_PROJECT,
-    _SYSTEM_OLD_PROJECT_NO_UI,
-    _USER_NEW_PROJECT,
-    _USER_OLD_PROJECT,
-    _USER_OLD_PROJECT_NO_UI,
-)
 
 
 class ReverseInfer(PipelineStep):
@@ -67,37 +58,16 @@ class ReverseInfer(PipelineStep):
         if not project_id:
             return StepResult(success=False, error="raw_signals 缺少 project_id")
 
-        ui_descriptions = raw_signals.get("ui_descriptions", [])
-        ui_specs = raw_signals.get("ui_specs", [])
         fingerprints = ctx.get_artifact("history_fingerprints")
         is_old_project = (fingerprints is not None and fingerprints.get("total_count", 0) > 0) or raw_signals.get(
             "is_old_project", False
         )
-        has_ui = bool(ui_descriptions or ui_specs)
+        has_ui = bool(raw_signals.get("ui_descriptions") or raw_signals.get("ui_specs"))
 
-        if not has_ui:
-            if is_old_project and fingerprints and fingerprints.get("total_count", 0) > 0:
-                system_prompt = _SYSTEM_OLD_PROJECT_NO_UI
-                fp_text = _build_fingerprint_text(fingerprints)
-                # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-                user_prompt = _USER_OLD_PROJECT_NO_UI.format(fingerprint_text=fp_text)
-                change_notes = raw_signals.get("change_notes", "")
-                if change_notes:
-                    user_prompt = f"{user_prompt}\n\n## 变更说明\n\n{str(change_notes)[:2000]}"
-                ui_text = fp_text
-            else:
-                return StepResult(success=False, error="无 UI 信息，无法反推")
-        elif is_old_project:
-            ui_text = _build_ui_text(ui_descriptions, ui_specs)
-            system_prompt = _SYSTEM_OLD_PROJECT
-            fp_text = _build_fingerprint_text(fingerprints)
-            # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-            user_prompt = _USER_OLD_PROJECT.format(ui_text=ui_text, fingerprint_text=fp_text)
-        else:
-            ui_text = _build_ui_text(ui_descriptions, ui_specs)
-            system_prompt = _SYSTEM_NEW_PROJECT
-            # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-            user_prompt = _USER_NEW_PROJECT.format(ui_text=ui_text)
+        prompts = _build_prompts(raw_signals, is_old_project, fingerprints)
+        if prompts is None:
+            return StepResult(success=False, error="无 UI 信息，无法反推")
+        system_prompt, user_prompt, ui_text = prompts
 
         try:
             response = ctx.get_ai_client().complete(

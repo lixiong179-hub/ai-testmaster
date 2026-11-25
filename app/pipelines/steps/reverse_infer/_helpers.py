@@ -3,6 +3,15 @@ import json
 import re
 from typing import Any
 
+from app.pipelines.steps.reverse_infer_prompts import (
+    _SYSTEM_NEW_PROJECT,
+    _SYSTEM_OLD_PROJECT,
+    _SYSTEM_OLD_PROJECT_NO_UI,
+    _USER_NEW_PROJECT,
+    _USER_OLD_PROJECT,
+    _USER_OLD_PROJECT_NO_UI,
+)
+
 
 _CONFIDENCE_THRESHOLD: float = 0.7
 _MAX_UI_CHARS: int = 4000
@@ -90,6 +99,44 @@ def _build_fingerprint_text(fingerprints: dict[str, Any] | None) -> str:
     if len(text) > 3000:
         text = text[:3000] + "\n...(指纹信息过长已截断)"
     return text
+
+
+def _build_prompts(
+    raw_signals: dict[str, Any],
+    is_old_project: bool,
+    fingerprints: dict[str, Any] | None,
+) -> tuple[str, str, str] | None:
+    """按「有无 UI × 新旧项目」选择提示词，返回 (system, user, ui_text)。
+
+    无 UI 且没有可复用的历史指纹时返回 None（调用方转成「无法反推」失败结果）。
+    模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 `.format()`。
+    """
+    ui_descriptions = raw_signals.get("ui_descriptions", [])
+    ui_specs = raw_signals.get("ui_specs", [])
+    if not (ui_descriptions or ui_specs):
+        return _prompts_from_fingerprints_only(raw_signals, is_old_project, fingerprints)
+
+    ui_text = _build_ui_text(ui_descriptions, ui_specs)
+    if is_old_project:
+        fp_text = _build_fingerprint_text(fingerprints)
+        return _SYSTEM_OLD_PROJECT, _USER_OLD_PROJECT.format(ui_text=ui_text, fingerprint_text=fp_text), ui_text
+    return _SYSTEM_NEW_PROJECT, _USER_NEW_PROJECT.format(ui_text=ui_text), ui_text
+
+
+def _prompts_from_fingerprints_only(
+    raw_signals: dict[str, Any],
+    is_old_project: bool,
+    fingerprints: dict[str, Any] | None,
+) -> tuple[str, str, str] | None:
+    """老项目无 UI：用历史指纹当上下文，并追加变更说明（截断 2000 字）。"""
+    if not (is_old_project and fingerprints and fingerprints.get("total_count", 0) > 0):
+        return None
+    fp_text = _build_fingerprint_text(fingerprints)
+    user_prompt = _USER_OLD_PROJECT_NO_UI.format(fingerprint_text=fp_text)
+    change_notes = raw_signals.get("change_notes", "")
+    if change_notes:
+        user_prompt = f"{user_prompt}\n\n## 变更说明\n\n{str(change_notes)[:2000]}"
+    return _SYSTEM_OLD_PROJECT_NO_UI, user_prompt, fp_text
 
 
 def _parse_infer_response(content: str) -> dict[str, Any] | None:

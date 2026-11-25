@@ -24,6 +24,7 @@ from app.models.iteration import Iteration
 from app.models.pipeline import Artifact
 from app.pipelines.steps.reverse_infer import ReverseInfer
 from app.pipelines.steps.reverse_infer._helpers import (
+    _build_prompts,
     _build_ui_text,
     _build_fingerprint_text,
     _parse_infer_response,
@@ -721,3 +722,41 @@ class TestValidateOldProjectOutput:
             }
         )
         assert ok is False
+
+
+class TestBuildPrompts:
+    """G-8 B5f：提示词选择从 execute 拆出后单独加锁。"""
+
+    def test_no_ui_no_fingerprints_returns_none(self):
+        assert _build_prompts({"ui_descriptions": [], "ui_specs": []}, False, None) is None
+
+    def test_no_ui_old_project_without_fingerprints_returns_none(self):
+        assert _build_prompts({"ui_descriptions": []}, True, {"total_count": 0, "fingerprints": []}) is None
+
+    def test_no_ui_with_fingerprints_uses_fingerprint_prompt(self):
+        fps = {"total_count": 1, "fingerprints": [{"module": "登录", "title": "登录成功", "summary": "摘要"}]}
+        _, user_prompt, ui_text = _build_prompts({"change_notes": "新增字段"}, True, fps)
+        assert "登录成功" in user_prompt
+        assert "新增字段" in user_prompt
+        assert ui_text == _build_fingerprint_text(fps)
+
+    def test_change_notes_truncated_to_2000(self):
+        fps = {"total_count": 1, "fingerprints": []}
+        _, user_prompt, _ = _build_prompts({"change_notes": "x" * 3000}, True, fps)
+        assert "x" * 2000 in user_prompt
+        assert "x" * 2001 not in user_prompt
+
+    def test_new_project_prompt_uses_ui_text(self):
+        _, user_prompt, ui_text = _build_prompts(
+            {"ui_descriptions": [{"screen_name": "登录页", "description": "描述"}], "ui_specs": []}, False, None
+        )
+        assert "登录页" in ui_text
+        assert "登录页" in user_prompt
+
+    def test_old_project_prompt_includes_fingerprints(self):
+        fps = {"total_count": 2, "fingerprints": [{"module": "用户", "title": "用户列表", "summary": "s"}]}
+        _, user_prompt, ui_text = _build_prompts(
+            {"ui_descriptions": [{"screen_name": "用户页", "description": ""}], "ui_specs": []}, True, fps
+        )
+        assert "用户列表" in user_prompt
+        assert "用户页" in ui_text

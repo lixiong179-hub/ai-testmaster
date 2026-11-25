@@ -34,17 +34,97 @@ def _load_change_notes_from_input(inp: Any) -> str:
 
 
 def _load_ui_from_input(ctx: PipelineContext, inp: Any, project_id: int) -> tuple[list[dict], list[dict], list[int]]:
-    from app.models.ui_prototype import UIPrototypeScreen
-    from app.crud import file as file_crud
+    """按 payload 指定 → mockup 文件 → 全量兜底 三级顺序取 UI 原型页面（G-8 B5f 拆分）。
 
+    与原实现一致：命中前一级即不再往下取；`file_ids` 仅在 mockup 文件命中时记录。
+    """
+    payload = inp.payload if getattr(inp, "payload", None) and isinstance(inp.payload, dict) else {}
+    screens = _payload_ui_screens(ctx, payload, project_id)
+    file_ids: list[int] = []
+    if not screens:
+        screens, file_ids = _file_ui_screens(ctx, getattr(inp, "file_id", None), project_id)
+    if not screens:
+        screens = _all_spec_ui_screens(ctx, project_id)
+    ui_descriptions, ui_specs = _split_ui_screens(screens)
+    return ui_descriptions, ui_specs, file_ids
+
+
+def _payload_ui_screens(ctx: PipelineContext, payload: dict[str, Any], project_id: int) -> list[Any]:
+    """payload 显式指定的页面：优先 screen_ids，其次 prototype_project_ids。"""
+    if not payload:
+        return []
+    screen_ids = _collect_ui_screen_ids(payload)
+    if screen_ids:
+        from app.models.ui_prototype import UIPrototypeScreen
+
+        return _query_ui_screens(
+            ctx,
+            UIPrototypeScreen.project_id == project_id,
+            UIPrototypeScreen.id.in_(screen_ids),
+        )
+    prototype_project_ids = _collect_prototype_project_ids(payload)
+    if not prototype_project_ids:
+        return []
+    from app.models.ui_prototype import UIPrototypeScreen
+
+    return _query_ui_screens(
+        ctx,
+        UIPrototypeScreen.project_id == project_id,
+        UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
+        UIPrototypeScreen.parse_status == "completed",
+    )
+
+
+def _file_ui_screens(ctx: PipelineContext, file_id: int | None, project_id: int) -> tuple[list[Any], list[int]]:
+    """按 mockup 文件名匹配原型页面；非 mockup 资源返回空。"""
+    if not file_id:
+        return [], []
+    from app.crud import file as file_crud
+    from app.models.ui_prototype import UIPrototypeScreen
+
+    file_record = file_crud.get_file_by_id(ctx.db, file_id, project_id)
+    if not file_record or file_record.resource_type != "ui_mockup":
+        return [], []
+    screens = _query_ui_screens(
+        ctx,
+        UIPrototypeScreen.project_id == project_id,
+        UIPrototypeScreen.prototype_name == file_record.file_name,
+        UIPrototypeScreen.parse_status == "completed",
+        with_id_order=False,
+    )
+    return screens, [file_id]
+
+
+def _all_spec_ui_screens(ctx: PipelineContext, project_id: int) -> list[Any]:
+    """兜底：本项目全部已解析且有 ui_spec 的页面。"""
+    from app.models.ui_prototype import UIPrototypeScreen
+
+    return _query_ui_screens(
+        ctx,
+        UIPrototypeScreen.project_id == project_id,
+        UIPrototypeScreen.parse_status == "completed",
+        UIPrototypeScreen.ui_spec.isnot(None),
+        with_id_order=False,
+    )
+
+
+def _query_ui_screens(ctx: PipelineContext, *conditions: Any, with_id_order: bool = True) -> list[Any]:
+    from app.models.ui_prototype import UIPrototypeScreen
+
+    query = ctx.db.query(UIPrototypeScreen).filter(*conditions)
+    if with_id_order:
+        return query.order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id).all()
+    return query.order_by(UIPrototypeScreen.screen_order).all()
+
+
+def _split_ui_screens(screens: list[Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """页面 → (描述列表, ui_spec 列表)，按 screen_id 去重（保留首次出现）。"""
     ui_descriptions: list[dict[str, Any]] = []
     ui_specs: list[dict[str, Any]] = []
-    file_ids: list[int] = []
     seen_screen_ids: set = set()
-
-    def append_screen(screen: Any) -> None:
+    for screen in screens:
         if screen.id in seen_screen_ids:
-            return
+            continue
         seen_screen_ids.add(screen.id)
         ui_descriptions.append(
             {
@@ -61,70 +141,7 @@ def _load_ui_from_input(ctx: PipelineContext, inp: Any, project_id: int) -> tupl
                     "ui_spec": screen.ui_spec,
                 }
             )
-
-    if inp.payload and isinstance(inp.payload, dict):
-        screen_ids = _collect_ui_screen_ids(inp.payload)
-        if screen_ids:
-            screens = (
-                ctx.db.query(UIPrototypeScreen)
-                .filter(
-                    UIPrototypeScreen.id.in_(screen_ids),
-                    UIPrototypeScreen.project_id == project_id,
-                )
-                .order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id)
-                .all()
-            )
-            for screen in screens:
-                append_screen(screen)
-            return ui_descriptions, ui_specs, file_ids
-
-        prototype_project_ids = _collect_prototype_project_ids(inp.payload)
-        if prototype_project_ids:
-            screens = (
-                ctx.db.query(UIPrototypeScreen)
-                .filter(
-                    UIPrototypeScreen.project_id == project_id,
-                    UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
-                    UIPrototypeScreen.parse_status == "completed",
-                )
-                .order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id)
-                .all()
-            )
-            for screen in screens:
-                append_screen(screen)
-            return ui_descriptions, ui_specs, file_ids
-
-    if not ui_descriptions and inp.file_id:
-        file_record = file_crud.get_file_by_id(ctx.db, inp.file_id, project_id)
-        if file_record and file_record.resource_type == "ui_mockup":
-            file_ids.append(inp.file_id)
-            screens = (
-                ctx.db.query(UIPrototypeScreen)
-                .filter(
-                    UIPrototypeScreen.project_id == project_id,
-                    UIPrototypeScreen.prototype_name == file_record.file_name,
-                    UIPrototypeScreen.parse_status == "completed",
-                )
-                .all()
-            )
-            for screen in screens:
-                append_screen(screen)
-
-    if not ui_descriptions:
-        screens = (
-            ctx.db.query(UIPrototypeScreen)
-            .filter(
-                UIPrototypeScreen.project_id == project_id,
-                UIPrototypeScreen.parse_status == "completed",
-                UIPrototypeScreen.ui_spec.isnot(None),
-            )
-            .order_by(UIPrototypeScreen.screen_order)
-            .all()
-        )
-        for screen in screens:
-            append_screen(screen)
-
-    return ui_descriptions, ui_specs, file_ids
+    return ui_descriptions, ui_specs
 
 
 def _collect_ui_screen_ids(payload: dict[str, Any]) -> list[int]:
