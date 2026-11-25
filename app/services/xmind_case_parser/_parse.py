@@ -78,6 +78,41 @@ class _ParseMixin:
             leaf_paths.extend(self._collect_leaf_paths(child, current_path))
         return leaf_paths
 
+    def _bucket_segment_texts(self, texts: list[str]) -> dict[str, Any]:
+        """按分类把路径文本归集到 前置条件/动作/预期（condition 与 other 依赖「动作是否已出现」）。
+
+        动作出现后的 condition 先入 `deferred`，最终仍并入前置条件——保持既有顺序语义：
+        动作前的条件在前，动作后的条件随后追加。
+        """
+        buckets: dict[str, Any] = {
+            "preconditions": [],
+            "actions": [],
+            "expectations": [],
+            "deferred": [],
+            "ignored": 0,
+        }
+        for text in texts:
+            classification = self._classify_text(text)
+            if classification == "ignore":
+                buckets["ignored"] += 1
+            elif classification == "action":
+                buckets["actions"].append(text)
+            elif classification == "expected":
+                buckets["expectations"].append(text)
+            elif classification == "condition":
+                key = "deferred" if buckets["actions"] else "preconditions"
+                buckets[key].append(text)
+            else:
+                key = "expectations" if buckets["actions"] else "preconditions"
+                buckets[key].append(text)
+        buckets["preconditions"].extend(buckets["deferred"])
+        return buckets
+
+    def _append_segment_notes(self, segments: list[TopicNode], preconditions: list[str]) -> None:
+        """节点备注补入前置条件（与既有条目重复则跳过）。"""
+        notes = [segment.notes.strip() for segment in segments if segment.notes.strip()]
+        preconditions.extend(note for note in notes if note not in preconditions)
+
     def _build_case_from_path(
         self,
         module_name: str,
@@ -91,35 +126,10 @@ class _ParseMixin:
         if not texts:
             return None
 
-        preconditions: list[str] = []
-        actions: list[str] = []
-        expectations: list[str] = []
-        deferred_context: list[str] = []
-        ignored_count = 0
-
-        for text in texts:
-            classification = self._classify_text(text)
-            if classification == "ignore":
-                ignored_count += 1
-                continue
-            if classification == "action":
-                actions.append(text)
-                continue
-            if classification == "expected":
-                expectations.append(text)
-                continue
-            if classification == "condition":
-                if actions:
-                    deferred_context.append(text)
-                else:
-                    preconditions.append(text)
-                continue
-            if actions:
-                expectations.append(text)
-            else:
-                preconditions.append(text)
-
-        preconditions.extend(deferred_context)
+        buckets = self._bucket_segment_texts(texts)
+        preconditions: list[str] = buckets["preconditions"]
+        actions: list[str] = buckets["actions"]
+        expectations: list[str] = buckets["expectations"]
 
         if not actions and not expectations:
             return None
@@ -132,9 +142,7 @@ class _ParseMixin:
 
         steps = self._build_steps(actions, expected_result)
         title = self._infer_case_title(texts, actions, expected_result, module_name)
-        notes = [segment.notes.strip() for segment in segments if segment.notes.strip()]
-        if notes:
-            preconditions.extend(note for note in notes if note not in preconditions)
+        self._append_segment_notes(segments, preconditions)
 
         priority = self._infer_priority(segments)
         return {
@@ -151,7 +159,7 @@ class _ParseMixin:
             "action_count": len(actions),
             "expected_count": len(expectations),
             "condition_count": len(preconditions),
-            "ignored_count": ignored_count,
+            "ignored_count": buckets["ignored"],
         }
 
     def _dedupe_cases(self, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:

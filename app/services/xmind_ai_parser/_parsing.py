@@ -8,41 +8,68 @@ from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE
 from app.services.xmind_case_parser import XmindCaseParser
 
 
+CASE_WRAPPER_KEYS: tuple[str, ...] = ("cases", "items", "data", "results")
+
+
+def _strip_code_fence(text: str) -> str:
+    """去掉 ```json ... ``` 围栏（含 ``` 包裹）。"""
+    if not text.startswith("```"):
+        return text
+    text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+    return re.sub(r"\s*```$", "", text)
+
+
+def _try_json_load(text: str) -> tuple[Any, Exception | None]:
+    try:
+        return json.loads(text), None
+    except json.JSONDecodeError as exc:
+        return None, exc
+
+
+def _parse_embedded_json(text: str) -> Any | None:
+    """从含散文的响应中抠出 JSON：原文 → 修复版 → 残片抽取（三级退化）。"""
+    json_match = re.search(r"[{\[].*[}\]]", text, re.DOTALL)
+    if not json_match:
+        logger.warning("AI 响应中未找到 JSON")
+        return None
+    json_text = json_match.group()
+
+    parsed, _ = _try_json_load(json_text)
+    if parsed is not None:
+        return parsed
+
+    repaired_text = _repair_json_text(json_text)
+    parsed, repaired_exc = _try_json_load(repaired_text)
+    if parsed is not None:
+        return parsed
+
+    logger.warning(f"AI 响应 JSON 解析失败: {repaired_exc}")
+    return _extract_case_objects(repaired_text) or None
+
+
+def _unwrap_case_list(parsed: Any) -> Any:
+    """dict 包装（cases/items/data/results）→ 内层 list。"""
+    if not isinstance(parsed, dict):
+        return parsed
+    for key in CASE_WRAPPER_KEYS:
+        if isinstance(parsed.get(key), list):
+            return parsed[key]
+    return parsed
+
+
 def _parse_ai_response(text: str, expected_count: int) -> list[dict[str, Any]] | None:
     text = text.strip()
     if not text:
         logger.warning("AI 响应内容为空")
         return None
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\s*```$", "", text)
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        json_match = re.search(r"[{\[].*[}\]]", text, re.DOTALL)
-        if not json_match:
-            logger.warning("AI 响应中未找到 JSON")
-            return None
-        json_text = json_match.group()
-        try:
-            parsed = json.loads(json_text)
-        except json.JSONDecodeError:
-            repaired_text = _repair_json_text(json_text)
-            try:
-                parsed = json.loads(repaired_text)
-            except json.JSONDecodeError as repaired_exc:
-                logger.warning(f"AI 响应 JSON 解析失败: {repaired_exc}")
-                partial_cases = _extract_case_objects(repaired_text)
-                if not partial_cases:
-                    return None
-                parsed = partial_cases
 
-    if isinstance(parsed, dict):
-        for key in ("cases", "items", "data", "results"):
-            if key in parsed and isinstance(parsed[key], list):
-                parsed = parsed[key]
-                break
+    parsed, _ = _try_json_load(_strip_code_fence(text))
+    if parsed is None:
+        parsed = _parse_embedded_json(text)
+    if parsed is None:
+        return None
 
+    parsed = _unwrap_case_list(parsed)
     if not isinstance(parsed, list):
         logger.warning("AI 响应无法提取为数组")
         return None

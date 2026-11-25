@@ -70,50 +70,56 @@ class _ParseMixin:
         topic_id = topic_data.get("id", "")
         if topic_id:
             topic_el.set("id", topic_id)
+        self._append_topic_title(topic_el, topic_data, ns)
+        self._append_topic_notes(topic_el, topic_data, ns)
+        self._append_marker_refs(topic_el, topic_data, ns)
+        self._append_labels(topic_el, topic_data, ns)
+        self._append_children(topic_el, topic_data, ns)
+        return topic_el
 
+    @staticmethod
+    def _append_topic_title(topic_el: ET.Element, topic_data: dict, ns: str) -> None:
         title = topic_data.get("title", "")
         if title:
-            title_el = ET.SubElement(topic_el, f"{{{ns}}}title")
-            title_el.text = title
+            ET.SubElement(topic_el, f"{{{ns}}}title").text = title
 
-        notes_data = topic_data.get("notes")
-        if notes_data:
-            plain_data = notes_data.get("plain", {})
-            note_content = plain_data.get("content", "")
-            if note_content:
-                notes_el = ET.SubElement(topic_el, f"{{{ns}}}notes")
-                plain_el = ET.SubElement(notes_el, f"{{{ns}}}plain")
-                plain_el.text = note_content
+    @staticmethod
+    def _append_topic_notes(topic_el: ET.Element, topic_data: dict, ns: str) -> None:
+        note_content = (topic_data.get("notes") or {}).get("plain", {}).get("content", "")
+        if note_content:
+            notes_el = ET.SubElement(topic_el, f"{{{ns}}}notes")
+            ET.SubElement(notes_el, f"{{{ns}}}plain").text = note_content
 
+    @staticmethod
+    def _append_marker_refs(topic_el: ET.Element, topic_data: dict, ns: str) -> None:
         markers_data = topic_data.get("markers", [])
-        if markers_data:
-            marker_refs_el = ET.SubElement(topic_el, f"{{{ns}}}marker-refs")
-            for marker in markers_data:
-                marker_id = marker.get("markerId", "")
-                if marker_id:
-                    ref_el = ET.SubElement(marker_refs_el, f"{{{ns}}}marker-ref")
-                    ref_el.set("marker-id", marker_id)
+        if not markers_data:
+            return
+        marker_refs_el = ET.SubElement(topic_el, f"{{{ns}}}marker-refs")
+        for marker in markers_data:
+            marker_id = marker.get("markerId", "")
+            if marker_id:
+                ET.SubElement(marker_refs_el, f"{{{ns}}}marker-ref", {"marker-id": marker_id})
 
+    @staticmethod
+    def _append_labels(topic_el: ET.Element, topic_data: dict, ns: str) -> None:
         labels_data = topic_data.get("labels", [])
-        if labels_data:
-            labels_el = ET.SubElement(topic_el, f"{{{ns}}}labels")
-            for label_text in labels_data:
-                label_el = ET.SubElement(labels_el, f"{{{ns}}}label")
-                label_el.text = label_text
+        if not labels_data:
+            return
+        labels_el = ET.SubElement(topic_el, f"{{{ns}}}labels")
+        for label_text in labels_data:
+            ET.SubElement(labels_el, f"{{{ns}}}label").text = label_text
 
+    def _append_children(self, topic_el: ET.Element, topic_data: dict, ns: str) -> None:
+        """子主题统一挂到 `topics type="attached"` 下，attached 在前、detached 随后。"""
         children_data = topic_data.get("children", {})
-        attached = children_data.get("attached", [])
-        detached = children_data.get("detached", [])
-        all_children = attached + detached
-        if all_children:
-            children_el = ET.SubElement(topic_el, f"{{{ns}}}children")
-            topics_el = ET.SubElement(children_el, f"{{{ns}}}topics")
-            topics_el.set("type", "attached")
-            for child_data in all_children:
-                child_el = self._json_topic_to_xml(child_data, ns)
-                topics_el.append(child_el)
-
-        return topic_el
+        all_children = children_data.get("attached", []) + children_data.get("detached", [])
+        if not all_children:
+            return
+        topics_el = ET.SubElement(ET.SubElement(topic_el, f"{{{ns}}}children"), f"{{{ns}}}topics")
+        topics_el.set("type", "attached")
+        for child_data in all_children:
+            topics_el.append(self._json_topic_to_xml(child_data, ns))
 
     def _parse_xml(self, content: bytes) -> ET.Element:
         try:
