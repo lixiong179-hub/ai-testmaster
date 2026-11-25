@@ -92,27 +92,12 @@ class TestDataGenerator:
 
         if normalized_type == DataType.TEXT.value:
             return self._generate_text(field_name, constraints, rule_config or {})
-        if normalized_type == DataType.NUMBER.value:
-            return self._generate_number(constraints)
-        if normalized_type == DataType.DATE.value:
-            return self._generate_date(constraints)
-        if normalized_type == DataType.DATETIME.value:
-            return self._generate_datetime(constraints)
-        if normalized_type == DataType.EMAIL.value:
-            return self._generate_email(constraints)
-        if normalized_type == DataType.PHONE.value:
-            return self._generate_phone()
-        if normalized_type == DataType.ENUM.value:
-            return self._generate_enum(constraints)
-        if normalized_type == DataType.BOOLEAN.value:
-            return self._generate_boolean()
-        if normalized_type == DataType.URL.value:
-            return self._generate_url(constraints)
-        if normalized_type == DataType.ID_CARD.value:
-            return self._generate_id_card()
-        if normalized_type == DataType.BANK_CARD.value:
-            return self._generate_bank_card()
-        return ""
+        spec = _RANDOM_METHODS.get(normalized_type)
+        if spec is None:
+            return ""
+        method_name, takes_constraints = spec
+        generator = getattr(self, method_name)
+        return generator(constraints) if takes_constraints else generator()
 
     def _generate_text(
         self,
@@ -270,6 +255,21 @@ class TestDataGenerator:
         self._generated_values.clear()
         if self._seed is not None:
             self._random = random.Random(self._seed)
+
+
+# 类型 → (生成方法名, 是否需要 constraints)；TEXT 另需 field_name/rule_config，在主函数前置处理
+_RANDOM_METHODS: dict[str, tuple[str, bool]] = {
+    DataType.NUMBER.value: ("_generate_number", True),
+    DataType.DATE.value: ("_generate_date", True),
+    DataType.DATETIME.value: ("_generate_datetime", True),
+    DataType.EMAIL.value: ("_generate_email", True),
+    DataType.PHONE.value: ("_generate_phone", False),
+    DataType.ENUM.value: ("_generate_enum", True),
+    DataType.BOOLEAN.value: ("_generate_boolean", False),
+    DataType.URL.value: ("_generate_url", True),
+    DataType.ID_CARD.value: ("_generate_id_card", False),
+    DataType.BANK_CARD.value: ("_generate_bank_card", False),
+}
 
 
 def create_test_data_generator(seed: int | None = None) -> TestDataGenerator:

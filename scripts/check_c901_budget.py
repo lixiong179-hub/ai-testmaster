@@ -93,7 +93,8 @@ APP = "app"
 # → 29（B6f：parse_action 13 / execute_action 15 / MCPRecognizer.execute_action 17）
 # → 26（B6g：generate_test_case_stream 17 / analyze_requirements_stream 13 / _parse_stream_test_points 13）
 # → 23（B6h：parse_multiple_screen_flows 17 / _parse_json_response 17 / _structure_text_with_llm 11）
-TOTAL_BUDGET = 23
+# → 20（B6i：parse_ai_response 15 / generate_test_data 11 / _generate_random 12）
+TOTAL_BUDGET = 20
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

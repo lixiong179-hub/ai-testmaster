@@ -42,6 +42,44 @@ from app.services.prompt_builder import PromptBuilder
 from app.services.test_data.response_handler import parse_ai_response, validate_generated_data
 
 
+def _build_request(prompt: str) -> tuple[dict[str, str], dict[str, Any]]:
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}"}
+    payload = {
+        "model": settings.DEEPSEEK_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+        "max_tokens": 3000,
+    }
+    return headers, payload
+
+
+def _extract_validated_data(result: dict[str, Any], field_definitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """从 chat completion 响应中取出内容、解析并校验字段。"""
+    if "choices" not in result:
+        raise ValueError("AI API响应格式错误：缺少choices字段")
+    choices = result["choices"]
+    if not choices:
+        raise ValueError("AI API返回结果为空")
+
+    content = (choices[0].get("message") or {}).get("content", "")
+    if not content:
+        raise ValueError("AI响应内容为空")
+
+    data = parse_ai_response(content)
+    if not isinstance(data, list):
+        data = [data]
+    return validate_generated_data(data, field_definitions)
+
+
+async def _sleep_before_retry(attempt: int, max_retries: int) -> None:
+    """指数退避；已是最后一次尝试则不再等待。"""
+    if attempt >= max_retries - 1:
+        return
+    import asyncio
+
+    await asyncio.sleep(2**attempt)
+
+
 class GeneratorMixin:
     """测试数据生成器Mixin - AI驱动的测试数据生成引擎。
 
@@ -107,62 +145,37 @@ class GeneratorMixin:
         import httpx
 
         prompt = PromptBuilder().for_test_data(field_definitions, count, context, data_type)
-
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}"}
-        payload = {
-            "model": settings.DEEPSEEK_MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
-            "max_tokens": 3000,
-        }
+        headers, payload = _build_request(prompt)
 
         max_retries = 3
         last_error = None
         for attempt in range(max_retries):
             try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout)) as client:
-                    response = await client.post(settings.DEEPSEEK_API_URL, headers=headers, json=payload)
-                    response.raise_for_status()
-                    result = response.json()
-
-                    if "choices" not in result:
-                        raise ValueError("AI API响应格式错误：缺少choices字段")
-                    choices = result["choices"]
-                    if not choices or len(choices) == 0:
-                        raise ValueError("AI API返回结果为空")
-
-                    content = (choices[0].get("message") or {}).get("content", "")
-                    if not content:
-                        raise ValueError("AI响应内容为空")
-
-                    data = parse_ai_response(content)
-                    if not isinstance(data, list):
-                        data = [data]
-
-                    validated_data = validate_generated_data(data, field_definitions)
-                    return validated_data
-
+                result = await self._request_generated_data(headers, payload)
+                return _extract_validated_data(result, field_definitions)
             except httpx.TimeoutException:
                 last_error = f"AI API请求超时 (尝试 {attempt + 1}/{max_retries})"
                 logger.warning(last_error)
-                if attempt < max_retries - 1:
-                    import asyncio
-
-                    await asyncio.sleep(2**attempt)
             except httpx.HTTPStatusError as e:
                 last_error = f"AI API HTTP错误: {e.response.status_code}"
                 logger.error(last_error)
-                if attempt < max_retries - 1:
-                    import asyncio
-
-                    await asyncio.sleep(2**attempt)
             except (ValueError, json.JSONDecodeError) as e:
                 last_error = f"AI响应解析失败: {e}"
                 logger.error(last_error)
                 raise
+            await _sleep_before_retry(attempt, max_retries)
 
         logger.error(f"AI生成失败，已重试{max_retries}次: {last_error}")
         raise ValueError(f"AI生成失败: {last_error}")
+
+    async def _request_generated_data(self, headers: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
+        """单次调用 AI 接口并返回原始 JSON 响应。"""
+        import httpx
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout)) as client:
+            response = await client.post(settings.DEEPSEEK_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()
 
     async def generate_test_data_batch(
         self, field_definitions: list[dict[str, Any]], counts: dict[str, int], context: str | None = None

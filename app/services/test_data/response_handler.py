@@ -6,46 +6,54 @@ from typing import Any
 
 from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string
 
+_JSON_FIXERS = (fix_common_json_issues, clean_json_string)
+_JSON_BLOCK_PATTERNS = (re.compile(r"\[[\s\S]*\]"), re.compile(r"\{[\s\S]*\}"))
+_UNPARSED = object()
+
+
+def _try_fixers(raw: str) -> Any:
+    """依次用修复函数解析；全部失败时返回哨兵，避免与合法的 None 混淆。"""
+    for fix_fn in _JSON_FIXERS:
+        fixed = fix_fn(raw)
+        if not fixed:
+            continue
+        try:
+            return json.loads(fixed)
+        except json.JSONDecodeError:
+            continue
+    return _UNPARSED
+
+
+def _parse_json_block(content: str, pattern: re.Pattern) -> Any:
+    """截取匹配到的 JSON 片段，先修复再裸解析。"""
+    match = pattern.search(content)
+    if not match:
+        return _UNPARSED
+    raw = match.group(0)
+    result = _try_fixers(raw)
+    if result is not _UNPARSED:
+        return result
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return _UNPARSED
+
 
 def parse_ai_response(content: str) -> Any:
     try:
         return json.loads(content)
     except json.JSONDecodeError:
-        for fix_fn in (fix_common_json_issues, clean_json_string):
-            fixed = fix_fn(content)
-            if fixed:
-                try:
-                    return json.loads(fixed)
-                except json.JSONDecodeError:
-                    continue
-        json_match = re.search(r"\[[\s\S]*\]", content)
-        if json_match:
-            raw = json_match.group(0)
-            for fix_fn in (fix_common_json_issues, clean_json_string):
-                fixed = fix_fn(raw)
-                if fixed:
-                    try:
-                        return json.loads(fixed)
-                    except json.JSONDecodeError:
-                        continue
-            try:
-                return json.loads(raw)
-            except json.JSONDecodeError:
-                pass
-        json_match = re.search(r"\{[\s\S]*\}", content)
-        if json_match:
-            raw = json_match.group(0)
-            for fix_fn in (fix_common_json_issues, clean_json_string):
-                fixed = fix_fn(raw)
-                if fixed:
-                    try:
-                        return json.loads(fixed)
-                    except json.JSONDecodeError:
-                        continue
-            try:
-                return json.loads(raw)
-            except json.JSONDecodeError:
-                pass
+        pass
+
+    result = _try_fixers(content)
+    if result is not _UNPARSED:
+        return result
+
+    for pattern in _JSON_BLOCK_PATTERNS:
+        result = _parse_json_block(content, pattern)
+        if result is not _UNPARSED:
+            return result
+
     raise ValueError("无法解析AI响应内容")
 
 
