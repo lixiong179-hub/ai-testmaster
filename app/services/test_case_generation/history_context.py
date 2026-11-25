@@ -73,48 +73,82 @@ def _assess_history_trust(
     current_ui_screen_ids: set[int],
     db: Session,
 ) -> tuple[str, str]:
+    """历史用例可信度评估：采集陈旧原因 → 归并为 (trust_level, staleness_reason)。"""
     staleness_reasons: list[str] = []
 
-    if case.test_point_id:
-        tp = db.query(TestPoint).filter(TestPoint.id == case.test_point_id).first()
-        if tp and tp.requirement_id and tp.requirement_id not in current_requirement_ids:
-            staleness_reasons.append("requirement_mismatch")
-        if tp and tp.requirement_id:
-            req = db.query(Requirement).filter(Requirement.id == tp.requirement_id).first()
-            if (
-                req
-                and isinstance(req.update_time, datetime)
-                and isinstance(case.update_time, datetime)
-                and req.update_time > case.update_time
-            ):
-                staleness_reasons.append("requirement_newer_than_case")
+    staleness_reasons.extend(_requirement_staleness_reasons(case, current_requirement_ids, db))
 
-    if isinstance(case.update_time, datetime):
-        now = datetime.now(UTC)
-        case_update = case.update_time.replace(tzinfo=UTC) if case.update_time.tzinfo is None else case.update_time
-        case_age_days = (now - case_update).days
-        if case_age_days > 90:
-            staleness_reasons.append("case_older_than_90_days")
+    if _case_older_than_90_days(case):
+        staleness_reasons.append("case_older_than_90_days")
 
     if not case.summary and not case.summary_version:
         staleness_reasons.append("summary_missing")
 
-    if current_ui_screen_ids:
-        try:
-            case_ui_screen_ids = {s.id for s in case.linked_ui_screens} if case.linked_ui_screens else set()
-        except Exception:
-            case_ui_screen_ids = set()
-        if case_ui_screen_ids and not case_ui_screen_ids.intersection(current_ui_screen_ids):
-            staleness_reasons.append("ui_screen_mismatch")
+    if _ui_screen_mismatch(case, current_ui_screen_ids):
+        staleness_reasons.append("ui_screen_mismatch")
 
-    if staleness_reasons:
-        if "requirement_mismatch" in staleness_reasons:
-            return "low", "HISTORY_REQUIREMENT_MISMATCH"
-        if any(r in staleness_reasons for r in ("requirement_newer_than_case", "case_older_than_90_days")):
-            return "medium", "HISTORY_POTENTIALLY_STALE"
-        return "medium", ",".join(staleness_reasons)
+    return _trust_level(staleness_reasons)
 
-    return "high", ""
+
+def _requirement_staleness_reasons(
+    case: TestCase,
+    current_requirement_ids: set[int],
+    db: Session,
+) -> list[str]:
+    """测试点关联需求维度的陈旧原因（需求不匹配 / 需求比用例新）。"""
+    if not case.test_point_id:
+        return []
+
+    tp = db.query(TestPoint).filter(TestPoint.id == case.test_point_id).first()
+    if not tp or not tp.requirement_id:
+        return []
+
+    reasons: list[str] = []
+    if tp.requirement_id not in current_requirement_ids:
+        reasons.append("requirement_mismatch")
+
+    req = db.query(Requirement).filter(Requirement.id == tp.requirement_id).first()
+    if _requirement_is_newer(req, case):
+        reasons.append("requirement_newer_than_case")
+    return reasons
+
+
+def _requirement_is_newer(req: Requirement | None, case: TestCase) -> bool:
+    if not req:
+        return False
+    if not isinstance(req.update_time, datetime) or not isinstance(case.update_time, datetime):
+        return False
+    return req.update_time > case.update_time
+
+
+def _case_older_than_90_days(case: TestCase) -> bool:
+    if not isinstance(case.update_time, datetime):
+        return False
+    now = datetime.now(UTC)
+    case_update = case.update_time.replace(tzinfo=UTC) if case.update_time.tzinfo is None else case.update_time
+    return (now - case_update).days > 90
+
+
+def _ui_screen_mismatch(case: TestCase, current_ui_screen_ids: set[int]) -> bool:
+    """当前需求涉及的 UI 屏幕与用例关联屏幕完全不相交即视为陈旧。"""
+    if not current_ui_screen_ids:
+        return False
+    try:
+        case_ui_screen_ids = {s.id for s in case.linked_ui_screens} if case.linked_ui_screens else set()
+    except Exception:
+        return False
+    return bool(case_ui_screen_ids and not case_ui_screen_ids.intersection(current_ui_screen_ids))
+
+
+def _trust_level(staleness_reasons: list[str]) -> tuple[str, str]:
+    """陈旧原因 → (trust_level, reason)。需求不匹配最严重，其次"可能过期"。"""
+    if not staleness_reasons:
+        return "high", ""
+    if "requirement_mismatch" in staleness_reasons:
+        return "low", "HISTORY_REQUIREMENT_MISMATCH"
+    if any(r in staleness_reasons for r in ("requirement_newer_than_case", "case_older_than_90_days")):
+        return "medium", "HISTORY_POTENTIALLY_STALE"
+    return "medium", ",".join(staleness_reasons)
 
 
 def _summarize_history_case(

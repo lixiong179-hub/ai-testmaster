@@ -125,13 +125,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
 
         if warnings:
             for warning in warnings[:3]:
-                if isinstance(warning, dict):
-                    msg_text = str(warning.get("message", ""))
-                    warning_detail = warning
-                else:
-                    msg_text = str(warning)
-                    warning_detail = {"message": str(warning), "code": "UNKNOWN"}
-                yield {"progress": 5, "message": msg_text, "status": "warning", "warning_detail": warning_detail}
+                yield _build_warning_event(warning)
 
         test_points = context.get("test_points", [])
         total = len(test_points)
@@ -160,34 +154,6 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
 
         module_failures = self._preload_module_failure_feedback(project_id, test_points)
 
-        from app.utils.ai_concurrency import ai_generation_slot
-
-        async def _generate_one(index: int, point: dict[str, Any]) -> dict[str, Any]:
-            async with ai_generation_slot():
-                try:
-                    point_context = copy.deepcopy(context)
-                    await self._refine_context_for_point(
-                        point_context, point, project_id, module_failures=module_failures
-                    )
-                    generated = await self._ai_generator.generate_test_case_for_point(
-                        context=point_context, test_point=point, project_id=project_id, case_type=case_type
-                    )
-                    return {
-                        "index": index,
-                        "test_point": point,
-                        "generated_case": generated,
-                        "point_context": point_context,
-                        "error": None,
-                    }
-                except Exception as e:
-                    logger.error(f"生成测试用例失败: {e}")
-                    return {
-                        "index": index,
-                        "test_point": point,
-                        "generated_case": None,
-                        "error": e,
-                    }
-
         yield {
             "progress": 10,
             "message": f"AI并发生成已启动，并发数{concurrency}",
@@ -197,7 +163,17 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
         }
 
         generation_tasks = [
-            asyncio.create_task(_generate_one(i, test_point)) for i, test_point in enumerate(test_points)
+            asyncio.create_task(
+                self._generate_point_result(
+                    index=i,
+                    point=test_point,
+                    context=context,
+                    project_id=project_id,
+                    case_type=case_type,
+                    module_failures=module_failures,
+                )
+            )
+            for i, test_point in enumerate(test_points)
         ]
 
         for completed, task in enumerate(asyncio.as_completed(generation_tasks), 1):
@@ -207,84 +183,177 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
             generated_case = result["generated_case"]
             if result["error"] is not None or generated_case is None:
                 failed_count += 1
-                yield {
-                    "progress": int(10 + completed / total * 85),
-                    "message": f"生成第{i + 1}个用例失败",
-                    "status": "running",
-                    "error": True,
-                    "failed_count": failed_count,
-                    "current": completed,
-                    "total": total,
-                }
+                yield _build_point_failure_event(i, completed, total, failed_count)
                 continue
 
             try:
-                candidate_cases = [generated_case]
-                candidate_cases.extend(generated_case.get("_extra_cases", []))
-                candidate_cases = await self._enhance_coverage_for_point(
-                    candidate_cases,
-                    test_point,
-                    result["point_context"],
+                saved_cases_for_point, skipped_count = await self._save_point_cases(
+                    generated_case=generated_case,
+                    test_point=test_point,
+                    point_context=result["point_context"],
+                    project_id=project_id,
+                    requirement_file_id=primary_requirement_file_id,
                 )
-                saved_cases_for_point = []
-                skipped_count = 0
-
-                for candidate_case in candidate_cases:
-                    try:
-                        saved_case = await self._validator._save_test_case(
-                            project_id=project_id,
-                            generated_case=candidate_case,
-                            test_point=test_point,
-                            requirement_file_id=primary_requirement_file_id,
-                        )
-                        created_cases.append(saved_case)
-                        saved_cases_for_point.append(saved_case)
-                    except Exception as save_e:
-                        skipped_count += 1
-                        failed_count += 1
-                        logger.warning(f"case skipped by generation quality gate: {save_e}")
-
-                progress = int(10 + completed / total * 85)
-                case_payload = None
-                if saved_cases_for_point:
-                    first_saved = saved_cases_for_point[0]
-                    case_payload = {
-                        "id": first_saved.id,
-                        "title": ContentSanitizer.sanitize_for_log(first_saved.title),
-                        "module": first_saved.module,
-                    }
-                yield {
-                    "progress": progress,
-                    "message": f"已生成{i + 1}/{total}个测试用例",
-                    "status": "running",
-                    "current": completed,
-                    "total": total,
-                    "case": case_payload,
-                    "saved_count": len(saved_cases_for_point),
-                    "skipped_count": skipped_count,
-                }
-
+                failed_count += skipped_count
+                created_cases.extend(saved_cases_for_point)
+                yield _build_point_success_event(i, completed, total, saved_cases_for_point, skipped_count)
             except Exception as e:
                 failed_count += 1
                 logger.error(f"生成测试用例失败: {e}")
-                yield {
-                    "progress": int(10 + (i + 1) / total * 85),
-                    "message": f"生成第{i + 1}个用例失败",
-                    "status": "running",
-                    "error": True,
-                    "failed_count": failed_count,
+                yield _build_point_error_event(i, total, failed_count)
+
+        yield _build_batch_summary_event(created_cases, failed_count, total, pagination)
+
+    async def _generate_point_result(
+        self,
+        index: int,
+        point: dict[str, Any],
+        context: dict[str, Any],
+        project_id: int,
+        case_type: str | None,
+        module_failures: dict[str, Any],
+    ) -> dict[str, Any]:
+        """并发单元：为单个测试点生成用例；失败转成带 error 的结果而不抛出。"""
+        from app.utils.ai_concurrency import ai_generation_slot
+
+        async with ai_generation_slot():
+            try:
+                point_context = copy.deepcopy(context)
+                await self._refine_context_for_point(point_context, point, project_id, module_failures=module_failures)
+                generated = await self._ai_generator.generate_test_case_for_point(
+                    context=point_context, test_point=point, project_id=project_id, case_type=case_type
+                )
+                return {
+                    "index": index,
+                    "test_point": point,
+                    "generated_case": generated,
+                    "point_context": point_context,
+                    "error": None,
+                }
+            except Exception as e:
+                logger.error(f"生成测试用例失败: {e}")
+                return {
+                    "index": index,
+                    "test_point": point,
+                    "generated_case": None,
+                    "error": e,
                 }
 
-        yield {
-            "progress": 100,
-            "message": f"完成！成功{len(created_cases)}个，失败{failed_count}个",
-            "status": "success" if failed_count == 0 else "partial",
-            "total": total,
-            "created": len(created_cases),
-            "failed": failed_count,
-            "pagination": pagination,
-            "cases": [{"id": c.id, "title": ContentSanitizer.sanitize_for_log(c.title)} for c in created_cases],
+    async def _save_point_cases(
+        self,
+        generated_case: dict[str, Any],
+        test_point: dict[str, Any],
+        point_context: dict[str, Any],
+        project_id: int,
+        requirement_file_id: int | None,
+    ) -> tuple[list[Any], int]:
+        """覆盖率补全 + 逐条落库；被质量门拒绝的用例计入 skipped。"""
+        candidate_cases = [generated_case]
+        candidate_cases.extend(generated_case.get("_extra_cases", []))
+        candidate_cases = await self._enhance_coverage_for_point(candidate_cases, test_point, point_context)
+
+        saved_cases: list[Any] = []
+        skipped_count = 0
+        for candidate_case in candidate_cases:
+            try:
+                saved_case = await self._validator._save_test_case(
+                    project_id=project_id,
+                    generated_case=candidate_case,
+                    test_point=test_point,
+                    requirement_file_id=requirement_file_id,
+                )
+                saved_cases.append(saved_case)
+            except Exception as save_e:
+                skipped_count += 1
+                logger.warning(f"case skipped by generation quality gate: {save_e}")
+        return saved_cases, skipped_count
+
+
+def _build_warning_event(warning: Any) -> dict[str, Any]:
+    """上下文告警 → SSE 事件（dict 告警保留原始结构，字符串补 UNKNOWN 码）。"""
+    if isinstance(warning, dict):
+        return {
+            "progress": 5,
+            "message": str(warning.get("message", "")),
+            "status": "warning",
+            "warning_detail": warning,
         }
+    return {
+        "progress": 5,
+        "message": str(warning),
+        "status": "warning",
+        "warning_detail": {"message": str(warning), "code": "UNKNOWN"},
+    }
+
+
+def _build_point_failure_event(index: int, completed: int, total: int, failed_count: int) -> dict[str, Any]:
+    """并发生成阶段该测试点直接失败（按已完成数量推进）。"""
+    return {
+        "progress": int(10 + completed / total * 85),
+        "message": f"生成第{index + 1}个用例失败",
+        "status": "running",
+        "error": True,
+        "failed_count": failed_count,
+        "current": completed,
+        "total": total,
+    }
+
+
+def _build_point_error_event(index: int, total: int, failed_count: int) -> dict[str, Any]:
+    """落库/补全阶段抛错（按测试点序号推进，与原实现一致）。"""
+    return {
+        "progress": int(10 + (index + 1) / total * 85),
+        "message": f"生成第{index + 1}个用例失败",
+        "status": "running",
+        "error": True,
+        "failed_count": failed_count,
+    }
+
+
+def _build_point_success_event(
+    index: int,
+    completed: int,
+    total: int,
+    saved_cases: list[Any],
+    skipped_count: int,
+) -> dict[str, Any]:
+    """单测试点完成事件：`case` 取该点首条落库用例（无则 None）。"""
+    case_payload = None
+    if saved_cases:
+        first_saved = saved_cases[0]
+        case_payload = {
+            "id": first_saved.id,
+            "title": ContentSanitizer.sanitize_for_log(first_saved.title),
+            "module": first_saved.module,
+        }
+    return {
+        "progress": int(10 + completed / total * 85),
+        "message": f"已生成{index + 1}/{total}个测试用例",
+        "status": "running",
+        "current": completed,
+        "total": total,
+        "case": case_payload,
+        "saved_count": len(saved_cases),
+        "skipped_count": skipped_count,
+    }
+
+
+def _build_batch_summary_event(
+    created_cases: list[Any],
+    failed_count: int,
+    total: int,
+    pagination: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "progress": 100,
+        "message": f"完成！成功{len(created_cases)}个，失败{failed_count}个",
+        "status": "success" if failed_count == 0 else "partial",
+        "total": total,
+        "created": len(created_cases),
+        "failed": failed_count,
+        "pagination": pagination,
+        "cases": [{"id": c.id, "title": ContentSanitizer.sanitize_for_log(c.title)} for c in created_cases],
+    }
 
 
 # 向后兼容别名：历史代码以 TestCaseGenerationBatchMixin 名称实例化

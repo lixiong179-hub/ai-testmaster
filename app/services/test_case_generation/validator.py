@@ -102,25 +102,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
         case_no = CaseNumberService.generate(project_id, self.db)
 
         steps = generated_case.get("steps", [])
-        case_test_data = generated_case.get("test_data")
-        steps_json = []
-        for i, step in enumerate(steps):
-            raw_action_type = step.get("action_type", "")
-            corrected_action_type = self._correct_action_type(step.get("action", ""), raw_action_type)
-            step_entry = {
-                "step": step.get("step", str(i + 1)),
-                "description": step.get("description", ""),
-                "action": step.get("action", "执行"),
-                "expected_result": step.get("expected_result", ""),
-                "param": step.get("param", ""),
-                "action_type": corrected_action_type,
-                "input_value": step.get("input_value", ""),
-                "target_element": step.get("target_element", ""),
-                "test_data": step.get("test_data", []),
-            }
-            if i == 0 and case_test_data:
-                step_entry["test_data"] = case_test_data
-            steps_json.append(step_entry)
+        steps_json = self._build_steps_json(steps, generated_case.get("test_data"))
 
         case_type = self._normalize_case_type(
             generated_case.get("case_type"),
@@ -146,19 +128,7 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
                 "case_category": case_category,
             }
         )
-        quality_score = compute_quality_score([case_for_quality])
-        quality_issues, gate_status = self._quality_gate_issues(
-            case_for_quality,
-            quality_score,
-            ui_specs=generated_case.get("_context_ui_specs"),
-            project_id=project_id,
-            db=self.db,
-        )
-        if quality_issues:
-            issue_text = "; ".join(quality_issues[:3])
-            raise AIGenerationError(f"generated case failed quality gate: {issue_text}")
-        if gate_status == "warning":
-            logger.warning(f"generated case passed gate with warning status (title={title})")
+        quality_score, gate_status = self._evaluate_quality_gate(case_for_quality, generated_case, title, project_id)
         pending_review = gate_status == "pending_review"
         priority = self._resolve_generated_priority(case_for_quality, test_point)
 
@@ -186,6 +156,60 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
             lifecycle_status="pending_review" if pending_review else "draft",
         )
 
+        self._flush_new_case(test_case, title)
+        invalidate_project_cache(project_id)
+        self._add_test_steps(test_case, steps)
+        self.db.commit()
+        self.db.refresh(test_case)
+        await self._parse_precondition_steps(test_case)
+        return test_case
+
+    def _build_steps_json(self, steps: list[dict[str, Any]], case_test_data: Any) -> list[dict[str, Any]]:
+        """生成用例 steps → steps_json；首步继承用例级 test_data。"""
+        steps_json: list[dict[str, Any]] = []
+        for i, step in enumerate(steps):
+            raw_action_type = step.get("action_type", "")
+            step_entry = {
+                "step": step.get("step", str(i + 1)),
+                "description": step.get("description", ""),
+                "action": step.get("action", "执行"),
+                "expected_result": step.get("expected_result", ""),
+                "param": step.get("param", ""),
+                "action_type": self._correct_action_type(step.get("action", ""), raw_action_type),
+                "input_value": step.get("input_value", ""),
+                "target_element": step.get("target_element", ""),
+                "test_data": step.get("test_data", []),
+            }
+            if i == 0 and case_test_data:
+                step_entry["test_data"] = case_test_data
+            steps_json.append(step_entry)
+        return steps_json
+
+    def _evaluate_quality_gate(
+        self,
+        case_for_quality: dict[str, Any],
+        generated_case: dict[str, Any],
+        title: str,
+        project_id: int,
+    ) -> tuple[float, str]:
+        """质量评分 + 门禁：有阻断性问题抛 AIGenerationError，warning 仅记日志。"""
+        quality_score = compute_quality_score([case_for_quality])
+        quality_issues, gate_status = self._quality_gate_issues(
+            case_for_quality,
+            quality_score,
+            ui_specs=generated_case.get("_context_ui_specs"),
+            project_id=project_id,
+            db=self.db,
+        )
+        if quality_issues:
+            issue_text = "; ".join(quality_issues[:3])
+            raise AIGenerationError(f"generated case failed quality gate: {issue_text}")
+        if gate_status == "warning":
+            logger.warning(f"generated case passed gate with warning status (title={title})")
+        return quality_score, gate_status
+
+    def _flush_new_case(self, test_case: TestCase, title: str) -> None:
+        """插入用例并把并发重名的 IntegrityError 翻译成 ValueError。"""
         try:
             self.db.add(test_case)
             self.db.flush()
@@ -195,58 +219,58 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
                 raise ValueError(f"concurrent duplicate generated case title: {title}") from e
             raise
 
-        invalidate_project_cache(project_id)
-
+    def _add_test_steps(self, test_case: TestCase, steps: list[dict[str, Any]]) -> None:
         for i, step in enumerate(steps):
-            raw_action_type = step.get("action_type", "")
-            corrected_action_type = self._correct_action_type(
-                step.get("action", step.get("description", step.get("step", "执行"))), raw_action_type
+            action_text = step.get("action", step.get("description", step.get("step", "执行")))
+            self.db.add(
+                TestStep(
+                    test_case_id=test_case.id,
+                    step_number=i + 1,
+                    action=action_text,
+                    expected_result=step.get("expected_result", step.get("param", "预期结果正常")),
+                    action_type=self._correct_action_type(action_text, step.get("action_type", "")),
+                    input_value=step.get("input_value", ""),
+                    target_element=step.get("target_element", ""),
+                    is_business_view=1,
+                    is_technical_view=1,
+                )
             )
-            test_step = TestStep(
-                test_case_id=test_case.id,
-                step_number=i + 1,
-                action=step.get("action", step.get("description", step.get("step", "执行"))),
-                expected_result=step.get("expected_result", step.get("param", "预期结果正常")),
-                action_type=corrected_action_type,
-                input_value=step.get("input_value", ""),
-                target_element=step.get("target_element", ""),
-                is_business_view=1,
-                is_technical_view=1,
-            )
-            self.db.add(test_step)
 
-        self.db.commit()
-        self.db.refresh(test_case)
+    async def _parse_precondition_steps(self, test_case: TestCase) -> None:
+        """前置条件自动解析（失败只告警，不影响用例落库结果）。"""
+        if not settings.AUTO_PARSE_PRECONDITION or not test_case.precondition:
+            return
+        if not test_case.precondition.strip():
+            return
 
-        if settings.AUTO_PARSE_PRECONDITION and test_case.precondition and test_case.precondition.strip():
-            try:
-                from app.utils.ai_client import parse_precondition_to_steps
-                from app.models.test_case import TestCasePreconditionStep
+        try:
+            from app.models.test_case import TestCasePreconditionStep
+            from app.utils.ai_client import parse_precondition_to_steps
 
-                parsed_steps = parse_precondition_to_steps(precondition=test_case.precondition)
-                if inspect.isawaitable(parsed_steps):
-                    parsed_steps = await parsed_steps
+            parsed_steps = parse_precondition_to_steps(precondition=test_case.precondition)
+            if inspect.isawaitable(parsed_steps):
+                parsed_steps = await parsed_steps
+            if not parsed_steps:
+                return
 
-                if parsed_steps:
-                    for idx, step_data in enumerate(parsed_steps):
-                        pc_step = TestCasePreconditionStep(
-                            test_case_id=test_case.id,
-                            step_number=idx + 1,
-                            action=step_data.get("action", ""),
-                            action_type=step_data.get("action_type", "click"),
-                            input_value=step_data.get("input_value", ""),
-                            target_element=step_data.get("target_element", ""),
-                            expected_result=step_data.get("expected_result", ""),
-                            has_locator=0,
-                            locator_status="pending",
-                        )
-                        self.db.add(pc_step)
-                    self.db.commit()
-                    logger.info(f"自动解析前置条件成功，生成 {len(parsed_steps)} 个步骤 (用例ID={test_case.id})")
-            except Exception as e:
-                logger.warning(f"自动解析前置条件失败 (用例ID={test_case.id}): {e}")
-
-        return test_case
+            for idx, step_data in enumerate(parsed_steps):
+                self.db.add(
+                    TestCasePreconditionStep(
+                        test_case_id=test_case.id,
+                        step_number=idx + 1,
+                        action=step_data.get("action", ""),
+                        action_type=step_data.get("action_type", "click"),
+                        input_value=step_data.get("input_value", ""),
+                        target_element=step_data.get("target_element", ""),
+                        expected_result=step_data.get("expected_result", ""),
+                        has_locator=0,
+                        locator_status="pending",
+                    )
+                )
+            self.db.commit()
+            logger.info(f"自动解析前置条件成功，生成 {len(parsed_steps)} 个步骤 (用例ID={test_case.id})")
+        except Exception as e:
+            logger.warning(f"自动解析前置条件失败 (用例ID={test_case.id}): {e}")
 
 
 # 向后兼容别名：历史代码以 TestCaseGenerationValidateMixin 名称实例化
