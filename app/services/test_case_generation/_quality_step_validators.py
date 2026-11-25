@@ -41,29 +41,47 @@ def validate_steps(steps: list[dict[str, Any]], case_type: str = "") -> tuple[bo
             False,
             f"步骤数过多（{len(steps)}步），每条用例最多8步，超过说明混合了多个测试场景，必须拆分为多条独立用例",
         )
-    for i, step in enumerate(steps):
-        action = step.get("action", "") or step.get("description", "")
-        description = step.get("description", "")
-        if not action or not action.strip():
-            return False, f"第{i + 1}步的 action 为空"
-        expected = step.get("expected_result", "")
-        if not expected or not expected.strip():
-            return False, f"第{i + 1}步的 expected_result 为空"
-        if STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
-            return False, f"第{i + 1}步引用其他步骤或用例，应写成独立可执行步骤: {action[:50]}"
-        if STEP_UNCERTAINTY_PATTERN.search(action):
-            return False, f'第{i + 1}步操作不确定（含"或"字措辞），应拆分为独立用例: {action[:50]}'
-        if STEP_INFERENCE_ACTION_PATTERN.search(action):
-            return False, f"第{i + 1}步操作含推断性措辞，必须基于确定事实: {action[:50]}"
-        if STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
-            return False, f"第{i + 1}步预期结果含推断性措辞，必须可明确断言: {expected[:50]}"
-        has_click = any(keyword in action for keyword in CLICK_ACTION_KEYWORDS)
-        has_input = any(keyword in action for keyword in INPUT_ACTION_KEYWORDS)
-        if has_click and has_input:
-            return False, f"第{i + 1}步混合点击和输入操作，应拆分为多个原子步骤: {action[:50]}"
-        if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action):
-            return False, f"第{i + 1}步含人工判断描述，与ui_automation类型矛盾: {action[:50]}"
+    for index, step in enumerate(steps, 1):
+        problem = _check_step(step, index, case_type)
+        if problem:
+            return False, problem
     return True, ""
+
+
+def _check_step(step: dict[str, Any], index: int, case_type: str) -> str | None:
+    """单个步骤的全部校验；返回首个问题描述（无问题返回 None）。"""
+    action = step.get("action", "") or step.get("description", "")
+    description = step.get("description", "")
+    expected = step.get("expected_result", "")
+    return _check_step_text(action, expected, description, index) or _check_step_actions(action, index, case_type)
+
+
+def _check_step_text(action: str, expected: str, description: str, index: int) -> str | None:
+    """文本类校验：必填、引用其他步骤、不确定措辞、推断性措辞。"""
+    if not action or not action.strip():
+        return f"第{index}步的 action 为空"
+    if not expected or not expected.strip():
+        return f"第{index}步的 expected_result 为空"
+    if STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
+        return f"第{index}步引用其他步骤或用例，应写成独立可执行步骤: {action[:50]}"
+    if STEP_UNCERTAINTY_PATTERN.search(action):
+        return f'第{index}步操作不确定（含"或"字措辞），应拆分为独立用例: {action[:50]}'
+    if STEP_INFERENCE_ACTION_PATTERN.search(action):
+        return f"第{index}步操作含推断性措辞，必须基于确定事实: {action[:50]}"
+    if STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
+        return f"第{index}步预期结果含推断性措辞，必须可明确断言: {expected[:50]}"
+    return None
+
+
+def _check_step_actions(action: str, index: int, case_type: str) -> str | None:
+    """动作类校验：点击/输入混步、ui_automation 与人工判断矛盾。"""
+    has_click = any(keyword in action for keyword in CLICK_ACTION_KEYWORDS)
+    has_input = any(keyword in action for keyword in INPUT_ACTION_KEYWORDS)
+    if has_click and has_input:
+        return f"第{index}步混合点击和输入操作，应拆分为多个原子步骤: {action[:50]}"
+    if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action):
+        return f"第{index}步含人工判断描述，与ui_automation类型矛盾: {action[:50]}"
+    return None
 
 
 def validate_test_data_quality(steps: list[dict[str, Any]]) -> tuple[bool, str]:

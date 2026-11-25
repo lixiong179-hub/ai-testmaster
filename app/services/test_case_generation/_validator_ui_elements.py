@@ -60,36 +60,39 @@ class UIElementValidationMixin:
         return text.lower()
 
     @classmethod
+    def _add_ui_element_name(cls, names: set[str], value: Any) -> None:
+        """归一后入库：过短或泛化词（按钮/输入框等）不计入元素名集合。"""
+        if not isinstance(value, str):
+            return
+        normalized = cls._normalize_ui_element_name(value)
+        if len(normalized) < 2 or normalized in cls._GENERIC_UI_WORDS:
+            return
+        names.add(normalized)
+
+    @classmethod
+    def _walk_ui_spec(cls, value: Any, names: set[str], key_hint: str | None = None) -> None:
+        """递归遍历 ui_spec：命中元素键的 dict 值/列表标量计入 names。"""
+        if isinstance(value, dict):
+            for key, item in value.items():
+                key_text = str(key).lower()
+                if key_text in cls._UI_ELEMENT_KEYS:
+                    cls._add_ui_element_name(names, item)
+                if isinstance(item, (dict, list)):
+                    cls._walk_ui_spec(item, names, key_text)
+        elif isinstance(value, list):
+            for item in value:
+                cls._walk_ui_spec(item, names, key_hint)
+        elif key_hint in cls._UI_ELEMENT_KEYS:
+            cls._add_ui_element_name(names, value)
+
+    @classmethod
     def _collect_ui_element_names(cls, ui_specs: list[dict[str, Any]] | None) -> set[str]:
         names: set[str] = set()
-
-        def add(value: Any) -> None:
-            if not isinstance(value, str):
-                return
-            normalized = cls._normalize_ui_element_name(value)
-            if len(normalized) < 2 or normalized in cls._GENERIC_UI_WORDS:
-                return
-            names.add(normalized)
-
-        def walk(value: Any, key_hint: str | None = None) -> None:
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    key_text = str(key).lower()
-                    if key_text in cls._UI_ELEMENT_KEYS:
-                        add(item)
-                    if isinstance(item, (dict, list)):
-                        walk(item, key_text)
-            elif isinstance(value, list):
-                for item in value:
-                    walk(item, key_hint)
-            elif key_hint in cls._UI_ELEMENT_KEYS:
-                add(value)
-
         for spec_item in ui_specs or []:
             if not isinstance(spec_item, dict):
                 continue
-            add(spec_item.get("screen_name"))
-            walk(spec_item.get("ui_spec"))
+            cls._add_ui_element_name(names, spec_item.get("screen_name"))
+            cls._walk_ui_spec(spec_item.get("ui_spec"), names)
         return names
 
     @classmethod
