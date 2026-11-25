@@ -48,8 +48,18 @@ from app.services.precondition.login_strategy_mixin import (
 from app.services.precondition.models import (
     PreconditionError,
     LoginError,
+    LoginFormInfo,
 )
 from app.services.precondition.decorator import handle_precondition_errors
+
+# 探测登录表单是否仍存在（密码框 + 登录按钮数量）
+_LOGIN_FORM_PROBE_JS = """
+    (function() {
+        var pwInputs = document.querySelectorAll('input[type="password"]');
+        var loginBtns = document.querySelectorAll('button[class*=login], [class*=Login]');
+        return pwInputs.length + loginBtns.length;
+    })()
+"""
 
 
 class LoginMixin(LoginStrategyMixin):
@@ -108,28 +118,8 @@ class LoginMixin(LoginStrategyMixin):
         logger.info("登录表单识别成功")
 
         page = self.browser_controller._page
-
-        # 填写用户名
-        await _fill_by_selectors(page, _USERNAME_SELECTORS, username, "用户名", login_form.username_input)
-        logger.info("用户名输入完成")
-
-        # 填写密码（日志中脱敏为"敏感信息"）
-        await _fill_by_selectors(page, _PASSWORD_SELECTORS, password, "敏感信息", login_form.password_input)
-        logger.info("敏感信息输入完成")
-
-        # 验证码处理
-        if login_form.has_captcha():
-            logger.info("检测到验证码，开始识别...")
-            captcha_text = await self._recognize_and_solve_captcha(login_form.captcha_image)
-            if captcha_text and captcha_text != "无法识别":
-                logger.info(f"验证码识别成功: {captcha_text}")
-                await _fill_by_selectors(page, _CAPTCHA_SELECTORS, captcha_text, "验证码", login_form.captcha_input)
-                logger.info("验证码输入完成")
-            else:
-                logger.warning("验证码识别失败，无法继续登录")
-                raise LoginError("验证码识别失败，请手动输入验证码")
-        else:
-            logger.info("未检测到验证码")
+        await self._fill_login_credentials(page, login_form, username, password)
+        await self._handle_login_captcha(page, login_form)
 
         # 点击登录按钮
         await _click_by_selectors(page, _BUTTON_SELECTORS, login_form.submit_button)
@@ -138,67 +128,88 @@ class LoginMixin(LoginStrategyMixin):
         # 轮询检测登录状态
         logger.info("等待页面跳转...")
         cfg = self._timing_config
-        login_success = False
-        for i in range(cfg.max_login_wait_time):
-            await asyncio.sleep(cfg.wait_interval)
-            page_info = await self.browser_controller.get_page_info()
-            current_url = page_info.get("url", "")
-
-            # 检查URL是否不再包含登录关键词
-            url_ok = "login" not in current_url.lower() and "auth" not in current_url.lower()
-
-            # 检查页面标题是否不再包含登录关键词
-            title_ok = False
-            try:
-                page_title = await self.browser_controller.execute_javascript("document.title")
-                if page_title and "登录" not in str(page_title) and "login" not in str(page_title).lower():
-                    title_ok = True
-            except Exception as e:
-                logger.warning(f"页面标题检查失败，保守判定为未登录: {e}")
-                title_ok = False
-
-            # 检查页面是否还存在登录表单元素
-            has_login_form = False
-            try:
-                login_element_count = await self.browser_controller.execute_javascript("""
-                    (function() {
-                        var pwInputs = document.querySelectorAll('input[type="password"]');
-                        var loginBtns = document.querySelectorAll('button[class*=login], [class*=Login]');
-                        return pwInputs.length + loginBtns.length;
-                    })()
-                """)
-                has_login_form = int(login_element_count or 0) > 0
-            except Exception as e:
-                logger.warning(f"登录表单元素检查失败，保守判定为存在登录表单: {e}")
-                has_login_form = True
-
-            if url_ok and (title_ok or not has_login_form):
-                login_success = True
-                logger.info(f"登录成功，已进入首页 (URL: {current_url})")
-                break
-            elif i == cfg.max_login_wait_time - 1:
-                # 登录超时，保存调试截图
-                logger.warning(f"登录超时，可能仍在登录页面 (URL: {current_url})")
-                debug_dir = os.path.join(os.getcwd(), "logs", "debug")
-                os.makedirs(debug_dir, exist_ok=True)
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                debug_path = os.path.join(debug_dir, f"login_failed_{ts}.png")
-                try:
-                    screenshot = await self.browser_controller.take_screenshot()
-                    with open(debug_path, "wb") as f:
-                        f.write(screenshot)
-                    logger.info(f"已保存登录失败截图: {debug_path}")
-                except Exception as e:
-                    logger.warning(f"保存登录失败截图失败: {e}")
-                raise LoginError(
-                    f"登录超时：已等待 {cfg.max_login_wait_time * cfg.wait_interval} 秒，当前URL: {current_url}"
-                )
-            else:
-                logger.debug(f"等待页面跳转... ({i + 1}/{cfg.max_login_wait_time}s)")
-
-        if not login_success:
+        if not await self._poll_login_state(cfg.max_login_wait_time, cfg.wait_interval):
             raise LoginError("登录失败：轮询结束后未确认登录成功")
         logger.info("自动登录执行完成")
+
+    async def _fill_login_credentials(self, page, login_form: LoginFormInfo, username: str, password: str) -> None:
+        """填写用户名与密码（密码在日志中脱敏）。"""
+        await _fill_by_selectors(page, _USERNAME_SELECTORS, username, "用户名", login_form.username_input)
+        logger.info("用户名输入完成")
+        await _fill_by_selectors(page, _PASSWORD_SELECTORS, password, "敏感信息", login_form.password_input)
+        logger.info("敏感信息输入完成")
+
+    async def _handle_login_captcha(self, page, login_form: LoginFormInfo) -> None:
+        """存在验证码时识别并填写，识别失败直接中断登录。"""
+        if not login_form.has_captcha():
+            logger.info("未检测到验证码")
+            return
+        logger.info("检测到验证码，开始识别...")
+        captcha_text = await self._recognize_and_solve_captcha(login_form.captcha_image)
+        if not captcha_text or captcha_text == "无法识别":
+            logger.warning("验证码识别失败，无法继续登录")
+            raise LoginError("验证码识别失败，请手动输入验证码")
+        logger.info(f"验证码识别成功: {captcha_text}")
+        await _fill_by_selectors(page, _CAPTCHA_SELECTORS, captcha_text, "验证码", login_form.captcha_input)
+        logger.info("验证码输入完成")
+
+    async def _poll_login_state(self, max_wait: int, interval: int) -> bool:
+        """轮询登录状态；超时前保存调试截图并抛出 LoginError。"""
+        for i in range(max_wait):
+            await asyncio.sleep(interval)
+            success, current_url = await self._evaluate_login_state()
+            if success:
+                logger.info(f"登录成功，已进入首页 (URL: {current_url})")
+                return True
+            if i == max_wait - 1:
+                logger.warning(f"登录超时，可能仍在登录页面 (URL: {current_url})")
+                await self._save_login_failure_screenshot()
+                raise LoginError(f"登录超时：已等待 {max_wait * interval} 秒，当前URL: {current_url}")
+            logger.debug(f"等待页面跳转... ({i + 1}/{max_wait}s)")
+        return False
+
+    async def _evaluate_login_state(self) -> tuple[bool, str]:
+        """综合 URL / 标题 / 登录表单残留判断是否已登录。"""
+        page_info = await self.browser_controller.get_page_info()
+        current_url = page_info.get("url", "")
+        url_ok = "login" not in current_url.lower() and "auth" not in current_url.lower()
+        title_ok = await self._is_page_title_logged_out()
+        has_login_form = await self._detect_login_form_present()
+        return url_ok and (title_ok or not has_login_form), current_url
+
+    async def _is_page_title_logged_out(self) -> bool:
+        """标题不含登录关键词即视为已离开登录页；检查失败保守返回 False。"""
+        try:
+            page_title = await self.browser_controller.execute_javascript("document.title")
+        except Exception as e:
+            logger.warning(f"页面标题检查失败，保守判定为未登录: {e}")
+            return False
+        if not page_title:
+            return False
+        return "登录" not in str(page_title) and "login" not in str(page_title).lower()
+
+    async def _detect_login_form_present(self) -> bool:
+        """页面上仍存在密码框或登录按钮时返回 True；探测失败保守返回 True。"""
+        try:
+            login_element_count = await self.browser_controller.execute_javascript(_LOGIN_FORM_PROBE_JS)
+            return int(login_element_count or 0) > 0
+        except Exception as e:
+            logger.warning(f"登录表单元素检查失败，保守判定为存在登录表单: {e}")
+            return True
+
+    async def _save_login_failure_screenshot(self) -> None:
+        """保存登录失败截图，失败仅告警不影响主流程。"""
+        debug_dir = os.path.join(os.getcwd(), "logs", "debug")
+        os.makedirs(debug_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        debug_path = os.path.join(debug_dir, f"login_failed_{timestamp}.png")
+        try:
+            screenshot = await self.browser_controller.take_screenshot()
+            with open(debug_path, "wb") as f:
+                f.write(screenshot)
+            logger.info(f"已保存登录失败截图: {debug_path}")
+        except Exception as e:
+            logger.warning(f"保存登录失败截图失败: {e}")
 
     @handle_precondition_errors
     async def check_login_status(self) -> bool:

@@ -1,6 +1,8 @@
 """前置条件工具函数 - 验证码求解和登录表单识别。"""
 
+import operator as operator_module
 import re
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from loguru import logger
 
@@ -10,58 +12,77 @@ from app.utils.ai_client_parser import parse_ai_json_object
 if TYPE_CHECKING:
     pass
 
+_MATH_PATTERNS = (
+    r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=\??",
+    r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=?",
+    r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)",
+)
+_MATH_OPERATORS: dict[str, Callable[[int, int], int]] = {
+    "+": operator_module.add,
+    "＋": operator_module.add,
+    "-": operator_module.sub,
+    "－": operator_module.sub,
+    "*": operator_module.mul,
+    "×": operator_module.mul,
+    "/": operator_module.floordiv,
+    "÷": operator_module.floordiv,
+}
+_DIVISION_OPERATORS = frozenset({"/", "÷"})
+_CAPTCHA_NOISE_TOKENS = frozenset({"captcha", "code", "验证码"})
 
-def solve_captcha_math(response: str) -> str:
-    """求解数学验证码。"""
-    math_patterns = [
-        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=\??",
-        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)\s*=?",
-        r"(\d+)\s*([-+×*÷/＋－×÷])\s*(\d+)",
-    ]
-    for pattern in math_patterns:
-        math_match = re.search(pattern, response)
-        if math_match:
-            num1 = int(math_match.group(1))
-            operator = math_match.group(2)
-            num2 = int(math_match.group(3))
-            result = None
-            if operator in ["+", "＋"]:
-                result = num1 + num2
-            elif operator in ["-", "−", "－"]:
-                result = num1 - num2
-            elif operator in ["*", "×", "＊"]:
-                result = num1 * num2
-            elif operator in ["/", "÷", "／"]:
-                if num2 != 0:
-                    result = num1 // num2
-                else:
-                    logger.warning(f"除数为零: {num1} / {num2}")
-                    return str(num1)
-            if result is not None:
-                logger.info(f"数学表达式计算: {num1} {operator} {num2} = {result}")
-                return str(result)
 
-    numbers = re.findall(r"\d+", response)
-    if numbers:
-        if len(numbers) == 1:
-            return numbers[0]
-        for num in reversed(numbers):
-            if len(num) <= 4:
-                return num
+def _solve_math_expression(response: str) -> str | None:
+    """优先按数学表达式求解，未匹配到表达式时返回 None。"""
+    for pattern in _MATH_PATTERNS:
+        match = re.search(pattern, response)
+        if not match:
+            continue
+        num1, operator, num2 = int(match.group(1)), match.group(2), int(match.group(3))
+        if operator in _DIVISION_OPERATORS and num2 == 0:
+            logger.warning(f"除数为零: {num1} / {num2}")
+            return str(num1)
+        result = _MATH_OPERATORS[operator](num1, num2)
+        logger.info(f"数学表达式计算: {num1} {operator} {num2} = {result}")
+        return str(result)
+    return None
 
-    alphanumeric = re.findall(r"[a-zA-Z0-9]+", response)
-    if alphanumeric:
-        filtered = [s for s in alphanumeric if s.lower() not in ["captcha", "code", "验证码"]]
-        if filtered:
-            return filtered[0]
 
+def _clean_residual_text(response: str) -> str:
+    """兜底：清理关键字前缀后，短文本原样作为验证码。"""
     cleaned = response.strip()
     cleaned = re.sub(r"(?i)(captcha|code|验证码|result|结果|答案|answer)[:\s]*", "", cleaned)
     cleaned = cleaned.strip("\"'\n\r ")
     if cleaned and len(cleaned) <= 10:
         return cleaned
-
     return ""
+
+
+def _extract_fallback_token(response: str) -> str:
+    """数学表达式失败后的三级兜底：数字 → 字母数字 → 清理文本。"""
+    numbers = re.findall(r"\d+", response)
+    if len(numbers) == 1:
+        return numbers[0]
+    for num in reversed(numbers):
+        if len(num) <= 4:
+            return num
+
+    alphanumeric = re.findall(r"[a-zA-Z0-9]+", response)
+    if alphanumeric:
+        filtered = [token for token in alphanumeric if token.lower() not in _CAPTCHA_NOISE_TOKENS]
+        if filtered:
+            return filtered[0]
+
+    return _clean_residual_text(response)
+
+
+def solve_captcha_math(response: str) -> str:
+    """求解数学验证码。"""
+    if not response:
+        return ""
+    math_result = _solve_math_expression(response)
+    if math_result is not None:
+        return math_result
+    return _extract_fallback_token(response)
 
 
 def recognize_login_form(vision_model, screenshot: bytes) -> LoginFormInfo:
