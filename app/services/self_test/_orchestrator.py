@@ -6,12 +6,42 @@ patch 替换的是 shim 模块属性，运行时 _stm._step_* 从 shim 查找得
 """
 
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.self_test._pipeline_steps_setup import _build_step_result
+
+
+def _elapsed_ms(step_start: float) -> float:
+    return (time.monotonic() - step_start) * 1000
+
+
+async def _run_step(
+    steps: list[dict[str, Any]],
+    name: str,
+    call: Callable[[], Awaitable[tuple]],
+    skip_reason: str | None = None,
+) -> tuple | None:
+    """执行单个链路步骤并入账：前置不满足记 skipped，异常记 failed 且不中断后续。
+
+    返回被调用步骤的原始元组（`(ok, err, ...)`），跳过或异常时返回 None——
+    调用方据此决定是否采纳 `result[2]` 这类产出，语义与原先的「赋值只发生在成功返回」一致。
+    """
+    step_start = time.monotonic()
+    if skip_reason:
+        steps.append(_build_step_result(name, "skipped", skip_reason, _elapsed_ms(step_start)))
+        return None
+    try:
+        result = await call()
+    except Exception as exc:  # noqa: BLE001 - 单步异常不应中断全链路
+        steps.append(_build_step_result(name, "failed", str(exc), _elapsed_ms(step_start)))
+        return None
+    ok, err = result[0], result[1]
+    steps.append(_build_step_result(name, "success" if ok else "failed", err, _elapsed_ms(step_start)))
+    return result
 
 
 async def run_defect_discovery_self_test(
@@ -67,278 +97,83 @@ async def run_defect_discovery_self_test(
     logger.info(f"开始缺陷挖掘全链路自测: project_id={project_id}, user_id={user_id}")
 
     # --- 步骤 1: 需求确认 ---
-    step_start = time.monotonic()
-    try:
-        ok, err = await _stm._step_requirement_confirmation(db, project_id)
-        steps.append(
-            _build_step_result(
-                "需求确认",
-                "success" if ok else "failed",
-                err,
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "需求确认",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    await _run_step(
+        steps,
+        "需求确认",
+        lambda: _stm._step_requirement_confirmation(db, project_id),
+    )
 
     # --- 步骤 2: 测试点提取 ---
-    step_start = time.monotonic()
-    try:
-        ok, err, test_point_ids = await _stm._step_extract_test_points(db, project_id)
-        steps.append(
-            _build_step_result(
-                "测试点提取",
-                "success" if ok else "failed",
-                err,
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "测试点提取",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    result = await _run_step(
+        steps,
+        "测试点提取",
+        lambda: _stm._step_extract_test_points(db, project_id),
+    )
+    if result:
+        test_point_ids = result[2]
 
     # --- 步骤 3: 用例生成 ---
-    step_start = time.monotonic()
-    try:
-        if not test_point_ids:
-            steps.append(
-                _build_step_result(
-                    "用例生成",
-                    "skipped",
-                    "前置步骤未产出测试点",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err, case_ids = await _stm._step_generate_cases(
-                db,
-                project_id,
-                user_id,
-                test_point_ids,
-            )
-            steps.append(
-                _build_step_result(
-                    "用例生成",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "用例生成",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    result = await _run_step(
+        steps,
+        "用例生成",
+        lambda: _stm._step_generate_cases(db, project_id, user_id, test_point_ids),
+        skip_reason=None if test_point_ids else "前置步骤未产出测试点",
+    )
+    if result:
+        case_ids = result[2]
 
     # --- 步骤 4: 评审保存 ---
-    step_start = time.monotonic()
-    try:
-        if not case_ids:
-            steps.append(
-                _build_step_result(
-                    "评审保存",
-                    "skipped",
-                    "前置步骤未产出用例",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err = await _stm._step_review_and_save(db, project_id, user_id, case_ids)
-            steps.append(
-                _build_step_result(
-                    "评审保存",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "评审保存",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    await _run_step(
+        steps,
+        "评审保存",
+        lambda: _stm._step_review_and_save(db, project_id, user_id, case_ids),
+        skip_reason=None if case_ids else "前置步骤未产出用例",
+    )
 
     # --- 步骤 5: 任务创建 ---
-    step_start = time.monotonic()
-    try:
-        if not case_ids:
-            steps.append(
-                _build_step_result(
-                    "任务创建",
-                    "skipped",
-                    "前置步骤未产出用例",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err, task_id = await _stm._step_create_task(db, project_id, user_id, case_ids)
-            steps.append(
-                _build_step_result(
-                    "任务创建",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "任务创建",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    result = await _run_step(
+        steps,
+        "任务创建",
+        lambda: _stm._step_create_task(db, project_id, user_id, case_ids),
+        skip_reason=None if case_ids else "前置步骤未产出用例",
+    )
+    if result:
+        task_id = result[2]
 
     # --- 步骤 6: 执行 ---
-    step_start = time.monotonic()
-    try:
-        if not task_id:
-            steps.append(
-                _build_step_result(
-                    "执行",
-                    "skipped",
-                    "前置步骤未创建任务",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err = await _stm._step_execute(db, project_id, task_id)
-            steps.append(
-                _build_step_result(
-                    "执行",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "执行",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    await _run_step(
+        steps,
+        "执行",
+        lambda: _stm._step_execute(db, project_id, task_id),
+        skip_reason=None if task_id else "前置步骤未创建任务",
+    )
 
     # --- 步骤 7: 严重度评估 ---
-    step_start = time.monotonic()
-    try:
-        if not task_id:
-            steps.append(
-                _build_step_result(
-                    "严重度评估",
-                    "skipped",
-                    "前置步骤未创建任务",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err, defect_counts = await _stm._step_assess_severity(db, project_id, task_id)
-            steps.append(
-                _build_step_result(
-                    "严重度评估",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-            # 汇总缺陷统计
-            defect_summary["p0_count"] = defect_counts.get("p0", 0)
-            defect_summary["p1_count"] = defect_counts.get("p1", 0)
-            defect_summary["p2_count"] = defect_counts.get("p2", 0)
-            defect_summary["p3_count"] = defect_counts.get("p3", 0)
-            defect_summary["total_defects"] = sum(defect_summary.values())
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "严重度评估",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    result = await _run_step(
+        steps,
+        "严重度评估",
+        lambda: _stm._step_assess_severity(db, project_id, task_id),
+        skip_reason=None if task_id else "前置步骤未创建任务",
+    )
+    if result:
+        _merge_defect_counts(defect_summary, result[2])
 
     # --- 步骤 8: 报告生成 ---
-    step_start = time.monotonic()
-    try:
-        if not task_id:
-            steps.append(
-                _build_step_result(
-                    "报告生成",
-                    "skipped",
-                    "前置步骤未创建任务",
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-        else:
-            ok, err, report_id = await _stm._step_generate_report(
-                db,
-                project_id,
-                task_id,
-                user_id,
-            )
-            steps.append(
-                _build_step_result(
-                    "报告生成",
-                    "success" if ok else "failed",
-                    err,
-                    (time.monotonic() - step_start) * 1000,
-                )
-            )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "报告生成",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    result = await _run_step(
+        steps,
+        "报告生成",
+        lambda: _stm._step_generate_report(db, project_id, task_id, user_id),
+        skip_reason=None if task_id else "前置步骤未创建任务",
+    )
+    if result:
+        report_id = result[2]
 
     # --- 步骤 9: 数据清理 ---
-    step_start = time.monotonic()
-    try:
-        ok, err = await _stm._step_cleanup(db, project_id)
-        steps.append(
-            _build_step_result(
-                "数据清理",
-                "success" if ok else "failed",
-                err,
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
-    except Exception as exc:
-        steps.append(
-            _build_step_result(
-                "数据清理",
-                "failed",
-                str(exc),
-                (time.monotonic() - step_start) * 1000,
-            )
-        )
+    await _run_step(
+        steps,
+        "数据清理",
+        lambda: _stm._step_cleanup(db, project_id),
+    )
 
     # --- 汇总通知 ---
     await _stm._notify_pipeline_summary(db, project_id, steps, defect_summary, report_id)
@@ -362,6 +197,18 @@ async def run_defect_discovery_self_test(
     )
 
     return result
+
+
+def _merge_defect_counts(defect_summary: dict[str, int], defect_counts: dict[str, int]) -> None:
+    """把步骤 7 的缺陷计数并入摘要（p0-p3 覆盖写入，总数按四档重算）。"""
+    defect_summary["p0_count"] = defect_counts.get("p0", 0)
+    defect_summary["p1_count"] = defect_counts.get("p1", 0)
+    defect_summary["p2_count"] = defect_counts.get("p2", 0)
+    defect_summary["p3_count"] = defect_counts.get("p3", 0)
+    # 只累加四档，避免把残留的 total_defects 再计入（原实现依赖初始值为 0）
+    defect_summary["total_defects"] = sum(
+        defect_summary[key] for key in ("p0_count", "p1_count", "p2_count", "p3_count")
+    )
 
 
 async def _notify_pipeline_summary(

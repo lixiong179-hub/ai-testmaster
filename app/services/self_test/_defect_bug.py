@@ -45,6 +45,11 @@ _P2_RENDERING_ASSERTIONS = frozenset({"text_not_empty"})
 # P3 触发关键词：控制台错误 / UI 瑕疵
 _P3_CONSOLE_ASSERTIONS = frozenset({"no_console_errors"})
 
+# 常量表：P1 元素定位失败类型 / P2 视觉一致性断言 / P3 URL 类断言
+_P1_ELEMENT_TYPES = frozenset({"element_not_found", "locator_failure"})
+_P2_VISUAL_ASSERTIONS = frozenset({"not_visible", "visible", "text_contains", "text_equals", "text_matches"})
+_P3_URL_ASSERTIONS = frozenset({"url_contains", "url_equals"})
+
 # ux_category 映射表
 _UX_CATEGORY_MAP: dict[str, str | None] = {
     "no_sensitive_data": "security",
@@ -90,64 +95,68 @@ def _assess_defect_severity(
     evidence = defect_evidence or {}
     msg_lower = error_message.lower()
 
-    # --- P0: 安全断言失败 ---
+    return (
+        _severity_p0(failure_lower, msg_lower)
+        or _severity_p1(failure_lower, evidence, msg_lower)
+        or _severity_p2_or_p3(failure_lower)
+        or (3, None)  # 默认 P2：未登记断言按「非核心功能异常」处理
+    )
+
+
+def _severity_p0(failure_lower: str, msg_lower: str) -> tuple[int, str | None] | None:
+    """P0：安全断言失败 / 系统崩溃（白屏、500）。"""
     if failure_lower in _P0_SECURITY_ASSERTIONS:
         return (1, _UX_CATEGORY_MAP.get(failure_lower))
-
-    # --- P0: 系统崩溃（白屏 / 500） ---
     if any(kw in msg_lower for kw in _P0_CRASH_KEYWORDS):
         return (1, None)
+    return None
 
-    # --- P1: 内存泄漏嫌疑 ---
+
+def _has_server_error(network_failures: list[dict[str, Any]]) -> bool:
+    """网络失败里是否含 5xx（status 以字符串包含判断，兼容 "503 Service Unavailable"）。"""
+    for failure in network_failures:
+        status_code = str(failure.get("status", ""))
+        if any(code in status_code for code in _P1_NETWORK_5XX):
+            return True
+    return False
+
+
+def _is_element_failure(failure_lower: str, msg_lower: str) -> bool:
+    if failure_lower in _P1_ELEMENT_TYPES:
+        return True
+    return any(kw in msg_lower for kw in _P1_ELEMENT_FAILURES)
+
+
+def _severity_p1(failure_lower: str, evidence: dict[str, Any], msg_lower: str) -> tuple[int, str | None] | None:
+    """P1：内存泄漏 / 5xx / 数据不一致 / 权限绕过 / 元素定位失败。"""
     if failure_lower in _P1_MEMORY_LEAK or bool(evidence.get("memory_leak_suspect")):
         return (2, "response_performance")
-
-    # --- P1: 5xx 网络错误 ---
-    network_failures = evidence.get("network_failures", [])
-    if network_failures:
-        for failure in network_failures:
-            status_code = str(failure.get("status", ""))
-            if any(code in status_code for code in _P1_NETWORK_5XX):
-                return (2, "response_performance")
-
-    # --- P1: no_network_errors 断言失败 ---
+    if _has_server_error(evidence.get("network_failures") or []):
+        return (2, "response_performance")
     if failure_lower == "no_network_errors":
         return (2, "response_performance")
-
-    # --- P1: 数据不一致 / 权限绕过 ---
     if any(kw in msg_lower for kw in _P1_DATA_KEYWORDS):
         return (2, None)
-
-    # --- P1: 核心功能不可用（元素未找到导致流程中断） ---
-    if failure_lower in ("element_not_found", "locator_failure") or any(kw in msg_lower for kw in _P1_ELEMENT_FAILURES):
+    if _is_element_failure(failure_lower, msg_lower):
         return (2, None)
+    return None
 
-    # --- P2: 加载超时 ---
+
+def _severity_p2_or_p3(failure_lower: str) -> tuple[int, str | None] | None:
+    """P2：加载/渲染/视觉断言；P3：控制台错误、URL 类 UI 瑕疵。"""
     if failure_lower in _P2_LOADING_ASSERTIONS:
         return (3, _UX_CATEGORY_MAP.get(failure_lower))
-
-    # --- P2: response_time_lt 断言失败 ---
     if failure_lower == "response_time_lt":
         return (3, "response_performance")
-
-    # --- P2: 渲染问题（text_not_empty 失败） ---
     if failure_lower in _P2_RENDERING_ASSERTIONS:
         return (3, _UX_CATEGORY_MAP.get(failure_lower))
-
-    # --- P2: 非核心功能异常 / 体验性问题 ---
-    if failure_lower in ("not_visible", "visible", "text_contains", "text_equals", "text_matches"):
+    if failure_lower in _P2_VISUAL_ASSERTIONS:
         return (3, "visual_consistency")
-
-    # --- P3: 控制台错误 ---
     if failure_lower in _P3_CONSOLE_ASSERTIONS:
         return (4, "error_feedback")
-
-    # --- P3: UI 瑕疵 / 非关键体验优化 ---
-    if failure_lower in ("url_contains", "url_equals"):
+    if failure_lower in _P3_URL_ASSERTIONS:
         return (4, None)
-
-    # --- 默认 P2 ---
-    return (3, None)
+    return None
 
 
 async def _generate_bug_no(db: AsyncSession, project_id: int) -> str:
