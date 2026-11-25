@@ -4,7 +4,29 @@
 import os
 import re
 from typing import Any
+
 from loguru import logger
+
+INFO_SHEET_NAME = "用例信息"
+STEP_SHEET_NAME = "测试步骤"
+MODULE_COLUMN_KEYS: tuple[str, ...] = ("所属模块", "module")
+
+
+def _apply_column_mapping(df: Any, column_mapping: dict[str, str] | None) -> Any:
+    """按调用方给出的「原始列名 → 标准列名」映射重命名（仅对存在的列生效）。"""
+    if not column_mapping:
+        return df
+    rename_map = {orig: std for orig, std in column_mapping.items() if orig in df.columns}
+    return df.rename(columns=rename_map) if rename_map else df
+
+
+def _fill_module_column(df: Any, sheet_name: str, sheet_count: int) -> Any:
+    """多 sheet 合并时用 sheet 名补「所属模块」（已有模块列则不动）。"""
+    if sheet_count <= 1:
+        return df
+    if next((c for c in MODULE_COLUMN_KEYS if c in df.columns), None) is None:
+        df["所属模块"] = sheet_name
+    return df
 
 
 COLUMN_ALIASES: dict[str, list[str]] = {
@@ -98,43 +120,29 @@ class ExcelNormalizeMixin:
         column_mapping: dict[str, str] | None = None,
         normalize_options: dict[str, bool] | None = None,
     ) -> str:
-        import pandas as pd
         import tempfile
+
+        import pandas as pd
 
         options = normalize_options or {
             "expand_merged_cells": True,
             "split_multi_step": True,
             "merge_sheets": True,
         }
-        xl = pd.ExcelFile(file_path)
-        sheet_names = xl.sheet_names
-        if "用例信息" in sheet_names and "测试步骤" in sheet_names:
+        sheet_names = pd.ExcelFile(file_path).sheet_names
+        if INFO_SHEET_NAME in sheet_names and STEP_SHEET_NAME in sheet_names:
             return file_path
+
         dfs: list[pd.DataFrame] = []
         for sheet_name in sheet_names:
             df = pd.read_excel(file_path, sheet_name=sheet_name)
             if df.empty:
                 continue
-            df.columns = [str(col).strip() for col in df.columns]
-            if column_mapping:
-                rename_map = {}
-                for original_col, standard_name in column_mapping.items():
-                    if original_col in df.columns:
-                        rename_map[original_col] = standard_name
-                if rename_map:
-                    df = df.rename(columns=rename_map)
-            if options.get("expand_merged_cells", True):
-                merged_cols = [issue["column"] for issue in self._detect_merged_cells(df)]
-                df = self._expand_merged_cells(df, merged_cols)
-            if options.get("split_multi_step", True):
-                df = self._split_multi_step_cells(df)
-            if len(sheet_names) > 1:
-                module_col = next((c for c in ["所属模块", "module"] if c in df.columns), None)
-                if module_col is None:
-                    df["所属模块"] = sheet_name
-            dfs.append(df)
+            dfs.append(self._normalize_sheet(df, sheet_name, column_mapping, options, len(sheet_names)))
+
         if not dfs:
             return file_path
+
         merged_df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx", prefix="normalized_") as tmp:
             normalized_path = tmp.name
@@ -142,6 +150,24 @@ class ExcelNormalizeMixin:
         self._register_temp_file(normalized_path)
         logger.info(f"Excel规范化完成，输出: {normalized_path}")
         return normalized_path
+
+    def _normalize_sheet(
+        self,
+        df: Any,
+        sheet_name: str,
+        column_mapping: dict[str, str] | None,
+        options: dict[str, bool],
+        sheet_count: int,
+    ) -> Any:
+        """单个 sheet 的规范化：列名去空白 → 列映射 → 展开合并 → 拆分多步骤 → 补模块列。"""
+        df.columns = [str(col).strip() for col in df.columns]
+        df = _apply_column_mapping(df, column_mapping)
+        if options.get("expand_merged_cells", True):
+            merged_cols = [issue["column"] for issue in self._detect_merged_cells(df)]
+            df = self._expand_merged_cells(df, merged_cols)
+        if options.get("split_multi_step", True):
+            df = self._split_multi_step_cells(df)
+        return _fill_module_column(df, sheet_name, sheet_count)
 
     def _detect_merged_cells(self, df: Any) -> list[dict[str, Any]]:
         issues: list[dict[str, Any]] = []

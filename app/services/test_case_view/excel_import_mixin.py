@@ -2,6 +2,8 @@
 
 import re
 import time
+from typing import Any
+
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -10,6 +12,49 @@ from app.models.project import Project
 from app.models.enums import LocatorStatus
 from app.services.test_case_view.models import BusinessStepView
 from app.services.case_number_service import CaseNumberService
+
+STEP_COLUMN_KEYS: tuple[str, ...] = ("操作步骤", "步骤描述")
+MODULE_COLUMN_KEYS: tuple[str, ...] = ("所属模块", "所属分组")
+_FUNCTIONAL_PRIORITY_MAP: dict[str, int] = {"P0": 1, "P1": 1, "P2": 2, "P3": 3}
+_UI_CASE_TYPE_MARKERS: tuple[str, ...] = ("UI自动化", "功能测试", "UI", "功能")
+
+
+def _row_text(row: Any, keys: tuple[str, ...]) -> str:
+    """按候选列依次取值并 strip（用于兼容多种列名）。"""
+    return str(row.get(keys[0], row.get(keys[1], "") if len(keys) > 1 else "")).strip()
+
+
+def _is_module_header_row(row: Any, pd: Any) -> bool:
+    """模块分组标题行：操作步骤列为空（合并单元格常见形态）。"""
+    raw_step = row.get(STEP_COLUMN_KEYS[0], row.get(STEP_COLUMN_KEYS[1], None))
+    return bool(pd.isna(raw_step) or str(raw_step).strip() == "")
+
+
+def _module_from_header_row(row: Any, pd: Any) -> str | None:
+    """从标题行首列取模块名；纯数字是数据行序号，不视为模块名。"""
+    first_col = row.iloc[0] if len(row) > 0 else None
+    if first_col is None or pd.isna(first_col):
+        return None
+    first_val = str(first_col).strip()
+    if not first_val or first_val.isdigit():
+        return None
+    return first_val
+
+
+def _resolve_row_module(row: Any, current_module: str, pd: Any) -> str:
+    """模块名优先取行内列值，回退到最近一次标题行识别的模块。"""
+    col_module = row.get(MODULE_COLUMN_KEYS[0], row.get(MODULE_COLUMN_KEYS[1], None))
+    if col_module is None or pd.isna(col_module):
+        return current_module
+    return str(col_module).strip() or current_module
+
+
+def _functional_priority(priority_text: str) -> int:
+    return _FUNCTIONAL_PRIORITY_MAP.get(priority_text.upper(), 2)
+
+
+def _is_ui_case_type(case_type: str) -> bool:
+    return case_type in _UI_CASE_TYPE_MARKERS
 
 
 class ExcelImportMixin:
@@ -124,80 +169,25 @@ class ExcelImportMixin:
             current_module = module  # 跟踪当前模块名（从合并行提取）
 
             for _, row in df.iterrows():
-                # 判断是否为模块分组标题行：操作步骤列为空，且第一列（用例序号）有非数字值
-                raw_step = row.get("操作步骤", row.get("步骤描述", None))
-                first_col = row.iloc[0] if len(row) > 0 else None
-                is_module_header = pd.isna(raw_step) or str(raw_step).strip() == ""
-                if is_module_header:
-                    # 模块标题行：提取模块名（第一列的值）
-                    if first_col is not None and not pd.isna(first_col):
-                        first_val = str(first_col).strip()
-                        # 用例序号列的纯数字是数据行序号，非数字才是模块名
-                        if first_val and not first_val.isdigit():
-                            current_module = first_val
+                if _is_module_header_row(row, pd):
+                    current_module = _module_from_header_row(row, pd) or current_module
                     continue
 
-                title = str(row.get("用例描述", row.get("标题", ""))).strip()
+                title = _row_text(row, ("用例描述", "标题"))
                 if not title:
                     continue
 
-                case_no = str(row.get("执行用例ID", "")).strip()
-                # 用例序号是模块内序号（1,2,3...），不能作为唯一编号；仅当包含字母时视为真实编号
-                raw_seq = str(row.get("用例序号", "")).strip()
-                if not case_no and raw_seq and not raw_seq.isdigit():
-                    case_no = raw_seq
-                original_case_no = case_no if case_no else None
-                case_no = CaseNumberService.generate(project_id, self.db)
-
-                # 模块名优先使用从合并行提取的 current_module，其次从列读取（兼容旧格式）
-                col_module = row.get("所属模块", row.get("所属分组", None))
-                if col_module is not None and not pd.isna(col_module) and str(col_module).strip():
-                    group = str(col_module).strip()
-                else:
-                    group = current_module
-                precondition = str(row.get("初始条件", row.get("前置条件", ""))).strip()
-                step_desc = str(row.get("操作步骤", row.get("步骤描述", ""))).strip()
-                expected = str(row.get("期望结果", row.get("预期结果", ""))).strip()
-                case_type = str(row.get("用例类型", "UI自动化")).strip()
-                priority_str = str(row.get("优先级", row.get("用例等级", "P2"))).strip()
-
-                priority_map = {"P0": 1, "P1": 1, "P2": 2, "P3": 3}
-                priority = priority_map.get(priority_str.upper(), 2)
-
-                steps = self._parse_functional_steps(step_desc, expected)
-
-                test_case = TestCase(
+                test_case, steps = self._build_functional_case(
+                    row=row,
                     project_id=project_id,
-                    case_no=case_no,
-                    legacy_case_no=original_case_no,
-                    module=group,
                     title=title,
-                    precondition=precondition,
-                    expected_result=expected.replace("\\n", "\n"),
-                    priority=priority,
-                    case_type="ui_automation"
-                    if case_type in ("UI自动化", "功能测试", "UI", "功能")
-                    else "api_automation",
+                    group=_resolve_row_module(row, current_module, pd),
                     target_device=target_device,
-                    generate_status=1,
-                    steps_json=[s.to_dict() for s in steps],
+                    pd=pd,
                 )
                 self.db.add(test_case)
                 self.db.flush()
-
-                for i, step_info in enumerate(steps, 1):
-                    step = TestStep(
-                        test_case_id=test_case.id,
-                        step_number=i,
-                        action=step_info.action,
-                        expected_result=step_info.expected_result,
-                        is_business_view=1,
-                        is_technical_view=0,
-                        has_locator=0,
-                        locator_status=LocatorStatus.PENDING.value,
-                    )
-                    self.db.add(step)
-
+                self._add_functional_steps(test_case, steps)
                 imported_cases.append(test_case.id)
 
             self.db.commit()
@@ -207,6 +197,60 @@ class ExcelImportMixin:
             self.db.rollback()
             logger.error(f"从功能用例Excel导入失败: {e}")
             return []
+
+    def _build_functional_case(
+        self,
+        row: Any,
+        project_id: int,
+        title: str,
+        group: str,
+        target_device: str | None,
+        pd: Any,
+    ) -> tuple[TestCase, list[BusinessStepView]]:
+        """功能用例行 → (TestCase 实体, 业务步骤列表)；编号/优先级/类型的兼容规则集中在此。"""
+        case_no = _row_text(row, ("执行用例ID",))
+        # 用例序号是模块内序号（1,2,3...），不能作为唯一编号；仅当非纯数字时视为真实编号
+        raw_seq = _row_text(row, ("用例序号",))
+        if not case_no and raw_seq and not raw_seq.isdigit():
+            case_no = raw_seq
+        original_case_no = case_no if case_no else None
+        case_no = CaseNumberService.generate(project_id, self.db)
+
+        expected = _row_text(row, ("期望结果", "预期结果"))
+        steps = self._parse_functional_steps(_row_text(row, ("操作步骤", "步骤描述")), expected)
+        case_type = _row_text(row, ("用例类型",)) or "UI自动化"
+
+        test_case = TestCase(
+            project_id=project_id,
+            case_no=case_no,
+            legacy_case_no=original_case_no,
+            module=group,
+            title=title,
+            precondition=_row_text(row, ("初始条件", "前置条件")),
+            expected_result=expected.replace("\\n", "\n"),
+            priority=_functional_priority(_row_text(row, ("优先级", "用例等级"))),
+            case_type="ui_automation" if _is_ui_case_type(case_type) else "api_automation",
+            target_device=target_device,
+            generate_status=1,
+            steps_json=[s.to_dict() for s in steps],
+        )
+        return test_case, steps
+
+    def _add_functional_steps(self, test_case: TestCase, steps: list[BusinessStepView]) -> None:
+        """按顺序落业务视图步骤（技术视图待定位阶段补齐）。"""
+        for i, step_info in enumerate(steps, 1):
+            self.db.add(
+                TestStep(
+                    test_case_id=test_case.id,
+                    step_number=i,
+                    action=step_info.action,
+                    expected_result=step_info.expected_result,
+                    is_business_view=1,
+                    is_technical_view=0,
+                    has_locator=0,
+                    locator_status=LocatorStatus.PENDING.value,
+                )
+            )
 
     def _generate_unique_case_no(self, project_id: int, original_case_no: str) -> str:
         if not original_case_no:

@@ -1,7 +1,28 @@
 """Excel验证Mixin - 标准格式和功能用例格式的Excel验证。"""
 
 from typing import Any
+
 from loguru import logger
+
+INFO_SHEET = "用例信息"
+STEP_SHEET = "测试步骤"
+INFO_REQUIRED_COLUMN = "用例标题"
+STEP_REQUIRED_COLUMNS: tuple[str, ...] = ("步骤编号", "操作步骤", "预期结果")
+
+
+def _missing_required_sheets(sheet_names: list[str]) -> list[str]:
+    """标准格式必备的两个 sheet。"""
+    return [f"缺少'{name}'sheet" for name in (INFO_SHEET, STEP_SHEET) if name not in sheet_names]
+
+
+def _collect_sheet_errors(label: str, df: Any, required_columns: tuple[str, ...], errors: list[str]) -> None:
+    """sheet 空表/缺列检查，结果追加到 errors。"""
+    if df.empty:
+        errors.append(f"'{label}'sheet为空")
+        return
+    for col in required_columns:
+        if col not in df.columns:
+            errors.append(f"'{label}'sheet缺少'{col}'列")
 
 
 class ExcelValidateMixin:
@@ -10,38 +31,23 @@ class ExcelValidateMixin:
     def validate_excel_format(self, file_path: str) -> dict[str, Any]:
         result = {"valid": False, "errors": [], "warnings": []}
         try:
-            import pandas as pd
             import os
+
+            import pandas as pd
 
             if not os.path.exists(file_path):
                 result["errors"].append("文件不存在")
                 return result
 
-            xl = pd.ExcelFile(file_path)
-            sheet_names = xl.sheet_names
-
-            if "用例信息" not in sheet_names:
-                result["errors"].append("缺少'用例信息'sheet")
-            if "测试步骤" not in sheet_names:
-                result["errors"].append("缺少'测试步骤'sheet")
+            sheet_names = pd.ExcelFile(file_path).sheet_names
+            result["errors"].extend(_missing_required_sheets(sheet_names))
             if result["errors"]:
                 return result
 
             case_info_df = pd.read_excel(file_path, sheet_name="用例信息")
-            if case_info_df.empty:
-                result["errors"].append("'用例信息'sheet为空")
-            else:
-                for col in ["用例标题"]:
-                    if col not in case_info_df.columns:
-                        result["errors"].append(f"'用例信息'sheet缺少'{col}'列")
-
             steps_df = pd.read_excel(file_path, sheet_name="测试步骤")
-            if steps_df.empty:
-                result["errors"].append("'测试步骤'sheet为空")
-            else:
-                for col in ["步骤编号", "操作步骤", "预期结果"]:
-                    if col not in steps_df.columns:
-                        result["errors"].append(f"'测试步骤'sheet缺少'{col}'列")
+            _collect_sheet_errors("用例信息", case_info_df, (INFO_REQUIRED_COLUMN,), result["errors"])
+            _collect_sheet_errors("测试步骤", steps_df, STEP_REQUIRED_COLUMNS, result["errors"])
 
             if not result["errors"]:
                 result["valid"] = True
