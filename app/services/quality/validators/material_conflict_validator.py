@@ -9,7 +9,43 @@ from app.services.quality.validators.base import (
     BaseValidator,
     ValidationIssue,
     ValidationResult,
+    worst_severity,
 )
+
+
+def _build_case_text(case_data: dict) -> str:
+    """用例标题 + 各步骤动作/描述，拼成用于关键词匹配的小写文本。"""
+    text = (case_data.get("title") or "").strip()
+    for step in case_data.get("steps") or []:
+        text += f" {step.get('action') or step.get('description') or ''}"
+    return text.lower()
+
+
+def _match_terms(text: str, candidates: object) -> list[str]:
+    """返回在 text 中出现的候选词（忽略非字符串项）。"""
+    return [item for item in candidates or [] if isinstance(item, str) and item.lower() in text]
+
+
+def _build_conflict_issues(referenced_req: list[str], referenced_ui: list[str]) -> list[ValidationIssue]:
+    """单向命中即视为资料冲突：只提需求不提界面 → pending_review，反之仅 warning。"""
+    issues: list[ValidationIssue] = []
+    if referenced_req and not referenced_ui:
+        issues.append(
+            ValidationIssue(
+                field="material_conflict",
+                message=f"用例引用了需求关键词 {referenced_req[:3]} 但未匹配到任何UI界面名称，可能存在资料冲突",
+                severity="pending_review",
+            )
+        )
+    if referenced_ui and not referenced_req:
+        issues.append(
+            ValidationIssue(
+                field="material_conflict",
+                message=f"用例引用了UI界面 {referenced_ui[:3]} 但未匹配到任何需求关键词，可能存在资料冲突",
+                severity="warning",
+            )
+        )
+    return issues
 
 
 class MaterialConflictValidator(BaseValidator):
@@ -21,61 +57,15 @@ class MaterialConflictValidator(BaseValidator):
         context: dict | None = None,
     ) -> ValidationResult:
         """校验资料冲突。"""
-        issues: list[ValidationIssue] = []
         ctx = context or {}
-
         requirement_keywords = ctx.get("requirement_keywords") or set()
         ui_screen_names = ctx.get("ui_screen_names") or set()
-
         if not requirement_keywords or not ui_screen_names:
             return ValidationResult(status="passed", issues=[])
 
-        case_title = (case_data.get("title") or "").strip()
-        case_steps = case_data.get("steps") or []
-        case_text = case_title
-        for step in case_steps:
-            action = step.get("action") or step.get("description") or ""
-            case_text += f" {action}"
-
-        case_text_lower = case_text.lower()
-
-        referenced_req_keywords: list[str] = []
-        for kw in requirement_keywords:
-            if isinstance(kw, str) and kw.lower() in case_text_lower:
-                referenced_req_keywords.append(kw)
-
-        referenced_ui_screens: list[str] = []
-        for screen in ui_screen_names:
-            if isinstance(screen, str) and screen.lower() in case_text_lower:
-                referenced_ui_screens.append(screen)
-
-        if referenced_req_keywords and not referenced_ui_screens:
-            issues.append(
-                ValidationIssue(
-                    field="material_conflict",
-                    message=(
-                        f"用例引用了需求关键词 {referenced_req_keywords[:3]} 但未匹配到任何UI界面名称，可能存在资料冲突"
-                    ),
-                    severity="pending_review",
-                )
-            )
-
-        if referenced_ui_screens and not referenced_req_keywords:
-            issues.append(
-                ValidationIssue(
-                    field="material_conflict",
-                    message=(
-                        f"用例引用了UI界面 {referenced_ui_screens[:3]} 但未匹配到任何需求关键词，可能存在资料冲突"
-                    ),
-                    severity="warning",
-                )
-            )
-
-        worst = "passed"
-        for issue in issues:
-            from app.services.quality.validators.base import Severity
-
-            if Severity[issue.severity].value > Severity[worst].value:
-                worst = issue.severity
-
-        return ValidationResult(status=worst, issues=issues)
+        case_text = _build_case_text(case_data)
+        issues = _build_conflict_issues(
+            _match_terms(case_text, requirement_keywords),
+            _match_terms(case_text, ui_screen_names),
+        )
+        return ValidationResult(status=worst_severity(issues), issues=issues)

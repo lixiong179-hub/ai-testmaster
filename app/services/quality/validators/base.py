@@ -72,6 +72,18 @@ class ValidationResult:
         return ValidationResult(status=worst.status, issues=all_issues)
 
 
+def worst_severity(issues: list[ValidationIssue]) -> str:
+    """按 `Severity` 严重度取最严重状态；无问题时为 passed。
+
+    多个校验器原本各自内联同样的「遍历取最大」循环，统一到此处避免口径漂移。
+    """
+    worst = "passed"
+    for issue in issues:
+        if Severity[issue.severity].value > Severity[worst].value:
+            worst = issue.severity
+    return worst
+
+
 class BaseValidator(ABC):
     """校验器抽象基类。
 

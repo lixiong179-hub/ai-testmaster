@@ -56,40 +56,41 @@ class UIReferenceValidator(BaseValidator):
         text = re.sub(r"[\s【】「」\"'`<>《》:：,，。；;、\[\]()（）]", "", text)
         return text.lower()
 
+    def _add_ui_name(self, names: set[str], value: object) -> None:
+        """归一化后入池；非字符串、过短或通用词（按钮/输入框…）一律丢弃。"""
+        if not isinstance(value, str):
+            return
+        normalized = self._normalize_ui_name(value)
+        if len(normalized) < 2 or normalized in self._GENERIC_UI_WORDS:
+            return
+        names.add(normalized)
+
+    def _walk_ui_node(self, names: set[str], value: object, key_hint: str | None = None) -> None:
+        """递归下钻 UI 规格：dict 按元素键收集，list 透传 key_hint，标量看 key_hint。"""
+        if isinstance(value, dict):
+            for key, item in value.items():
+                key_text = str(key).lower()
+                if key_text in self._UI_ELEMENT_KEYS:
+                    self._add_ui_name(names, item)
+                if isinstance(item, (dict, list)):
+                    self._walk_ui_node(names, item, key_text)
+        elif isinstance(value, list):
+            for item in value:
+                self._walk_ui_node(names, item, key_hint)
+        elif key_hint in self._UI_ELEMENT_KEYS:
+            self._add_ui_name(names, value)
+
     def _collect_ui_element_names(
         self,
         ui_specs: list[dict] | None,
     ) -> set[str]:
         """从UI规格中收集所有元素名称。"""
         names: set[str] = set()
-
-        def add(value: object) -> None:
-            if not isinstance(value, str):
-                return
-            normalized = self._normalize_ui_name(value)
-            if len(normalized) < 2 or normalized in self._GENERIC_UI_WORDS:
-                return
-            names.add(normalized)
-
-        def walk(value: object, key_hint: str | None = None) -> None:
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    key_text = str(key).lower()
-                    if key_text in self._UI_ELEMENT_KEYS:
-                        add(item)
-                    if isinstance(item, (dict, list)):
-                        walk(item, key_text)
-            elif isinstance(value, list):
-                for item in value:
-                    walk(item, key_hint)
-            elif key_hint in self._UI_ELEMENT_KEYS:
-                add(value)
-
         for spec_item in ui_specs or []:
             if not isinstance(spec_item, dict):
                 continue
-            add(spec_item.get("screen_name"))
-            walk(spec_item.get("ui_spec"))
+            self._add_ui_name(names, spec_item.get("screen_name"))
+            self._walk_ui_node(names, spec_item.get("ui_spec"))
         return names
 
     def _extract_step_targets(self, step: dict) -> list[str]:
