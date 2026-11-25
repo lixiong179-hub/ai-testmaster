@@ -9,6 +9,15 @@ from app.utils.playwright_mcp_client import PlaywrightMCPClient, get_mcp_client
 from app.utils.mcp_text_llm import MCPAwareLLM, get_mcp_llm
 
 
+def _mask_sensitive(value: str | None) -> str:
+    """日志脱敏：仅保留首尾字符。"""
+    if not value:
+        return ""
+    if len(value) <= 2:
+        return "***"
+    return value[0] + "***" + value[-1]
+
+
 class MCPRecognizer(ElementRecognizer):
     def __init__(self, mcp_client: PlaywrightMCPClient | None = None, mcp_llm: MCPAwareLLM | None = None) -> None:
         self._mcp_client = mcp_client
@@ -149,58 +158,91 @@ class MCPRecognizer(ElementRecognizer):
             logger.warning(f"定位值为空，无法执行操作: action_type={action_type}")
             return False
 
+        element, ref = self._split_locator(locator_type, locator_value)
         try:
-            element = ""
-            ref = None
-            if locator_type == "ref":
-                ref = locator_value
-            else:
-                element = locator_value
-
-            def _mask_sensitive(val: str | None) -> str:
-                if not val:
-                    return ""
-                if len(val) <= 2:
-                    return "***"
-                return val[0] + "***" + val[-1]
-
-            if action_type == "click":
-                logger.info(f"MCP执行click: element={element}, ref={ref}")
-                await mcp_client.browser_click(element, ref=ref)
-            elif action_type in ("input", "type"):
-                if not input_value:
-                    logger.warning("type操作缺少input_value参数")
-                    return False
-                logger.info(f"MCP执行type: element={element}, ref={ref}, text={_mask_sensitive(input_value)}")
-                await mcp_client.browser_type(element, input_value, ref=ref)
-            elif action_type == "hover":
-                logger.info(f"MCP执行hover: element={element}, ref={ref}")
-                await mcp_client.browser_hover(element, ref=ref)
-            elif action_type == "select":
-                if not input_value:
-                    logger.warning("select操作缺少input_value参数")
-                    return False
-                values = [v.strip() for v in input_value.split(",")]
-                logger.info(
-                    f"MCP执行select: element={element}, ref={ref}, values={[_mask_sensitive(v) for v in values]}"
-                )
-                await mcp_client.browser_select_option(element, values, ref=ref)
-            elif action_type == "wait":
-                wait_time = None
-                wait_text = None
-                if input_value:
-                    try:
-                        wait_time = float(input_value)
-                    except ValueError:
-                        wait_text = input_value
-                logger.info(f"MCP执行wait: time={wait_time}, text={wait_text}")
-                await mcp_client.browser_wait_for(time=wait_time, text=wait_text)
-            else:
-                logger.warning(f"不支持的操作类型: {action_type}")
+            if not await self._perform_action(mcp_client, action_type, element, ref, input_value):
                 return False
-
-            logger.info(f"MCP操作执行成功: action_type={action_type}, locator_type={locator_type}")
-            return True
         except Exception as e:
             logger.error(f"MCP执行操作失败: action_type={action_type}, error={e}")
             return False
+
+        logger.info(f"MCP操作执行成功: action_type={action_type}, locator_type={locator_type}")
+        return True
+
+    @staticmethod
+    def _split_locator(locator_type: str, locator_value: str) -> tuple[str, str | None]:
+        """ref 型定位走 ref 参数，其余（css/text 等）走 element 参数。"""
+        if locator_type == "ref":
+            return "", locator_value
+        return locator_value, None
+
+    async def _perform_action(
+        self,
+        mcp_client: PlaywrightMCPClient,
+        action_type: str,
+        element: str,
+        ref: str | None,
+        input_value: str | None,
+    ) -> bool:
+        if action_type == "click":
+            return await self._perform_click(mcp_client, element, ref)
+        if action_type in ("input", "type"):
+            return await self._perform_type(mcp_client, element, ref, input_value)
+        if action_type == "hover":
+            return await self._perform_hover(mcp_client, element, ref)
+        if action_type == "select":
+            return await self._perform_select(mcp_client, element, ref, input_value)
+        if action_type == "wait":
+            return await self._perform_wait(mcp_client, input_value)
+        logger.warning(f"不支持的操作类型: {action_type}")
+        return False
+
+    @staticmethod
+    async def _perform_click(mcp_client: PlaywrightMCPClient, element: str, ref: str | None) -> bool:
+        logger.info(f"MCP执行click: element={element}, ref={ref}")
+        await mcp_client.browser_click(element, ref=ref)
+        return True
+
+    @staticmethod
+    async def _perform_type(
+        mcp_client: PlaywrightMCPClient, element: str, ref: str | None, input_value: str | None
+    ) -> bool:
+        if not input_value:
+            logger.warning("type操作缺少input_value参数")
+            return False
+        logger.info(f"MCP执行type: element={element}, ref={ref}, text={_mask_sensitive(input_value)}")
+        await mcp_client.browser_type(element, input_value, ref=ref)
+        return True
+
+    @staticmethod
+    async def _perform_hover(mcp_client: PlaywrightMCPClient, element: str, ref: str | None) -> bool:
+        logger.info(f"MCP执行hover: element={element}, ref={ref}")
+        await mcp_client.browser_hover(element, ref=ref)
+        return True
+
+    @staticmethod
+    async def _perform_select(
+        mcp_client: PlaywrightMCPClient, element: str, ref: str | None, input_value: str | None
+    ) -> bool:
+        if not input_value:
+            logger.warning("select操作缺少input_value参数")
+            return False
+        values = [value.strip() for value in input_value.split(",")]
+        logger.info(
+            f"MCP执行select: element={element}, ref={ref}, values={[_mask_sensitive(value) for value in values]}"
+        )
+        await mcp_client.browser_select_option(element, values, ref=ref)
+        return True
+
+    @staticmethod
+    async def _perform_wait(mcp_client: PlaywrightMCPClient, input_value: str | None) -> bool:
+        wait_time = None
+        wait_text = None
+        if input_value:
+            try:
+                wait_time = float(input_value)
+            except ValueError:
+                wait_text = input_value
+        logger.info(f"MCP执行wait: time={wait_time}, text={wait_text}")
+        await mcp_client.browser_wait_for(time=wait_time, text=wait_text)
+        return True

@@ -4,37 +4,50 @@ import re
 
 from app.services.mobile_ai_executor.types import MobileActionType
 
+_GO_BACK_KEYWORDS: tuple[str, ...] = ("返回", "后退", "back")
+_HOME_KEYWORDS: tuple[str, ...] = ("主页", "首页", "home", "桌面")
+_NAVIGATION_KEYWORDS: tuple[str, ...] = ("导航", "跳转")
+
+# 顺序即优先级：滑动类必须先于通用「滑动/swipe」判定，否则会被降级为 SWIPE。
+_KEYWORD_RULES: tuple[tuple[tuple[str, ...], MobileActionType], ...] = (
+    (("向上滑动", "上滑", "scroll up", "向上滚动"), MobileActionType.SCROLL_UP),
+    (("向下滑动", "下滑", "scroll down", "向下滚动"), MobileActionType.SCROLL_DOWN),
+    (("向左滑动", "左滑", "scroll left"), MobileActionType.SCROLL_LEFT),
+    (("向右滑动", "右滑", "scroll right"), MobileActionType.SCROLL_RIGHT),
+    (("输入", "填写", "填入", "键入", "input", "type"), MobileActionType.INPUT),
+    (("滑动", "swipe"), MobileActionType.SWIPE),
+    (("按键", "按", "press"), MobileActionType.PRESS_KEY),
+    (("启动", "打开应用", "launch", "open app"), MobileActionType.LAUNCH_APP),
+    (("等待", "wait"), MobileActionType.WAIT),
+    (("验证", "检查", "确认", "verify", "check", "assert"), MobileActionType.VERIFY),
+)
+
+
+def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
 
 class MobileActionParserMixin:
     """动作解析：将自然语言描述映射为 MobileActionType。"""
 
     def parse_action(self, description: str) -> MobileActionType:
         desc = description.lower().strip()
-        if any(kw in desc for kw in ["返回", "后退", "back"]):
+        if _contains_any(desc, _GO_BACK_KEYWORDS):
             return MobileActionType.GO_BACK
-        is_home = any(kw in desc for kw in ["主页", "首页", "home", "桌面"])
-        if is_home and "导航" not in desc and "跳转" not in desc:
+        if self._is_home_command(desc):
             return MobileActionType.GO_HOME
-        if any(kw in desc for kw in ["向上滑动", "上滑", "scroll up", "向上滚动"]):
-            return MobileActionType.SCROLL_UP
-        if any(kw in desc for kw in ["向下滑动", "下滑", "scroll down", "向下滚动"]):
-            return MobileActionType.SCROLL_DOWN
-        if any(kw in desc for kw in ["向左滑动", "左滑", "scroll left"]):
-            return MobileActionType.SCROLL_LEFT
-        if any(kw in desc for kw in ["向右滑动", "右滑", "scroll right"]):
-            return MobileActionType.SCROLL_RIGHT
-        if any(kw in desc for kw in ["输入", "填写", "填入", "键入", "input", "type"]):
-            return MobileActionType.INPUT
-        if any(kw in desc for kw in ["滑动", "swipe"]):
-            return MobileActionType.SWIPE
-        if any(kw in desc for kw in ["按键", "按", "press"]):
-            return MobileActionType.PRESS_KEY
-        if any(kw in desc for kw in ["启动", "打开应用", "launch", "open app"]):
-            return MobileActionType.LAUNCH_APP
-        if any(kw in desc for kw in ["等待", "wait"]):
-            return MobileActionType.WAIT
-        if any(kw in desc for kw in ["验证", "检查", "确认", "verify", "check", "assert"]):
-            return MobileActionType.VERIFY
+        return self._match_keyword_rule(desc)
+
+    @staticmethod
+    def _is_home_command(desc: str) -> bool:
+        """仅当描述不含「导航/跳转」时才算回主页，避免把导航动作误判为 HOME。"""
+        return _contains_any(desc, _HOME_KEYWORDS) and not _contains_any(desc, _NAVIGATION_KEYWORDS)
+
+    @staticmethod
+    def _match_keyword_rule(desc: str) -> MobileActionType:
+        for keywords, action_type in _KEYWORD_RULES:
+            if _contains_any(desc, keywords):
+                return action_type
         return MobileActionType.CLICK
 
     def _extract_input_text(self, description: str) -> str | None:

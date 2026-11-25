@@ -15,6 +15,32 @@ from app.services.mobile_ai_executor.types import (
 )
 
 
+_SCROLL_ACTIONS = frozenset(
+    {
+        MobileActionType.SCROLL_UP,
+        MobileActionType.SCROLL_DOWN,
+        MobileActionType.SCROLL_LEFT,
+        MobileActionType.SCROLL_RIGHT,
+    }
+)
+
+# 直接映射到 ADB 导航方法，无需额外结果拼装。
+_NAV_ACTIONS: dict[MobileActionType, str] = {
+    MobileActionType.GO_BACK: "press_back",
+    MobileActionType.GO_HOME: "press_home",
+}
+
+# 动作类型 → (处理函数名, 是否需要 step_id/use_cache)。
+_SIMPLE_ACTIONS: dict[MobileActionType, tuple[str, bool]] = {
+    MobileActionType.CLICK: ("_execute_click", True),
+    MobileActionType.INPUT: ("_execute_input", True),
+    MobileActionType.SWIPE: ("_execute_swipe", False),
+    MobileActionType.PRESS_KEY: ("_execute_press_key", False),
+    MobileActionType.LAUNCH_APP: ("_execute_launch_app", False),
+    MobileActionType.VERIFY: ("_execute_verify", False),
+}
+
+
 class MobileActionExecutorMixin:
     """动作执行：点击、输入、滑动、按键、启动应用、验证等。"""
 
@@ -29,47 +55,46 @@ class MobileActionExecutorMixin:
         try:
             if not await self.adb.is_device_connected():
                 raise MobileDeviceError("设备未连接")
-            if action_type == MobileActionType.CLICK:
-                return await self._execute_click(description, step_id, use_cache)
-            elif action_type == MobileActionType.INPUT:
-                return await self._execute_input(description, step_id, use_cache)
-            elif action_type in (
-                MobileActionType.SCROLL_UP,
-                MobileActionType.SCROLL_DOWN,
-                MobileActionType.SCROLL_LEFT,
-                MobileActionType.SCROLL_RIGHT,
-            ):
-                return await self._execute_scroll(action_type)
-            elif action_type == MobileActionType.SWIPE:
-                return await self._execute_swipe(description)
-            elif action_type == MobileActionType.PRESS_KEY:
-                return await self._execute_press_key(description)
-            elif action_type == MobileActionType.GO_BACK:
-                await self.adb.press_back()
-                return MobileActionResult(success=True, action_type=action_type, description=description)
-            elif action_type == MobileActionType.GO_HOME:
-                await self.adb.press_home()
-                return MobileActionResult(success=True, action_type=action_type, description=description)
-            elif action_type == MobileActionType.LAUNCH_APP:
-                return await self._execute_launch_app(description)
-            elif action_type == MobileActionType.WAIT:
-                await asyncio.sleep(2)
-                return MobileActionResult(success=True, action_type=action_type, description=description)
-            elif action_type == MobileActionType.VERIFY:
-                return await self._execute_verify(description)
-            else:
-                return MobileActionResult(
-                    success=False,
-                    action_type=action_type,
-                    description=description,
-                    error_message=f"不支持的操作类型: {action_type}",
-                )
+            return await self._dispatch_action(action_type, description, step_id, use_cache)
         except MobileAIError:
             raise
         except AdbError as e:
             raise MobileDeviceError(f"ADB操作失败: {e}")
         except Exception as e:
             raise MobileAIError(f"执行失败: {e}")
+
+    async def _dispatch_action(
+        self,
+        action_type: MobileActionType,
+        description: str,
+        step_id: int | None,
+        use_cache: bool,
+    ) -> MobileActionResult:
+        if action_type in _SCROLL_ACTIONS:
+            return await self._execute_scroll(action_type)
+
+        nav_method = _NAV_ACTIONS.get(action_type)
+        if nav_method:
+            await getattr(self.adb, nav_method)()
+            return MobileActionResult(success=True, action_type=action_type, description=description)
+
+        if action_type == MobileActionType.WAIT:
+            await asyncio.sleep(2)
+            return MobileActionResult(success=True, action_type=action_type, description=description)
+
+        spec = _SIMPLE_ACTIONS.get(action_type)
+        if spec is None:
+            return MobileActionResult(
+                success=False,
+                action_type=action_type,
+                description=description,
+                error_message=f"不支持的操作类型: {action_type}",
+            )
+        handler_name, needs_context = spec
+        handler = getattr(self, handler_name)
+        if needs_context:
+            return await handler(description, step_id, use_cache)
+        return await handler(description)
 
     async def _execute_click(
         self, description: str, step_id: int | None = None, use_cache: bool = True

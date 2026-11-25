@@ -90,7 +90,8 @@ APP = "app"
 # → 37（B6c：fetch_and_parse_ui_mockup 12 / fetch_content 11 / _detect_auth_failure_in_json 11）
 # → 34（B6d：_build_case_from_path 14 / _parse_ai_response 13 / _json_topic_to_xml 12）
 # → 32（B6e：run_defect_discovery_self_test 16 / _assess_defect_severity 16）
-TOTAL_BUDGET = 32
+# → 29（B6f：parse_action 13 / execute_action 15 / MCPRecognizer.execute_action 17）
+TOTAL_BUDGET = 29
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
