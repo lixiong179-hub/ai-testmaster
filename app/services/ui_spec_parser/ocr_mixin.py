@@ -15,6 +15,30 @@ if TYPE_CHECKING:
     from openai import OpenAI
 
 
+def _build_structure_prompt(ocr_text: str, screen_name_hint: str | None) -> str:
+    from app.services.prompt_builder import TEXT_STRUCTURE_PROMPT
+
+    prompt = TEXT_STRUCTURE_PROMPT.replace("{ocr_text}", ocr_text)
+    if screen_name_hint:
+        prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt
+    return prompt
+
+
+def _log_text_model_error(error_message: str, attempt: int, max_retries: int) -> None:
+    """按错误特征分级记录日志，便于区分密钥/限流/超时/网络问题。"""
+    lowered = error_message.lower()
+    if "401" in error_message or "authentication" in lowered:
+        logger.error("DeepSeek API 认证失败：API 密钥无效或已过期")
+    elif "429" in error_message or "rate limit" in lowered:
+        logger.warning("DeepSeek API 调用频率超限，触发限流保护")
+    elif "timeout" in lowered:
+        logger.warning(f"DeepSeek API 调用超时（尝试 {attempt + 1}/{max_retries}）")
+    elif "connection" in lowered:
+        logger.error(f"DeepSeek API 网络连接失败：{error_message}")
+    else:
+        logger.error(f"文本结构化解析异常：{error_message}")
+
+
 class UISpecOcrMixin:
     """OCR与文本模型相关方法Mixin"""
 
@@ -108,25 +132,13 @@ class UISpecOcrMixin:
         Returns:
             结构化的 UI 规格字典，失败返回 None
         """
-        from app.services.prompt_builder import TEXT_STRUCTURE_PROMPT
-
-        prompt = TEXT_STRUCTURE_PROMPT.replace("{ocr_text}", ocr_text)
-        if screen_name_hint:
-            prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt
+        prompt = _build_structure_prompt(ocr_text, screen_name_hint)
 
         for attempt in range(self.max_retries):
             try:
                 started_at = time.monotonic()
                 logger.info(f"文本结构化解析，使用 DeepSeek 模型，尝试 {attempt + 1}/{self.max_retries}")
-                text_model = self._get_text_model()
-                response = text_model.chat.completions.create(
-                    model=text_model.model_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=2048,
-                    timeout=60.0,
-                )
-                result_text = response.choices[0].message.content
+                result_text = self._request_text_structure(prompt)
                 result = self._parse_json_response(result_text)
                 if result:
                     logger.info(
@@ -135,20 +147,20 @@ class UISpecOcrMixin:
                         f"attempt={attempt + 1}/{self.max_retries}"
                     )
                     return result
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
             except Exception as e:
-                error_msg = str(e)
-                if "401" in error_msg or "authentication" in error_msg.lower():
-                    logger.error("DeepSeek API 认证失败：API 密钥无效或已过期")
-                elif "429" in error_msg or "rate limit" in error_msg.lower():
-                    logger.warning("DeepSeek API 调用频率超限，触发限流保护")
-                elif "timeout" in error_msg.lower():
-                    logger.warning(f"DeepSeek API 调用超时（尝试 {attempt + 1}/{self.max_retries}）")
-                elif "connection" in error_msg.lower():
-                    logger.error(f"DeepSeek API 网络连接失败：{error_msg}")
-                else:
-                    logger.error(f"文本结构化解析异常：{error_msg}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
+                _log_text_model_error(str(e), attempt, self.max_retries)
+            if attempt < self.max_retries - 1:
+                time.sleep(self.retry_delay)
         return None
+
+    def _request_text_structure(self, prompt: str) -> str | None:
+        """调用文本模型并取回内容字符串。"""
+        text_model = self._get_text_model()
+        response = text_model.chat.completions.create(
+            model=text_model.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=2048,
+            timeout=60.0,
+        )
+        return response.choices[0].message.content

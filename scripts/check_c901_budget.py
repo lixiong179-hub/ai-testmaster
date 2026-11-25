@@ -92,7 +92,8 @@ APP = "app"
 # → 32（B6e：run_defect_discovery_self_test 16 / _assess_defect_severity 16）
 # → 29（B6f：parse_action 13 / execute_action 15 / MCPRecognizer.execute_action 17）
 # → 26（B6g：generate_test_case_stream 17 / analyze_requirements_stream 13 / _parse_stream_test_points 13）
-TOTAL_BUDGET = 26
+# → 23（B6h：parse_multiple_screen_flows 17 / _parse_json_response 17 / _structure_text_with_llm 11）
+TOTAL_BUDGET = 23
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

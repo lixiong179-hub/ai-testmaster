@@ -9,6 +9,54 @@ from typing import Any
 from loguru import logger
 
 
+_INTERACTIVE_ELEMENT_TYPES = frozenset({"button", "link", "list_item", "icon"})
+_MAX_INTERACTIVE_LABELS = 10
+
+
+def _collect_interactive_labels(elements: list[dict[str, Any]]) -> list[str]:
+    """只保留可点击元素的标签（label 优先，回退 semantic），最多 10 个。"""
+    labels = []
+    for elem in elements:
+        if not elem.get("interactive") or elem.get("type") not in _INTERACTIVE_ELEMENT_TYPES:
+            continue
+        label = elem.get("label") or elem.get("semantic", "")
+        if label:
+            labels.append(label)
+    return labels[:_MAX_INTERACTIVE_LABELS]
+
+
+def _build_navigation_text(navigation: dict[str, Any]) -> str:
+    text = ""
+    if (navigation.get("back_button") or {}).get("visible"):
+        text += "存在返回按钮\n"
+    tab_bar = navigation.get("tab_bar") or {}
+    if tab_bar.get("visible"):
+        text += f"Tab栏: {', '.join(tab_bar.get('items', []))}\n"
+    return text
+
+
+def _build_flows_text(flows: dict[str, Any]) -> str:
+    text = ""
+    if flows.get("expected_next_screens"):
+        text += f"预期跳转: {', '.join(flows.get('expected_next_screens', []))}\n"
+    if flows.get("trigger_actions"):
+        text += f"触发动作: {', '.join(flows.get('trigger_actions', []))}\n"
+    return text
+
+
+def _build_screen_description(index: int, screen: dict[str, Any]) -> str:
+    """把单屏信息压缩为一段可粘贴进提示词的描述。"""
+    desc = f"【屏幕{index}】{screen.get('screen_name', '未知')}\n"
+    if screen.get("purpose"):
+        desc += f"目的: {screen.get('purpose')}\n"
+    labels = _collect_interactive_labels(screen.get("elements", []))
+    if labels:
+        desc += f"可点击元素: {', '.join(labels)}\n"
+    desc += _build_navigation_text(screen.get("navigation") or {})
+    desc += _build_flows_text(screen.get("flows") or {})
+    return desc
+
+
 class UISpecFlowMixin:
     """流程与适配测试点方法Mixin"""
 
@@ -25,39 +73,13 @@ class UISpecFlowMixin:
         if len(screens_data) < 2:
             return None
 
-        count = len(screens_data)
-        image_descriptions = []
-
-        for i, screen in enumerate(screens_data):
-            desc = f"【屏幕{i + 1}】{screen.get('screen_name', '未知')}\n"
-            if screen.get("purpose"):
-                desc += f"目的: {screen.get('purpose')}\n"
-            interactive_elements = []
-            for elem in screen.get("elements", []):
-                if elem.get("interactive") and elem.get("type") in ["button", "link", "list_item", "icon"]:
-                    label = elem.get("label") or elem.get("semantic", "")
-                    if label:
-                        interactive_elements.append(label)
-            if interactive_elements:
-                desc += f"可点击元素: {', '.join(interactive_elements[:10])}\n"
-            nav = screen.get("navigation") or {}
-            if (nav.get("back_button") or {}).get("visible"):
-                desc += "存在返回按钮\n"
-            if (nav.get("tab_bar") or {}).get("visible"):
-                tab_bar = nav.get("tab_bar") or {}
-                desc += f"Tab栏: {', '.join(tab_bar.get('items', []))}\n"
-            flows = screen.get("flows") or {}
-            if flows.get("expected_next_screens"):
-                desc += f"预期跳转: {', '.join(flows.get('expected_next_screens', []))}\n"
-            if flows.get("trigger_actions"):
-                desc += f"触发动作: {', '.join(flows.get('trigger_actions', []))}\n"
-
-            image_descriptions.append(desc)
-
         from app.services.prompt_builder import MULTI_IMAGE_FLOW_PROMPT
 
+        image_descriptions = [_build_screen_description(i + 1, screen) for i, screen in enumerate(screens_data)]
         # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
-        prompt = MULTI_IMAGE_FLOW_PROMPT.format(count=count, image_descriptions="\n\n".join(image_descriptions))
+        prompt = MULTI_IMAGE_FLOW_PROMPT.format(
+            count=len(screens_data), image_descriptions="\n\n".join(image_descriptions)
+        )
 
         for attempt in range(self.max_retries):
             try:

@@ -14,6 +14,74 @@ from loguru import logger
 
 from app.core.config import settings
 
+# 响应可能被 markdown 包裹或以特定字段开头，依次尝试
+_JSON_PATTERNS = (
+    r"```json\s*([\s\S]*?)\s*```",
+    r"```\s*([\s\S]*?)\s*```",
+    r'\{\s*"screen_name"[\s\S]*\}',
+    r'\{\s*"entry_screen"[\s\S]*\}',
+    r'\{\s*"purpose"[\s\S]*\}',
+    r"\[\s*\{[\s\S]*\}\s*\]",
+)
+_TRAILING_COMMA_IN_OBJECT = re.compile(r",\s*}")
+_TRAILING_COMMA_IN_ARRAY = re.compile(r",\s*]")
+
+
+def _loads_forgiving(json_str: str) -> Any:
+    """去掉对象/数组尾逗号后再解析（模型常见输出瑕疵）。"""
+    cleaned = _TRAILING_COMMA_IN_ARRAY.sub("]", _TRAILING_COMMA_IN_OBJECT.sub("}", json_str))
+    return json.loads(cleaned)
+
+
+def _match_json_pattern(content: str) -> Any:
+    for pattern in _JSON_PATTERNS:
+        match = re.search(pattern, content)
+        if not match:
+            continue
+        json_str = match.group(1) if "```" in pattern else match.group(0)
+        try:
+            return _loads_forgiving(json_str)
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def _find_balanced_object_end(content: str, start_idx: int) -> int | None:
+    """从 start_idx 的 '{' 起找到配对的 '}'，跳过字符串内的花括号与转义。"""
+    depth = 0
+    in_string = False
+    escape_next = False
+    for index in range(start_idx, len(content)):
+        char = content[index]
+        if escape_next:
+            escape_next = False
+        elif in_string and char == "\\":
+            escape_next = True
+        elif char == '"':
+            in_string = not in_string
+        elif in_string:
+            continue
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
+
+
+def _extract_outermost_object(content: str) -> Any:
+    start_idx = content.find("{")
+    if start_idx == -1:
+        return None
+    end_idx = _find_balanced_object_end(content, start_idx)
+    if end_idx is None:
+        return None
+    try:
+        return _loads_forgiving(content[start_idx : end_idx + 1])
+    except json.JSONDecodeError:
+        return None
+
 
 class UISpecCoreMixin:
     """核心解析方法Mixin"""
@@ -94,60 +162,18 @@ class UISpecCoreMixin:
         except json.JSONDecodeError:
             logger.debug("直接JSON解析失败，尝试正则提取")
 
-        json_patterns = [
-            r"```json\s*([\s\S]*?)\s*```",
-            r"```\s*([\s\S]*?)\s*```",
-            r'\{\s*"screen_name"[\s\S]*\}',
-            r'\{\s*"entry_screen"[\s\S]*\}',
-            r'\{\s*"purpose"[\s\S]*\}',
-            r"\[\s*\{[\s\S]*\}\s*\]",
-        ]
-        for pattern in json_patterns:
-            match = re.search(pattern, content)
-            if match:
-                json_str = match.group(1) if "```" in pattern else match.group(0)
-                try:
-                    json_str = re.sub(r",\s*}", "}", json_str)
-                    json_str = re.sub(r",\s*]", "]", json_str)
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    continue
+        result = _match_json_pattern(content)
+        if result is not None:
+            return result
 
-        # 兜底：尝试用最大匹配提取最外层JSON对象/数组
+        # 兜底：提取最外层平衡的 JSON 对象
         try:
-            start_idx = content.find("{")
-            if start_idx != -1:
-                depth = 0
-                in_string = False
-                escape_next = False
-                end_idx = start_idx
-                for i in range(start_idx, len(content)):
-                    ch = content[i]
-                    if escape_next:
-                        escape_next = False
-                        continue
-                    if ch == "\\" and in_string:
-                        escape_next = True
-                        continue
-                    if ch == '"' and not escape_next:
-                        in_string = not in_string
-                        continue
-                    if in_string:
-                        continue
-                    if ch == "{":
-                        depth += 1
-                    elif ch == "}":
-                        depth -= 1
-                        if depth == 0:
-                            end_idx = i
-                            break
-                if depth == 0:
-                    json_str = content[start_idx : end_idx + 1]
-                    json_str = re.sub(r",\s*}", "}", json_str)
-                    json_str = re.sub(r",\s*]", "]", json_str)
-                    return json.loads(json_str)
+            result = _extract_outermost_object(content)
         except Exception as e:
             logger.debug(f"兜底JSON提取失败: {e}")
+            result = None
+        if result is not None:
+            return result
 
         logger.warning(f"无法解析JSON响应: {content[:500]}...")
         return None
