@@ -10,6 +10,13 @@ from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
+from app.pipelines.steps._case_generation_inputs import (
+    _build_ui_description,
+    _early_exit_result,
+    _load_history_cases,
+    _signal_inputs,
+    _split_tasks,
+)
 from app.pipelines.steps._dedup import _dedup_cases_global
 from app.pipelines.steps._execution import _execute_task_based, _execute_legacy
 
@@ -85,104 +92,44 @@ class CaseGeneration(PipelineStep):
 
     def execute(self, ctx: PipelineContext) -> StepResult:
         signals = ctx.get_artifact("raw_signals")
-        prd_content = signals.get("prd_content", "") if signals else ""
-        ui_specs = signals.get("ui_specs", []) if signals else []
-        ui_descriptions = signals.get("ui_descriptions", []) if signals else []
-        has_ui = signals.get("has_ui", False) if signals else False
-
+        inputs = _signal_inputs(signals)
         tasks_artifact = ctx.get_artifact("generation_tasks")
         aligned = ctx.get_artifact("aligned_testpoints")
 
-        ui_description = ""
-        if ui_descriptions:
-            ui_description = "\n".join(
-                d.get("description", d.get("summary", ""))
-                for d in ui_descriptions
-                if d.get("description") or d.get("summary")
-            )
+        ui_description = _build_ui_description(inputs["ui_descriptions"])
+        _, deprecation_suggestions, actionable_tasks = _split_tasks(tasks_artifact)
 
-        if tasks_artifact is not None:
-            generation_tasks = tasks_artifact.get("generation_tasks", [])
-            deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
-            actionable_tasks = [
-                t for t in generation_tasks if t.get("task_type") in ("create", "modify", "locator_fix")
-            ]
-        else:
-            generation_tasks = []
-            deprecation_suggestions = []
-            actionable_tasks = []
-
-        history_cases: list[dict[str, Any]] = []
-        if actionable_tasks:
-            hf_artifact = ctx.get_artifact("history_fingerprints")
-            if hf_artifact:
-                for fp in hf_artifact.get("fingerprints", [])[:50]:
-                    history_cases.append(
-                        {
-                            "title": fp.get("title", fp.get("case_title", "")),
-                            "module": fp.get("module", ""),
-                            "summary": fp.get("summary", ""),
-                            "priority": fp.get("priority", 3),
-                        }
-                    )
+        early_result = _early_exit_result(
+            ctx,
+            tasks_artifact,
+            actionable_tasks,
+            aligned,
+            signals,
+            inputs,
+            deprecation_suggestions,
+        )
+        if early_result is not None:
+            return early_result
 
         if actionable_tasks:
             generated_cases, failed_count = _execute_task_based(
                 ctx,
                 actionable_tasks,
-                prd_content,
+                inputs["prd_content"],
                 ui_description,
-                ui_specs,
-                has_ui,
-                history_cases,
-            )
-        elif tasks_artifact is not None:
-            return StepResult(
-                success=False,
-                error="generation_tasks 中没有可执行的 create/modify/locator_fix 任务",
-                artifact_payload={
-                    "iteration_id": ctx.iteration_id,
-                    "project_id": signals.get("project_id") if signals else None,
-                    "generated_cases": [],
-                    "total": 0,
-                    "success_count": 0,
-                    "failed_count": 0,
-                    "has_ui": has_ui,
-                    "deprecation_suggestions": deprecation_suggestions,
-                },
-                artifact_kind="generated_cases",
-                artifact_confidence=0.0,
+                inputs["ui_specs"],
+                inputs["has_ui"],
+                _load_history_cases(ctx, actionable_tasks),
             )
         else:
-            if ctx.config.get("scenario") in (4, 5):
-                return StepResult(
-                    success=True,
-                    artifact_payload={
-                        "iteration_id": ctx.iteration_id,
-                        "project_id": signals.get("project_id") if signals else None,
-                        "generated_cases": [],
-                        "total": 0,
-                        "success_count": 0,
-                        "failed_count": 0,
-                        "has_ui": has_ui,
-                        "deprecation_suggestions": [],
-                    },
-                    artifact_kind="generated_cases",
-                    artifact_confidence=0.0,
-                )
-            if not aligned and not signals:
-                return StepResult(
-                    success=False,
-                    error="缺少 generation_tasks、aligned_testpoints 和 raw_signals 产物",
-                )
             generated_cases, failed_count = _execute_legacy(
                 ctx,
                 aligned,
                 signals,
-                prd_content,
+                inputs["prd_content"],
                 ui_description,
-                ui_specs,
-                has_ui,
+                inputs["ui_specs"],
+                inputs["has_ui"],
             )
 
         generated_cases = _dedup_cases_global(generated_cases)
@@ -191,11 +138,7 @@ class CaseGeneration(PipelineStep):
         total = len(generated_cases)
         confidence = success_count / total if total > 0 else 0.0
 
-        project_id = None
-        if aligned:
-            project_id = aligned.get("project_id")
-        elif signals:
-            project_id = signals.get("project_id")
+        project_id = aligned.get("project_id") if aligned else inputs["project_id"]
 
         payload = {
             "iteration_id": ctx.iteration_id,
@@ -204,7 +147,7 @@ class CaseGeneration(PipelineStep):
             "total": total,
             "success_count": success_count,
             "failed_count": failed_count,
-            "has_ui": has_ui,
+            "has_ui": inputs["has_ui"],
             "deprecation_suggestions": deprecation_suggestions,
         }
 

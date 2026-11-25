@@ -113,72 +113,22 @@ def validate_backward_output(
     Returns:
         ValidationResult 包含校验结果、错误列表、自动修正项和修正后的输出。
     """
-    errors: list[str] = []
-    auto_corrected: list[str] = []
-
     if raw is None:
         return ValidationResult(
             valid=False,
             errors=["AI 输出为空"],
         )
 
-    data = raw
-    if isinstance(raw, str):
-        try:
-            data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError) as e:
-            return ValidationResult(
-                valid=False,
-                errors=[f"JSON 解析失败: {e}"],
-            )
+    data, parse_error = _coerce_payload(raw)
+    if parse_error:
+        return ValidationResult(valid=False, errors=[parse_error])
 
-    if isinstance(data, dict) and "verdicts" not in data:
-        return ValidationResult(
-            valid=False,
-            errors=["AI 输出缺少 verdicts 字段且不是列表"],
-        )
-    elif isinstance(data, list):
-        data = {"verdicts": data}
+    output, schema_error = _build_scanned_output(data)
+    if schema_error or output is None:
+        return ValidationResult(valid=False, errors=[schema_error or "Schema 校验失败"])
 
-    try:
-        output = BackwardScanOutput(**data)
-    except Exception as e:
-        return ValidationResult(
-            valid=False,
-            errors=[f"Schema 校验失败: {e}"],
-        )
-
-    corrected_verdicts = []
-    for item in output.verdicts:
-        verdict = item.verdict
-        if item.confidence < 0.7 and verdict != BackwardVerdict.UNCERTAIN:
-            auto_corrected.append(
-                f"case_id={item.case_id}: confidence={item.confidence:.2f} < 0.7, verdict {verdict.value} → UNCERTAIN"
-            )
-            verdict = BackwardVerdict.UNCERTAIN
-
-        corrected_verdicts.append(
-            BackwardCaseVerdict(
-                case_id=item.case_id,
-                verdict=verdict,
-                confidence=item.confidence,
-                hint=item.hint,
-            )
-        )
-
-    output = BackwardScanOutput(verdicts=corrected_verdicts)
-
-    if expected_case_ids is not None:
-        expected_set = set(expected_case_ids)
-        actual_set = {v.case_id for v in output.verdicts}
-
-        missing = expected_set - actual_set
-        if missing:
-            errors.append(f"缺少 case_id: {sorted(missing)}")
-
-        extra = actual_set - expected_set
-        if extra:
-            errors.append(f"多余 case_id: {sorted(extra)}")
+    output, auto_corrected = _downgrade_low_confidence(output)
+    errors = _check_case_ids(output, expected_case_ids)
 
     is_valid = len(errors) == 0
     return ValidationResult(
@@ -187,3 +137,67 @@ def validate_backward_output(
         auto_corrected=auto_corrected,
         output=output if is_valid else None,
     )
+
+
+def _coerce_payload(raw: Any) -> tuple[dict[str, Any] | None, str | None]:
+    """str → JSON；裸列表 → {"verdicts": [...]}；缺 verdicts 的 dict 直接判错。"""
+    data = raw
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError) as e:
+            return None, f"JSON 解析失败: {e}"
+
+    if isinstance(data, dict) and "verdicts" not in data:
+        return None, "AI 输出缺少 verdicts 字段且不是列表"
+    if isinstance(data, list):
+        data = {"verdicts": data}
+    return data, None
+
+
+def _build_scanned_output(data: Any) -> tuple[BackwardScanOutput | None, str | None]:
+    try:
+        return BackwardScanOutput(**data), None
+    except Exception as e:
+        return None, f"Schema 校验失败: {e}"
+
+
+def _downgrade_low_confidence(output: BackwardScanOutput) -> tuple[BackwardScanOutput, list[str]]:
+    """confidence < 0.7 的非 UNCERTAIN 判定自动降级，并记录修正说明。"""
+    corrected_verdicts: list[BackwardCaseVerdict] = []
+    auto_corrected: list[str] = []
+    for item in output.verdicts:
+        verdict = item.verdict
+        if item.confidence < 0.7 and verdict != BackwardVerdict.UNCERTAIN:
+            auto_corrected.append(
+                f"case_id={item.case_id}: confidence={item.confidence:.2f} < 0.7, verdict {verdict.value} → UNCERTAIN"
+            )
+            verdict = BackwardVerdict.UNCERTAIN
+        corrected_verdicts.append(
+            BackwardCaseVerdict(
+                case_id=item.case_id,
+                verdict=verdict,
+                confidence=item.confidence,
+                hint=item.hint,
+            )
+        )
+    return BackwardScanOutput(verdicts=corrected_verdicts), auto_corrected
+
+
+def _check_case_ids(output: BackwardScanOutput, expected_case_ids: list[int] | None) -> list[str]:
+    """期望 case_id 集合与实际集合的差集告警（未提供期望值时跳过）。"""
+    if expected_case_ids is None:
+        return []
+
+    expected_set = set(expected_case_ids)
+    actual_set = {v.case_id for v in output.verdicts}
+    errors: list[str] = []
+
+    missing = expected_set - actual_set
+    if missing:
+        errors.append(f"缺少 case_id: {sorted(missing)}")
+
+    extra = actual_set - expected_set
+    if extra:
+        errors.append(f"多余 case_id: {sorted(extra)}")
+    return errors
