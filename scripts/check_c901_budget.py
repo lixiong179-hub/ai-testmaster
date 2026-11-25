@@ -73,7 +73,18 @@ APP = "app"
 # → 79（B5c：_filter_prd_by_testpoint 14 + _filter_ui_specs_by_testpoint 12 + _score_steps 15）
 # → 76（B5d：_run_consistency_check 11 + _classify_case_type_local 11 + _extract_inferred 12）
 # → 74（B5e：_execute_legacy 12 + _regenerate_d_cases 13）
-TOTAL_BUDGET = 74
+# → 69（B5f：SignalGatherer.execute 16 / _load_ui_from_input 14 / DecisionDispatch.execute 15 /
+#          ReverseInfer.execute 12 / TestPointAlignment.execute 12）
+# → 66（B5g：CaseGeneration.execute 12 / PipelineRunner.run 14 / validate_backward_output 12）
+# → 62（B5h：validate_steps 13 / _load_requirement_from_test_points 14 /
+#          _load_ui_by_keyword_match 11 / _collect_ui_element_names 14）
+# → 58（B5i：_repair_truncated_json 16 / generate_test_cases_batch 14 /
+#          _assess_history_trust 14 / _save_test_case 14）
+# → 52（B5j：grade_status 17 / _generate_optimization_suggestions 16 / analyze_project_quality 11 /
+#          _find_similar_cases 12 / fit_transform 12 / _classify_steps 11）
+# → 47（B5k：export_to_functional_excel 15 / apply_normalization 13 / validate_excel_format 13 /
+#          import_functional_excel 12 / export_to_excel 11；B5 结批）
+TOTAL_BUDGET = 47
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
