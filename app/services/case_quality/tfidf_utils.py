@@ -15,6 +15,14 @@ import re
 import numpy as np
 
 
+def _term_frequencies(tokens: list[str]) -> dict[str, int]:
+    """token 词频统计（transform 与 fit_transform 共用，避免两处口径漂移）。"""
+    term_freq: dict[str, int] = {}
+    for token in tokens:
+        term_freq[token] = term_freq.get(token, 0) + 1
+    return term_freq
+
+
 def tokenize(text: str) -> list[str]:
     """将文本拆分为 token 列表，支持中英混合。
 
@@ -80,62 +88,61 @@ class LightweightTfidfVectorizer:
         if not documents:
             return np.array([], dtype=np.float64).reshape(0, 0)
 
-        # Step 1: 分词
-        tokenizedDocs: list[list[str]] = [tokenize(doc) for doc in documents]
+        tokenized_docs: list[list[str]] = [tokenize(doc) for doc in documents]
+        term_doc_count = self._build_term_doc_count(tokenized_docs)
+        term_doc_count = self._prune_terms(term_doc_count, len(documents))
 
-        # Step 2: 构建词汇表
-        termDocCount: dict[str, int] = {}
-        for docTokens in tokenizedDocs:
-            uniqueTokens = set(docTokens)
-            for token in uniqueTokens:
-                termDocCount[token] = termDocCount.get(token, 0) + 1
-
-        # 按特征重要性筛选
-        if self.maxFeatures and len(termDocCount) > self.maxFeatures:
-            # IDF 方差越大越有区分度，优先保留
-            nDocs = len(documents)
-            scoredTerms = [
-                (term, count, abs(math.log(nDocs / (1 + count)) - math.log(nDocs / (1 + nDocs / 2))))
-                for term, count in termDocCount.items()
-            ]
-            scoredTerms.sort(key=lambda x: x[2], reverse=True)
-            termDocCount = {term: count for term, count, _ in scoredTerms[: self.maxFeatures]}
-
-        self.vocabulary_ = {term: idx for idx, term in enumerate(sorted(termDocCount.keys()))}
-        vocabSize = len(self.vocabulary_)
-
-        if vocabSize == 0:
+        self.vocabulary_ = {term: idx for idx, term in enumerate(sorted(term_doc_count))}
+        n_docs = len(documents)
+        if not self.vocabulary_:
             self.idf_ = np.array([], dtype=np.float64)
-            return np.zeros((len(documents), 0), dtype=np.float64)
+            return np.zeros((n_docs, 0), dtype=np.float64)
 
-        # Step 3: 计算 IDF
-        nDocs = len(documents)
-        self.idf_ = np.zeros(vocabSize, dtype=np.float64)
+        self.idf_ = self._compute_idf(term_doc_count, n_docs)
+        return self._build_tfidf_matrix(tokenized_docs, n_docs)
+
+    @staticmethod
+    def _build_term_doc_count(tokenized_docs: list[list[str]]) -> dict[str, int]:
+        """文档频率：每个文档内去重后计数。"""
+        term_doc_count: dict[str, int] = {}
+        for doc_tokens in tokenized_docs:
+            for token in set(doc_tokens):
+                term_doc_count[token] = term_doc_count.get(token, 0) + 1
+        return term_doc_count
+
+    def _prune_terms(self, term_doc_count: dict[str, int], n_docs: int) -> dict[str, int]:
+        """超过 maxFeatures 时按 IDF 区分度降序保留前 N 个词。"""
+        if not self.maxFeatures or len(term_doc_count) <= self.maxFeatures:
+            return term_doc_count
+        scored_terms = [
+            (term, count, abs(math.log(n_docs / (1 + count)) - math.log(n_docs / (1 + n_docs / 2))))
+            for term, count in term_doc_count.items()
+        ]
+        scored_terms.sort(key=lambda x: x[2], reverse=True)
+        return {term: count for term, count, _ in scored_terms[: self.maxFeatures]}
+
+    def _compute_idf(self, term_doc_count: dict[str, int], n_docs: int) -> np.ndarray:
+        """平滑 IDF：log((1+N)/(1+df)) + 1。"""
+        idf = np.zeros(len(self.vocabulary_), dtype=np.float64)
         for term, idx in self.vocabulary_.items():
-            df = termDocCount[term]
-            self.idf_[idx] = math.log((1 + nDocs) / (1 + df)) + 1  # 平滑 IDF
+            idf[idx] = math.log((1 + n_docs) / (1 + term_doc_count[term])) + 1
+        return idf
 
-        # Step 4: 计算 TF-IDF 矩阵
-        tfidfMatrix = np.zeros((nDocs, vocabSize), dtype=np.float64)
-        for docIdx, docTokens in enumerate(tokenizedDocs):
-            if not docTokens:
+    def _build_tfidf_matrix(self, tokenized_docs: list[list[str]], n_docs: int) -> np.ndarray:
+        """TF-IDF 矩阵 + L2 行归一化（零向量不参与归一化）。"""
+        tfidf_matrix = np.zeros((n_docs, len(self.vocabulary_)), dtype=np.float64)
+        for doc_idx, doc_tokens in enumerate(tokenized_docs):
+            if not doc_tokens:
                 continue
-            # TF: 词频 / 文档总词数
-            termFreq: dict[str, int] = {}
-            for token in docTokens:
-                termFreq[token] = termFreq.get(token, 0) + 1
-            totalTerms = len(docTokens)
-            for term, freq in termFreq.items():
-                if term in self.vocabulary_:
-                    colIdx = self.vocabulary_[term]
-                    tfidfMatrix[docIdx, colIdx] = (freq / totalTerms) * self.idf_[colIdx]
+            total_terms = len(doc_tokens)
+            for term, freq in _term_frequencies(doc_tokens).items():
+                col_idx = self.vocabulary_.get(term)
+                if col_idx is not None:
+                    tfidf_matrix[doc_idx, col_idx] = (freq / total_terms) * self.idf_[col_idx]
 
-        # L2 归一化（每行向量归一化，便于余弦相似度计算）
-        rowNorms = np.linalg.norm(tfidfMatrix, axis=1, keepdims=True)
-        rowNorms = np.where(rowNorms == 0, 1.0, rowNorms)
-        tfidfMatrix = tfidfMatrix / rowNorms
-
-        return tfidfMatrix
+        row_norms = np.linalg.norm(tfidf_matrix, axis=1, keepdims=True)
+        row_norms = np.where(row_norms == 0, 1.0, row_norms)
+        return tfidf_matrix / row_norms
 
     def transform(self, documents: list[str]) -> np.ndarray:
         """使用已拟合的词汇表将新文档转换为 TF-IDF 矩阵。
@@ -160,13 +167,10 @@ class LightweightTfidfVectorizer:
             docTokens = tokenize(doc)
             if not docTokens:
                 continue
-            termFreq: dict[str, int] = {}
-            for token in docTokens:
-                termFreq[token] = termFreq.get(token, 0) + 1
             totalTerms = len(docTokens)
-            for term, freq in termFreq.items():
-                if term in self.vocabulary_:
-                    colIdx = self.vocabulary_[term]
+            for term, freq in _term_frequencies(docTokens).items():
+                colIdx = self.vocabulary_.get(term)
+                if colIdx is not None:
                     tfidfMatrix[docIdx, colIdx] = (freq / totalTerms) * self.idf_[colIdx]
 
         # L2 归一化

@@ -22,6 +22,18 @@ from app.services.case_quality.tfidf_utils import (
 )
 
 
+def _steps_text(steps: list[TestStep]) -> str:
+    """步骤动作归一化拼接（用于 TF-IDF 文档）。"""
+    return " ".join(step.action.strip().lower() for step in steps)
+
+
+def _cached_text(case: TestCase, case_text_map: dict[int, str] | None) -> str | None:
+    """命中项目级缓存时返回文本，否则返回 None（由调用方决定回退方式）。"""
+    if case_text_map and case.id in case_text_map:
+        return case_text_map[case.id]
+    return None
+
+
 class RedundancyMixin:
     def _analyze_redundancy(
         self,
@@ -92,6 +104,28 @@ class RedundancyMixin:
         )
         return score
 
+    def _collect_candidate_texts(
+        self,
+        target_case: TestCase,
+        all_cases: list[TestCase],
+        case_text_map: dict[int, str] | None,
+    ) -> tuple[list[str], list[TestCase]]:
+        """除目标用例外的候选文档文本；缓存未命中时逐条查库（回退路径）。"""
+        candidate_texts: list[str] = []
+        candidate_cases: list[TestCase] = []
+        for case in all_cases:
+            if case.id == target_case.id:
+                continue
+            case_text = _cached_text(case, case_text_map)
+            if case_text is None:
+                case_steps = self.db.query(TestStep).filter(TestStep.test_case_id == case.id).all()
+                case_text = _steps_text(case_steps)
+            if not case_text:
+                continue
+            candidate_texts.append(case_text)
+            candidate_cases.append(case)
+        return candidate_texts, candidate_cases
+
     def _find_similar_cases(
         self,
         target_case: TestCase,
@@ -122,35 +156,13 @@ class RedundancyMixin:
         if not all_cases:
             return []
 
-        # 构建目标文档文本
-        if case_text_map and target_case.id in case_text_map:
-            targetText = case_text_map[target_case.id]
-        else:
-            targetActions = [step.action.strip().lower() for step in target_steps]
-            targetText = " ".join(targetActions)
-
+        targetText = _cached_text(target_case, case_text_map)
+        if targetText is None:
+            targetText = _steps_text(target_steps)
         if not targetText:
             return []
 
-        # 构建候选文档文本
-        candidateTexts: list[str] = []
-        candidateCases: list[TestCase] = []
-        for case in all_cases:
-            if case.id == target_case.id:
-                continue
-            # 优先使用缓存的步骤文本，避免逐条查询数据库
-            if case_text_map and case.id in case_text_map:
-                caseText = case_text_map[case.id]
-            else:
-                caseSteps = self.db.query(TestStep).filter(TestStep.test_case_id == case.id).all()
-                caseActions = [step.action.strip().lower() for step in caseSteps]
-                caseText = " ".join(caseActions)
-
-            if not caseText:
-                continue
-            candidateTexts.append(caseText)
-            candidateCases.append(case)
-
+        candidateTexts, candidateCases = self._collect_candidate_texts(target_case, all_cases, case_text_map)
         if not candidateTexts:
             return []
 

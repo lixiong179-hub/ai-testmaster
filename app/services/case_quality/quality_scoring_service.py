@@ -37,6 +37,61 @@ CaseStatus = Literal["passed", "warning", "pending_review", "rejected"]
 _STATUS_ORDER: dict[str, int] = {"passed": 0, "warning": 1, "pending_review": 2, "rejected": 3}
 _STATUS_BY_SEVERITY = ("passed", "warning", "pending_review", "rejected")
 
+_REJECTED = _STATUS_ORDER["rejected"]
+_PENDING_REVIEW = _STATUS_ORDER["pending_review"]
+_WARNING = _STATUS_ORDER["warning"]
+
+
+def _title_severity(title: str) -> int:
+    verdict = QualityScoringService._classify_title(title)
+    return {"empty": _REJECTED, "vague": _PENDING_REVIEW, "length": _WARNING}.get(verdict, 0)
+
+
+def _precondition_severity(precondition: str) -> int:
+    verdict = QualityScoringService._classify_precondition(precondition)
+    if verdict == "empty":
+        return _REJECTED
+    if verdict in ("missing_login", "contradictory", "short"):
+        return _PENDING_REVIEW
+    return 0
+
+
+def _steps_severity(steps: list[dict[str, Any]], case_type: str) -> int:
+    verdict = QualityScoringService._classify_steps(steps, case_type)
+    if verdict in ("empty", "insufficient"):
+        return _REJECTED
+    if verdict == "content_issue":
+        return _PENDING_REVIEW
+    return 0
+
+
+def _expected_severity(expected_result: str) -> int:
+    verdict = QualityScoringService._classify_expected(expected_result)
+    if verdict == "empty":
+        return _REJECTED
+    if verdict in ("vague", "short"):
+        return _PENDING_REVIEW
+    return 0
+
+
+def _category_severity(case_category: str) -> int:
+    verdict = QualityScoringService._classify_case_category(case_category)
+    return _REJECTED if verdict in ("empty", "invalid") else 0
+
+
+def _aux_severity(case: dict[str, Any], steps: list[dict[str, Any]]) -> int:
+    """辅助规则：测试数据缺失仅 warning；原子性/边界/类型一致性为 pending_review。"""
+    severity = 0
+    if not QualityScoringService._check_test_data(steps):
+        severity = max(severity, _WARNING)
+    if not QualityScoringService._check_atomicity(steps):
+        severity = max(severity, _PENDING_REVIEW)
+    if QualityScoringService._boundary_issues(case):
+        severity = max(severity, _PENDING_REVIEW)
+    if QualityScoringService._type_consistency_issues(case):
+        severity = max(severity, _PENDING_REVIEW)
+    return severity
+
 
 class QualityScoringService:
     """质量评分统一服务。
@@ -90,25 +145,34 @@ class QualityScoringService:
             return "empty"
         if len(steps) < 2 or len(steps) > 8:
             return "insufficient"
-        for step in steps:
-            action = step.get("action", "") or step.get("description", "")
-            description = step.get("description", "")
-            expected = step.get("expected_result", "")
-            if not action or not action.strip():
-                return "content_issue"
-            if not expected or not expected.strip():
-                return "content_issue"
-            if STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
-                return "content_issue"
-            if STEP_UNCERTAINTY_PATTERN.search(action):
-                return "content_issue"
-            if STEP_INFERENCE_ACTION_PATTERN.search(action):
-                return "content_issue"
-            if STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
-                return "content_issue"
-            if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action):
-                return "content_issue"
+        if any(QualityScoringService._step_has_content_issue(step, case_type) for step in steps):
+            return "content_issue"
         return "ok"
+
+    @staticmethod
+    def _step_fields_missing(step: dict[str, Any]) -> bool:
+        """action（缺失时回退 description）与 expected_result 任一为空。"""
+        action = step.get("action", "") or step.get("description", "")
+        expected = step.get("expected_result", "")
+        return not action or not action.strip() or not expected or not expected.strip()
+
+    @staticmethod
+    def _step_has_content_issue(step: dict[str, Any], case_type: str) -> bool:
+        """单步骤内容判定：候选规则与生成侧 `validate_steps` 保持一致。"""
+        if QualityScoringService._step_fields_missing(step):
+            return True
+        action = step.get("action", "") or step.get("description", "")
+        description = step.get("description", "")
+        expected = step.get("expected_result", "")
+        if STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
+            return True
+        if STEP_UNCERTAINTY_PATTERN.search(action):
+            return True
+        if STEP_INFERENCE_ACTION_PATTERN.search(action):
+            return True
+        if STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
+            return True
+        return case_type == "ui_automation" and bool(MANUAL_JUDGMENT_PATTERN.search(action))
 
     # ── 核心判定：预期结果 ──
     @staticmethod
@@ -141,55 +205,20 @@ class QualityScoringService:
 
         与 score_dimensions 共享 _classify_* 判定。只 rejected 阻断入库，
         pending_review/warning 不阻断（历史避坑：质量门禁分级阻断）。
+
+        实现：各维度各自算出严重度，最终取最大值——等价于原 `worse()` 的
+        "只升不降"聚合，但不再需要 `nonlocal` 可变状态。
         """
-        case_type = case.get("case_type", "")
-        severity = 0
-
-        def worse(new: str) -> None:
-            nonlocal severity
-            if _STATUS_ORDER[new] > severity:
-                severity = _STATUS_ORDER[new]
-
-        title_v = QualityScoringService._classify_title(case.get("title", ""))
-        if title_v == "empty":
-            worse("rejected")
-        elif title_v == "vague":
-            worse("pending_review")
-        elif title_v == "length":
-            worse("warning")
-
-        pre_v = QualityScoringService._classify_precondition(case.get("precondition", ""))
-        if pre_v == "empty":
-            worse("rejected")
-        elif pre_v in ("missing_login", "contradictory", "short"):
-            worse("pending_review")
-
-        steps_v = QualityScoringService._classify_steps(case.get("steps", []), case_type)
-        if steps_v in ("empty", "insufficient"):
-            worse("rejected")
-        elif steps_v == "content_issue":
-            worse("pending_review")
-
-        expected_v = QualityScoringService._classify_expected(case.get("expected_result", ""))
-        if expected_v == "empty":
-            worse("rejected")
-        elif expected_v in ("vague", "short"):
-            worse("pending_review")
-
-        cat_v = QualityScoringService._classify_case_category(case.get("case_category", ""))
-        if cat_v in ("empty", "invalid"):
-            worse("rejected")
-
-        if not QualityScoringService._check_test_data(case.get("steps", [])):
-            worse("warning")
-        if not QualityScoringService._check_atomicity(case.get("steps", [])):
-            worse("pending_review")
-        if QualityScoringService._boundary_issues(case):
-            worse("pending_review")
-        if QualityScoringService._type_consistency_issues(case):
-            worse("pending_review")
-
-        return _STATUS_BY_SEVERITY[severity]
+        steps = case.get("steps", [])
+        severities = [
+            _title_severity(case.get("title", "")),
+            _precondition_severity(case.get("precondition", "")),
+            _steps_severity(steps, case.get("case_type", "")),
+            _expected_severity(case.get("expected_result", "")),
+            _category_severity(case.get("case_category", "")),
+            _aux_severity(case, steps),
+        ]
+        return _STATUS_BY_SEVERITY[max(severities)]
 
     @staticmethod
     def _check_test_data(steps: list[dict[str, Any]]) -> bool:
