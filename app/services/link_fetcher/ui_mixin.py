@@ -5,6 +5,35 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from app.utils.db_time import utcnow
 
+MAX_PAGE_LINKS = 20
+MAX_TABLES = 5
+MAX_TABLE_ROWS = 10
+
+
+def _extract_page_links(soup: Any) -> list[dict[str, str]]:
+    """`<a>` 中的导航项（href 与文本均非空才计入），最多 20 条。"""
+    page_list: list[dict[str, str]] = []
+    for link in soup.find_all("a")[:MAX_PAGE_LINKS]:
+        href = link.get("href", "")
+        text = link.get_text(strip=True)
+        if href and text:
+            page_list.append({"text": text, "href": href})
+    return page_list
+
+
+def _extract_tables(soup: Any) -> list[list[list[str]]]:
+    """前 5 张表 × 每表前 10 行的单元格文本（空表/空行跳过）。"""
+    table_data: list[list[list[str]]] = []
+    for table in soup.find_all("table")[:MAX_TABLES]:
+        rows: list[list[str]] = []
+        for row in table.find_all("tr")[:MAX_TABLE_ROWS]:
+            cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
+            if cells:
+                rows.append(cells)
+        if rows:
+            table_data.append(rows)
+    return table_data
+
 
 class LinkFetcherUIMixin:
     def fetch_and_parse_ui_mockup(
@@ -24,30 +53,7 @@ class LinkFetcherUIMixin:
         }
         if content_type == "html":
             try:
-                soup = BeautifulSoup(content, "html.parser")
-                title_tag = soup.find("title")
-                if title_tag:
-                    description["title"] = title_tag.get_text(strip=True)
-                nav_links = soup.find_all("a")
-                page_list = []
-                for link in nav_links[:20]:
-                    href = link.get("href", "")
-                    text = link.get_text(strip=True)
-                    if href and text:
-                        page_list.append({"text": text, "href": href})
-                description["pages"] = page_list
-                tables = soup.find_all("table")
-                table_data = []
-                for table in tables[:5]:
-                    rows = []
-                    for row in table.find_all("tr")[:10]:
-                        cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
-                        if cells:
-                            rows.append(cells)
-                    if rows:
-                        table_data.append(rows)
-                if table_data:
-                    description["tables"] = table_data
+                self._fill_html_description(content, description)
                 description["summary"] = self._generate_ui_summary(description, content_type)
             except Exception as e:
                 logger.warning(f"UI原型解析失败: {str(e)}")
@@ -55,6 +61,17 @@ class LinkFetcherUIMixin:
         else:
             description["summary"] = content[:1000] if content else "无内容"
         return True, description, ""
+
+    def _fill_html_description(self, content: str, description: dict[str, Any]) -> None:
+        """从 HTML 填充标题、导航项与表格（空结果不写入，保持键缺省）。"""
+        soup = BeautifulSoup(content, "html.parser")
+        title_tag = soup.find("title")
+        if title_tag:
+            description["title"] = title_tag.get_text(strip=True)
+        description["pages"] = _extract_page_links(soup)
+        table_data = _extract_tables(soup)
+        if table_data:
+            description["tables"] = table_data
 
     def _generate_ui_summary(self, description: dict[str, Any], content_type: str) -> str:
         summary_parts = []

@@ -14,6 +14,22 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from app.core.constants import AUTH_FAILURE_KEYWORDS
 
+AUTH_ERROR_FIELDS: tuple[str, ...] = ("error", "errors", "code", "status", "statusCode")
+AUTH_CODE_VALUES: tuple[object, ...] = (401, 403, "401", "403")
+_AUTH_SCAN_LIMIT = 10
+
+
+def _has_auth_failure_field(data: dict) -> bool:
+    """dict 顶层的错误字段判定：关键词命中，或 `code` 为 401/403。"""
+    for key in AUTH_ERROR_FIELDS:
+        if key not in data:
+            continue
+        if any(kw in str(data[key]).lower() for kw in AUTH_FAILURE_KEYWORDS):
+            return True
+        if key == "code" and data[key] in AUTH_CODE_VALUES:
+            return True
+    return False
+
 
 class LinkFetcherContentMixin:
     """内容处理Mixin - 提供JSON/HTML/Markdown/自动识别的处理能力
@@ -41,21 +57,13 @@ class LinkFetcherContentMixin:
     def _detect_auth_failure_in_json(self, data: Any) -> bool:
         """检测JSON响应中是否包含认证失败的典型字段"""
         if isinstance(data, dict):
-            error_fields = ("error", "errors", "code", "status", "statusCode")
-            for key in error_fields:
-                if key in data:
-                    val = str(data[key]).lower()
-                    if any(kw in val for kw in AUTH_FAILURE_KEYWORDS):
-                        return True
-                    if key == "code" and data[key] in (401, 403, "401", "403"):
-                        return True
-            for v in data.values():
-                if isinstance(v, (dict, list)) and self._detect_auth_failure_in_json(v):
-                    return True
-        elif isinstance(data, list):
-            for item in data[:10]:
-                if self._detect_auth_failure_in_json(item):
-                    return True
+            if _has_auth_failure_field(data):
+                return True
+            return any(
+                self._detect_auth_failure_in_json(value) for value in data.values() if isinstance(value, (dict, list))
+            )
+        if isinstance(data, list):
+            return any(self._detect_auth_failure_in_json(item) for item in data[:_AUTH_SCAN_LIMIT])
         return False
 
     def _process_html(self, content: str) -> tuple[bool, str, str]:

@@ -7,6 +7,17 @@ from typing import Any
 from loguru import logger
 from app.utils.http_utils import build_auth_headers
 
+HTTP_ERROR_MESSAGES: dict[int, str] = {
+    401: "认证失败，请检查用户名密码或Token",
+    403: "权限不足，无法访问该链接",
+    404: "资源不存在 (404)",
+}
+
+
+def http_error_message(status_code: int) -> str:
+    """HTTP 状态码 → 面向用户的中文提示（未登记的状态码统一回显码值）。"""
+    return HTTP_ERROR_MESSAGES.get(status_code, f"HTTP错误: {status_code}")
+
 
 class LinkFetcherCoreMixin:
     """带认证的链接内容获取服务核心逻辑
@@ -53,17 +64,7 @@ class LinkFetcherCoreMixin:
             logger.info(f"开始获取链接内容: {url}, 认证类型: {auth_type}")
             response = self.session.get(url, headers=headers, timeout=self.timeout, allow_redirects=True)
             response.raise_for_status()
-
-            content_type = response.headers.get("Content-Type", "")
-
-            if "application/json" in content_type:
-                return self._process_json(response.text)
-            elif "text/html" in content_type or "text/plain" in content_type:
-                return self._process_html(response.text)
-            elif "text/markdown" in content_type or url.endswith((".md", ".markdown")):
-                return self._process_markdown(response.text)
-            else:
-                return self._process_auto(response.text)
+            return self._dispatch_by_content_type(url, response)
 
         except requests.exceptions.Timeout:
             logger.error(f"获取链接内容超时: {url}")
@@ -73,18 +74,19 @@ class LinkFetcherCoreMixin:
             return False, "", "连接失败，请检查链接地址"
         except requests.exceptions.HTTPError as e:
             status_code = e.response.status_code
-            if status_code == 401:
-                logger.error(f"认证失败 (401): {url}")
-                return False, "", "认证失败，请检查用户名密码或Token"
-            elif status_code == 403:
-                logger.error(f"权限不足 (403): {url}")
-                return False, "", "权限不足，无法访问该链接"
-            elif status_code == 404:
-                logger.error(f"资源不存在 (404): {url}")
-                return False, "", "资源不存在 (404)"
-            else:
-                logger.error(f"HTTP错误: {status_code}, {url}")
-                return False, "", f"HTTP错误: {status_code}"
+            logger.error(f"HTTP错误 ({status_code}): {url}")
+            return False, "", http_error_message(status_code)
         except Exception as e:
             logger.error(f"获取链接内容异常: {url}, {e}")
             return False, "", "获取内容失败"
+
+    def _dispatch_by_content_type(self, url: str, response: Any) -> tuple[bool, str, str]:
+        """按 Content-Type（及 .md 后缀）分发到 ContentMixin 的解析方法。"""
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            return self._process_json(response.text)
+        if "text/html" in content_type or "text/plain" in content_type:
+            return self._process_html(response.text)
+        if "text/markdown" in content_type or url.endswith((".md", ".markdown")):
+            return self._process_markdown(response.text)
+        return self._process_auto(response.text)

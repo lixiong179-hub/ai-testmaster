@@ -87,7 +87,8 @@ APP = "app"
 # → 43（B6a：_extract_json_candidates 16 / _build_generation_prompt 11 /
 #          infer_test_category 12 / infer_action_type 12）
 # → 40（B6b：_collect_ui_element_names 14 / import_result.validate 12 / material_conflict.validate 11）
-TOTAL_BUDGET = 40
+# → 37（B6c：fetch_and_parse_ui_mockup 12 / fetch_content 11 / _detect_auth_failure_in_json 11）
+TOTAL_BUDGET = 37
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
