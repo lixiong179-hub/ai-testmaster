@@ -96,7 +96,8 @@ APP = "app"
 # → 20（B6i：parse_ai_response 15 / generate_test_data 11 / _generate_random 12）
 # → 18（B6j：solve_captcha_math 16 / _perform_login 13）
 # → 16（B6k：_append_nested_flow 17 / _perform_failure_analysis_with_steps 16）
-TOTAL_BUDGET = 16
+# → 14（B6l：_classify_history_cases 15 / _parse_excel_cases 14）
+TOTAL_BUDGET = 14
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
