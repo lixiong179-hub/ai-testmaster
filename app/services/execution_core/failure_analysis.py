@@ -66,6 +66,97 @@ def _spawn_failure_analysis_agent(
     asyncio.create_task(_run())
 
 
+_LOCATOR_ERROR_KEYWORDS = (
+    "元素未找到",
+    "定位失败",
+    "css selector",
+    "no such element",
+    "element not found",
+    "stale element",
+    "element is not clickable",
+    "element not interactable",
+    "等待超时",
+    "waiting for element",
+    "无法定位",
+    "找不到元素",
+    "定位信息",
+)
+_CASE_ISSUE_KEYWORDS = (
+    "步骤描述错误",
+    "预期结果错误",
+    "操作类型错误",
+    "前置条件不完整",
+    "用例问题",
+    "需要修改用例",
+    "test case error",
+    "incorrect step",
+)
+_BUG_ISSUE_KEYWORDS = (
+    "功能缺陷",
+    "产品问题",
+    "实际结果与预期不符",
+    "页面显示异常",
+    "数据不一致",
+    "功能异常",
+    "product bug",
+    "功能未按预期工作",
+)
+_AI_CASE_HINTS = ("修改用例", "调整步骤", "更新定位", "修改预期")
+_AI_BUG_HINTS = ("bug", "缺陷", "产品问题", "功能异常")
+_INTERACTIVE_ACTION_TYPES = frozenset({"click", "input", "navigate", "hover", "select", "scroll"})
+
+
+def _match_keyword_indicator(text: str, keywords: tuple[str, ...], label: str, extra_text: str = "") -> list[str]:
+    """命中首个关键词即返回单条指标（避免同类关键词刷分）。"""
+    for keyword in keywords:
+        normalized = keyword.lower()
+        if normalized in text or (extra_text and normalized in extra_text):
+            return [f"{label}: '{keyword}'"]
+    return []
+
+
+def _collect_step_indicators(steps: list) -> list[str]:
+    indicators = []
+    for step in steps:
+        if step.locator_status == LocatorStatus.FAILED.value:
+            indicators.append(f"步骤{step.step_number}定位状态为失败")
+        elif step.has_locator == 0 and step.action_type in _INTERACTIVE_ACTION_TYPES:
+            indicators.append(f"步骤{step.step_number}需要元素定位但缺少定位信息")
+    return indicators
+
+
+def _collect_ai_indicators(ai_lower: str) -> tuple[list[str], list[str]]:
+    """AI 分析文本中的用例疑点 / Bug 疑点。"""
+    if not ai_lower:
+        return [], []
+    case_indicators = []
+    bug_indicators = []
+    if any(keyword in ai_lower for keyword in _AI_CASE_HINTS):
+        case_indicators.append("AI分析建议修改用例内容")
+    if any(keyword in ai_lower for keyword in _AI_BUG_HINTS):
+        bug_indicators.append("AI分析提示可能是产品Bug")
+    return case_indicators, bug_indicators
+
+
+def _classify_failure(case_score: int, bug_score: int) -> tuple[str, float, str]:
+    """按双方指标数量判定失败归属。"""
+    if case_score > bug_score:
+        return (
+            "case_issue",
+            min(0.95, 0.5 + case_score * 0.15),
+            "分析表明失败原因更可能与测试用例本身有关（步骤描述、定位信息等）",
+        )
+    if bug_score > case_score:
+        return (
+            "product_bug",
+            min(0.95, 0.5 + bug_score * 0.15),
+            "分析表明失败原因更可能与产品功能缺陷有关，执行步骤本身没有问题",
+        )
+    if case_score > 0:
+        return "needs_review", 0.4, "用例问题和Bug问题的指标同时存在，需要人工进一步判断"
+    return "needs_review", 0.3, "无法自动判断失败类型，建议人工分析执行日志和截图"
+
+
 def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Session) -> dict:
     """失败原因分析（sync 版本，向后兼容入口）。
 
@@ -85,97 +176,30 @@ def _perform_failure_analysis_with_steps(result: TestResult, test_case: TestCase
         steps: 已预查询的 TestStep 列表（按 step_number 排序）。
             原实现内部使用 db.query(TestStep)，迁移 async 后改为参数传入。
     """
-    case_issue_indicators = []
-    bug_issue_indicators = []
-
     error_msg = result.error_msg or ""
     exec_log = result.exec_log or ""
     ai_analysis = result.ai_analysis or ""
 
-    locator_error_keywords = [
-        "元素未找到",
-        "定位失败",
-        "css selector",
-        "no such element",
-        "element not found",
-        "stale element",
-        "element is not clickable",
-        "element not interactable",
-        "等待超时",
-        "waiting for element",
-        "无法定位",
-        "找不到元素",
-        "定位信息",
-    ]
-    case_issue_keywords = [
-        "步骤描述错误",
-        "预期结果错误",
-        "操作类型错误",
-        "前置条件不完整",
-        "用例问题",
-        "需要修改用例",
-        "test case error",
-        "incorrect step",
-    ]
-    bug_issue_keywords = [
-        "功能缺陷",
-        "产品问题",
-        "实际结果与预期不符",
-        "页面显示异常",
-        "数据不一致",
-        "功能异常",
-        "product bug",
-        "功能未按预期工作",
-    ]
-
     combined_text = f"{error_msg} {exec_log}".lower()
-    ai_lower = ai_analysis.lower() if ai_analysis else ""
+    ai_lower = ai_analysis.lower()
 
-    for keyword in locator_error_keywords:
-        if keyword.lower() in combined_text:
-            case_issue_indicators.append(f"执行日志中包含定位相关错误: '{keyword}'")
-            break
-    for keyword in case_issue_keywords:
-        if keyword.lower() in combined_text or keyword.lower() in ai_lower:
-            case_issue_indicators.append(f"分析文本中包含用例问题关键词: '{keyword}'")
-            break
-    for keyword in bug_issue_keywords:
-        if keyword.lower() in combined_text or keyword.lower() in ai_lower:
-            bug_issue_indicators.append(f"分析文本中包含Bug问题关键词: '{keyword}'")
-            break
+    case_issue_indicators = _match_keyword_indicator(
+        combined_text, _LOCATOR_ERROR_KEYWORDS, "执行日志中包含定位相关错误"
+    )
+    case_issue_indicators += _match_keyword_indicator(
+        combined_text, _CASE_ISSUE_KEYWORDS, "分析文本中包含用例问题关键词", ai_lower
+    )
+    bug_issue_indicators = _match_keyword_indicator(
+        combined_text, _BUG_ISSUE_KEYWORDS, "分析文本中包含Bug问题关键词", ai_lower
+    )
 
-    for step in steps:
-        if step.locator_status == LocatorStatus.FAILED.value:
-            case_issue_indicators.append(f"步骤{step.step_number}定位状态为失败")
-        elif step.has_locator == 0 and step.action_type in ["click", "input", "navigate", "hover", "select", "scroll"]:
-            case_issue_indicators.append(f"步骤{step.step_number}需要元素定位但缺少定位信息")
+    case_issue_indicators += _collect_step_indicators(steps)
 
-    if ai_analysis:
-        ai_lower = ai_analysis.lower()
-        if any(kw in ai_lower for kw in ["修改用例", "调整步骤", "更新定位", "修改预期"]):
-            case_issue_indicators.append("AI分析建议修改用例内容")
-        if any(kw in ai_lower for kw in ["bug", "缺陷", "产品问题", "功能异常"]):
-            bug_issue_indicators.append("AI分析提示可能是产品Bug")
+    ai_case_indicators, ai_bug_indicators = _collect_ai_indicators(ai_lower)
+    case_issue_indicators += ai_case_indicators
+    bug_issue_indicators += ai_bug_indicators
 
-    case_issue_score = len(case_issue_indicators)
-    bug_issue_score = len(bug_issue_indicators)
-
-    if case_issue_score > bug_issue_score:
-        suggested_type = "case_issue"
-        confidence = min(0.95, 0.5 + case_issue_score * 0.15)
-        reason = "分析表明失败原因更可能与测试用例本身有关（步骤描述、定位信息等）"
-    elif bug_issue_score > case_issue_score:
-        suggested_type = "product_bug"
-        confidence = min(0.95, 0.5 + bug_issue_score * 0.15)
-        reason = "分析表明失败原因更可能与产品功能缺陷有关，执行步骤本身没有问题"
-    elif case_issue_score > 0 and bug_issue_score > 0:
-        suggested_type = "needs_review"
-        confidence = 0.4
-        reason = "用例问题和Bug问题的指标同时存在，需要人工进一步判断"
-    else:
-        suggested_type = "needs_review"
-        confidence = 0.3
-        reason = "无法自动判断失败类型，建议人工分析执行日志和截图"
+    suggested_type, confidence, reason = _classify_failure(len(case_issue_indicators), len(bug_issue_indicators))
 
     return {
         "result_id": result.id,
